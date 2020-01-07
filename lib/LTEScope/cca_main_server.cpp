@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <iostream>
+#include <sys/epoll.h>
 
 #include <pthread.h>
 #include <semaphore.h>
