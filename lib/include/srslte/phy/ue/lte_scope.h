@@ -28,11 +28,11 @@
 #define UE_INACTIVE_TIME_LIMIT 2000 // One UE that has been inactive for 3000-ms/3-s are removed
 #define UE_REAPPEAR_TIME_LIMIT 20   // The same rnti must appear within 30-ms to be an active UE
 #define UE_REAPPEAR_NO_LIMIT 2      // The rnti must appear for 2 times
-#define HIGH_PROB_THR 97	    // The higher threshold for decoding probability (strict for entering)
-#define DECODE_PROB_THR 80	    // The lower threshold of probability for letting in the message of active UE
+#define HIGH_PROB_THR 95	    // The higher threshold for decoding probability (strict for entering)
+#define DECODE_PROB_THR 60	    // The lower threshold of probability for letting in the message of active UE
 #define MAX_CANDIDATES_ALL 180
 // Threshold for LLR -- filtering out those locations with low decoding confidence
-#define LLR_THR 0.5
+#define LLR_THR 0.2
 #define NOF_UE_ALL_FORMATS 6
 const static srslte_dci_format_t ue_all_formats[] = {
     SRSLTE_DCI_FORMAT0,
@@ -55,6 +55,8 @@ typedef struct SRSLTE_API {
   uint32_t  ue_enter_time[65536];
 
   uint16_t  max_freq_ue;
+  uint16_t  max_dl_freq_ue;
+  uint16_t  max_ul_freq_ue;
   uint16_t  nof_active_ue;
 } srslte_ue_list_t;
 
@@ -67,8 +69,17 @@ typedef struct SRSLTE_API {
 typedef struct SRSLTE_API {
   uint32_t L;    // Aggregation level
   uint32_t ncce; // Position of first CCE of the dci
-  bool checked;
+  float    mean_llr;
+  bool	   checked;
 } srslte_dci_location_paws_t;
+
+typedef struct SRSLTE_API {
+    srslte_dci_location_paws_t loc_L0[8];
+    srslte_dci_location_paws_t loc_L1[4];
+    srslte_dci_location_paws_t loc_L2[2];
+    srslte_dci_location_paws_t loc_L3[1];
+} srslte_dci_location_blk_paws_t;
+
 
 
 typedef struct SRSLTE_API{
@@ -76,6 +87,8 @@ typedef struct SRSLTE_API{
     uint16_t    rnti;
     uint32_t    tti;
     bool	downlink;
+    bool	off_tree; // decoded from tree based structure
+
     float       decode_prob;  // decoding probability
 
     srslte_dci_format_t format;
@@ -105,11 +118,15 @@ typedef struct SRSLTE_API{
     int      tbs_hm_tb2;
 
     uint16_t  max_freq_ue;
+    uint16_t  max_dl_freq_ue;
+    uint16_t  max_ul_freq_ue;
+
     uint32_t  max_freq_ue_cnt;
 
     uint16_t  nof_active_ue;
     uint8_t   active;
-    uint32_t  my_cnt;
+    uint32_t  my_ul_cnt;
+    uint32_t  my_dl_cnt;
 }srslte_dci_msg_paws;
 
 typedef struct SRSLTE_API{
@@ -119,6 +136,12 @@ typedef struct SRSLTE_API{
     uint32_t	ul_msg_cnt;
 }srslte_dci_subframe_t;
 
+typedef struct SRSLTE_API{
+    uint16_t cell_dl_prb;  // Number of total busy dl prbs of this cell 
+    uint16_t cell_ul_prb;  // Number of total busy dl prbs of this cell 
+    uint16_t ue_dl_prb;    // Allocated prbs for the ue downlink traffic
+    uint16_t ue_ul_prb;	   // Allocated prbs for the ue uplink traffic
+}srslte_subframe_bw_usage;
 
 /* Yaxiong's modification -- dci decoder */
 SRSLTE_API int srslte_dci_decoder_yx(srslte_ue_dl_t* q,

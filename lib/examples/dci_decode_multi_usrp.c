@@ -291,14 +291,23 @@ void* dci_decode_multi(void* p){
     uint32_t sfn = 0;
     dci_usrp_id_t dci_usrp_id = (dci_usrp_id_t)*(dci_usrp_id_t *)p;
     
+    bool time_flag, dl_flag, ul_flag;
+    time_flag	= false;
+    dl_flag	= true;
+    ul_flag	= false; 
     int thd_id, usrp_idx;
     thd_id	= dci_usrp_id.dci_thd_id;
     usrp_idx	= dci_usrp_id.usrp_thd_id;
 
-    FILE *FD_TIME;
+    FILE *FD_TIME, *FD_DCI_DL, *FD_DCI_UL;
+
     char fileName[30];
     sprintf(fileName, "./time_usrp_%d_dci_%d.txt",usrp_idx,thd_id);
     FD_TIME = fopen(fileName,"w+");
+    sprintf(fileName, "./dci_dl_usrp_%d_dci_%d.txt",usrp_idx,thd_id);
+    FD_DCI_DL = fopen(fileName,"w+");
+    sprintf(fileName, "./dci_ul_usrp_%d_dci_%d.txt",usrp_idx,thd_id);
+    FD_DCI_UL = fopen(fileName,"w+");
 
     pthread_mutex_lock(&mutex_cell[usrp_idx]);
     nof_prb = cell[usrp_idx].nof_prb;
@@ -356,7 +365,7 @@ void* dci_decode_multi(void* p){
     srslte_dci_subframe_t dci_msg_subframe;
     INFO("\nEntering main loop...\n\n");
     /* Main loop */
-    float elapsed1, elapsed2;
+    float elapsed1=0, elapsed2=0;
     long timestamp1, timestamp2;
     while (true) {
         PRINT_LINE_INIT();
@@ -369,10 +378,11 @@ void* dci_decode_multi(void* p){
 
 	dci_msg_subframe.dl_msg_cnt = 0;	
 	dci_msg_subframe.ul_msg_cnt = 0;	
-
-	gettimeofday(&t[1], NULL);
-        timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
-
+	
+	if(time_flag){
+	    gettimeofday(&t[1], NULL);
+	    timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
+	}
 	pthread_mutex_lock( &mutex_ue_sync[usrp_idx]);
         ret = srslte_ue_sync_zerocopy_multi(&ue_sync[usrp_idx], sf_buffer);
         uint32_t sfidx = srslte_ue_sync_get_sfidx(&ue_sync[usrp_idx]);
@@ -438,15 +448,16 @@ void* dci_decode_multi(void* p){
                         pthread_mutex_lock( &mutex_list[usrp_idx]);
                         srslte_copy_active_ue_list(&ue_list[usrp_idx], &active_ue_list);
 			pthread_mutex_unlock( &mutex_list[usrp_idx]);
-
-		        gettimeofday(&t[2], NULL);
-			timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
-		    	fprintf(FD_TIME,"%d %ld %ld %ld ",tti, timestamp1, timestamp2, timestamp2-timestamp1);
- 
-                        get_time_interval(t);
-                        elapsed1 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
-			gettimeofday(&t[1], NULL);
-			timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
+	    
+			if(time_flag){
+			    gettimeofday(&t[2], NULL);
+			    timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
+			    fprintf(FD_TIME,"%d %ld %ld %ld ",tti, timestamp1, timestamp2, timestamp2-timestamp1);
+			    get_time_interval(t);
+			    elapsed1 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
+			    gettimeofday(&t[1], NULL);
+			    timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
+			}
 
 			n = srslte_dci_decoder_yx(&ue_dl, &active_ue_list, &dci_msg_subframe, tti);
 
@@ -455,6 +466,12 @@ void* dci_decode_multi(void* p){
 			    srslte_enqueue_subframe_msg(&dci_msg_subframe, &ue_list[usrp_idx], tti);
 			    //dci_msg_list_display(dci_msg_subframe.downlink_msg, dci_msg_subframe.dl_msg_cnt);
 			    //dci_msg_list_display(dci_msg_subframe.uplink_msg, dci_msg_subframe.ul_msg_cnt);
+			    if(dl_flag && dci_msg_subframe.dl_msg_cnt > 0){
+				record_dci_msg_log(FD_DCI_DL, dci_msg_subframe.downlink_msg, dci_msg_subframe.dl_msg_cnt);
+			    }
+			    if(ul_flag && dci_msg_subframe.ul_msg_cnt > 0){
+				record_dci_msg_log(FD_DCI_UL, dci_msg_subframe.uplink_msg, dci_msg_subframe.ul_msg_cnt);
+			    }
                         }
                         srslte_update_ue_list_every_subframe(&ue_list[usrp_idx], tti);
 			pthread_mutex_unlock( &mutex_list[usrp_idx]);
@@ -463,14 +480,13 @@ void* dci_decode_multi(void* p){
                         rsrp0 = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 0), rsrp0, 0.05f);
                         rsrp1 = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 1), rsrp1, 0.05f);
                         noise = SRSLTE_VEC_EMA(srslte_chest_dl_get_noise_estimate(&ue_dl.chest), noise, 0.05f);
-			gettimeofday(&t[2], NULL);
-			timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
-
-		    	fprintf(FD_TIME, "%ld %ld %ld\n", timestamp1, timestamp2, timestamp2-timestamp1);
-
-                        get_time_interval(t);
-                        elapsed2 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
-
+			if(time_flag){ 
+			    gettimeofday(&t[2], NULL);
+			    timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
+			    fprintf(FD_TIME, "%ld %ld %ld\n", timestamp1, timestamp2, timestamp2-timestamp1);
+			    get_time_interval(t);
+			    elapsed2 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
+			}
                         nframes++;
                         if (isnan(rsrq)) { rsrq = 0; }
                         if (isnan(noise)) { noise = 0; }
@@ -478,7 +494,7 @@ void* dci_decode_multi(void* p){
                         if (isnan(rsrp1)) { rsrp1 = 0; }    
     
 			/* Print basic Parameters */
-			if(1){
+			if(0){
 			    if(0){
 				PRINT_LINE("         RSRP: %+5.1f dBm | %+5.1f dBm", 10 * log10(rsrp0)+30, 10 * log10(rsrp1)+30);
 				PRINT_LINE("          SNR: %+5.1f dB | %+5.1f dB", 10 * log10(rsrp0 / noise), 10 * log10(rsrp1 / noise));
@@ -512,6 +528,9 @@ void* dci_decode_multi(void* p){
             free(sf_buffer[i]);
         }
     }
+    fclose(FD_TIME);
+    fclose(FD_DCI_DL);
+    fclose(FD_DCI_UL);
     printf("\nBye -- USRP:%d DCI-Thread:%d\n", usrp_idx, thd_id);
     pthread_exit(NULL);
 }

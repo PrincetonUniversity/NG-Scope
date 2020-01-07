@@ -9,6 +9,7 @@
 #include "srslte/phy/ue/ue_dl.h"
 #include "tbs_256QAM_tables.h"
 #include "srslte/phy/ue/rnti_prune.h"
+#include "srslte/phy/ue/bin_tree.h"
 #include "srslte/phy/ue/lte_scope.h"
 
 #include <string.h>
@@ -20,7 +21,75 @@
 #define PDCCH_FORMAT_NOF_BITS(i)        ((1<<i)*72)
 #define NOF_CCE(cfi)  ((cfi>0&&cfi<4)?q->nof_cce[cfi-1]:0)
 #define NOF_REGS(cfi) ((cfi>0&&cfi<4)?q->nof_regs[cfi-1]:0)
+float mean_llr(srslte_pdcch_t* q, int ncce, int l){
+    float mean = 0;
+    for (int j=0;j<PDCCH_FORMAT_NOF_BITS(l);j++) {
+	    mean += fabsf(q->llr[ncce * 72 + j]);
+    }
+    return mean;
+}
+uint32_t srslte_pdcch_location_blocks_yx(srslte_pdcch_t* q, uint32_t cfi, srslte_dci_location_blk_paws_t* blk){
+    uint32_t nof_cce = NOF_CCE(cfi);
+    int nof_L3 = nof_cce / 8;
 
+    // fill in the blocks with full L3 ncces 
+    for(int i=0;i< nof_cce/8;i++){
+	memset(&blk[i], 0, sizeof(srslte_dci_location_blk_paws_t));
+	// L = 3
+	blk[i].loc_L3[0].L	= 3;
+	blk[i].loc_L3[0].ncce	= 8 * i;
+	blk[i].loc_L3[0].checked	= false;
+	blk[i].loc_L3[0].mean_llr	= mean_llr(q, 8*i, 3);
+	for(int j=0;j<2;j++){
+	    blk[i].loc_L2[j].L    = 2;
+	    blk[i].loc_L2[j].ncce = 8 * i + 4 * j;
+	    blk[i].loc_L2[j].checked	= false;
+	    blk[i].loc_L2[j].mean_llr	= mean_llr(q, 8 * i + 4 * j, 2);
+	}
+	for(int j=0;j<4;j++){
+	    blk[i].loc_L1[j].L    = 1;
+	    blk[i].loc_L1[j].ncce = 8 * i + 2 * j;
+	    blk[i].loc_L1[j].checked	= false;
+	    blk[i].loc_L1[j].mean_llr	= mean_llr(q, 8 * i + 2 * j, 1);
+	}
+	for(int j=0;j<8;j++){
+	    blk[i].loc_L0[j].L    = 0;
+	    blk[i].loc_L0[j].ncce = 8 * i + j;
+	    blk[i].loc_L0[j].checked	= false;
+	    blk[i].loc_L0[j].mean_llr	= mean_llr(q, 8 * i + j, 0);
+	}
+    }
+    // handle the rest cces if it cannot fill in one L3 block
+    int rem = nof_cce % 8;
+    if( rem != 0){
+	memset(&blk[nof_L3], 0, sizeof(srslte_dci_location_blk_paws_t));
+	for(int i=0;i<rem;i++){
+	    blk[nof_L3].loc_L0[i].L    = 0;
+	    blk[nof_L3].loc_L0[i].ncce = 8 * nof_L3 + i;
+	    blk[nof_L3].loc_L0[i].checked	= false;
+	    blk[nof_L3].loc_L0[i].mean_llr	= mean_llr(q, 8*nof_L3+i, 0);
+	}	
+	if( rem / 2 > 0){
+	    for(int i=0;i< rem/2; i++){
+		blk[nof_L3].loc_L1[i].L    = 1;
+		blk[nof_L3].loc_L1[i].ncce = 8 * nof_L3 + 2 * i;
+		blk[nof_L3].loc_L1[i].checked	= false;
+		blk[nof_L3].loc_L1[i].mean_llr	= mean_llr(q, 8*nof_L3+2*i, 1);
+	    }
+	}
+	if( rem / 4 > 0){
+	    for(int i=0;i< rem/4; i++){
+		blk[nof_L3].loc_L2[i].L    = 2;
+		blk[nof_L3].loc_L2[i].ncce = 8 * nof_L3 + 4 * i;
+		blk[nof_L3].loc_L2[i].checked	= false;
+		blk[nof_L3].loc_L2[i].mean_llr	= mean_llr(q, 8*nof_L3+4*i, 2);
+	    }
+	}
+	return nof_L3+1;
+    }else{
+	return nof_L3;
+    }
+}
 uint32_t srslte_pdcch_search_space_all_yx(srslte_pdcch_t* q, uint32_t cfi, srslte_dci_location_paws_t* c)
 {
 
@@ -41,6 +110,7 @@ uint32_t srslte_pdcch_search_space_all_yx(srslte_pdcch_t* q, uint32_t cfi, srslt
                 c[k].checked = 0;
                 c[k].L = l;
                 c[k].ncce = ncce;
+                c[k].mean_llr = mean;
                 k++;
             }else{
                 continue;
@@ -235,7 +305,7 @@ static int fill_dci_msg_dl_yx(srslte_ra_dl_dci_t* grant, srslte_dci_msg_paws* dc
     }
     return 0;
 }
-int srslte_pdcch_decode_msg_yx(srslte_pdcch_t* q,  uint32_t cfi, uint32_t tti,
+int srslte_pdcch_decode_msg_yx(srslte_pdcch_t* q,  uint32_t cfi, uint32_t tti, bool loc_check,
     srslte_dci_format_t format, srslte_dci_location_paws_t* location, srslte_dci_msg_paws* dci_msg_paws)
 {
     srslte_dci_msg_t  *msg = malloc(sizeof(srslte_dci_msg_t));
@@ -283,13 +353,13 @@ int srslte_pdcch_decode_msg_yx(srslte_pdcch_t* q,  uint32_t cfi, uint32_t tti,
 		    //printf("Msg rnti exceed range!\n");
 		    free(msg);return SRSLTE_ERROR;
 		}
-
-		// 2-nd check: msg location (ncce) should match with its UE-specific search space
-		if (srslte_pdcch_ue_locations_ncce_check(NOF_CCE(cfi), tti % 10, decoded_rnti, location->ncce)== 0) {
-		    //printf("Msg location check fails!\n");
-		    free(msg);return SRSLTE_ERROR;
+		if(loc_check){
+		    // 2-nd check: msg location (ncce) should match with its UE-specific search space
+		    if (srslte_pdcch_ue_locations_ncce_check(NOF_CCE(cfi), tti % 10, decoded_rnti, location->ncce)== 0) {
+			//printf("Msg location check fails!\n");
+			free(msg);return SRSLTE_ERROR;
+		    }
 		}
-
 		if( msg->format == SRSLTE_DCI_FORMAT0){
 		    if(srslte_dci_msg_unpack_pusch(msg, &dci_ul, nof_prb) == SRSLTE_SUCCESS){
 			if(srslte_ra_ul_dci_to_grant(&dci_ul, nof_prb, 0, &grant_ul) == SRSLTE_SUCCESS){
@@ -351,8 +421,93 @@ int srslte_pdcch_decode_msg_yx(srslte_pdcch_t* q,  uint32_t cfi, uint32_t tti,
   free(msg);return SRSLTE_ERROR;
 }
 
+int srslte_decode_dci_single_location_no_prune_yx(srslte_ue_dl_t*     q,
+                                uint32_t cfi, uint32_t tti,
+				srslte_tree_ele* tree_ele)
+{
+    int ret, count=0;
+    srslte_dci_format_t format;
+    // Loop over all formats
+    for(int i=0;i<NOF_UE_ALL_FORMATS;i++){
+	//if(i==0){continue;};
+        //if (i != 2 && i != 5){continue;}  // We skip the uplink dci and format 1C
+        //if (i!=0 && i != 2 && i != 5){continue;}  // We skip the uplink dci and format 1C
+        format = ue_all_formats[i];
+        ret = srslte_pdcch_decode_msg_yx(&(q->pdcch),  cfi, tti, false, format, 
+					    &tree_ele->location, &tree_ele->dci_msg[i]);
+        if (ret == SRSLTE_SUCCESS){
+            count++;
+        }
+    }
+    tree_ele->nof_msg = count;
+    return count;
+}
 
+int srslte_prune_tree(srslte_tree_ele* bin_tree, srslte_dci_msg_paws* decode_ret,
+                            srslte_active_ue_list_t* active_ue_list,
+                            int nof_cce, uint32_t tti)
+{
+    int msg_cnt = 0;
+    for(int i=0;i<15;i++){  
+	if(bin_tree[i].cleared || (bin_tree[i].nof_msg <= 0)){
+	    continue;
+	}
+	if(dci_msg_location_pruning(active_ue_list, bin_tree[i].dci_msg, &decode_ret[msg_cnt], tti) > 0){
+	    if(srslte_pdcch_ue_locations_ncce_check(nof_cce, tti % 10, decode_ret[msg_cnt].rnti, decode_ret[msg_cnt].ncce)){
+		traversal_children_clear(bin_tree, i);
+		msg_cnt++;	
+	    }
+	}
+    }
+    return msg_cnt;
+}
 
+int srslte_decode_dci_single_location_blk_yx(srslte_ue_dl_t*     q,
+                                uint32_t cfi, uint32_t tti,
+                               srslte_active_ue_list_t* active_ue_list,
+                               srslte_dci_location_blk_paws_t* loc_blk,
+                               srslte_dci_msg_paws* dci_decode_ret)
+{
+    int decoded_msg = 0;
+    int nof_cce = ((cfi>0&&cfi<4)?q->pdcch.nof_cce[cfi-1]:0); 
+
+    srslte_dci_msg_paws decode_ret;
+    srslte_tree_ele bin_tree[15];
+
+    srslte_tree_blk2tree(loc_blk, bin_tree);
+    
+    //printf("NOF CCE:%d\n", nof_cce);
+    for(int i=0;i<15;i++){
+	//printf("decoding %d-th element in the tree!\n", i);
+	if(bin_tree[i].cleared){
+	    //printf("Skip %d-th elements in the tree due to cleared!\n", i);
+	    continue;
+	}
+	if(bin_tree[i].location.mean_llr < LLR_THR){ 
+	    //printf("Skip %d-th elements in the tree due to low llr\n", i);
+	    //if(bin_tree[i].location.L == 0){ 
+	    //printf("Skip %d-th elements in the tree due to low llr\n", i);
+	    continue;
+	    //}
+	}
+	if( srslte_decode_dci_single_location_no_prune_yx(q, cfi, tti, &bin_tree[i]) > 0){
+	    if( prune_tree_element(bin_tree, i, &decode_ret) > 0){
+		printf(" ---  We find a match, ");
+		if(srslte_pdcch_ue_locations_ncce_check(nof_cce, tti % 10, decode_ret.rnti, decode_ret.ncce)){
+		    printf("and we past the ncce location test \n");
+		    memcpy(&dci_decode_ret[decoded_msg], &decode_ret, sizeof(srslte_dci_msg_paws));
+		    dci_decode_ret[decoded_msg].off_tree = true;
+		    decoded_msg++; 
+		}else{
+		    printf("and we fail in the ncce location test \n");
+		}
+	    }	
+	}
+    }
+    int num = srslte_prune_tree(bin_tree, &dci_decode_ret[decoded_msg], active_ue_list, nof_cce, tti);
+    decoded_msg += num;
+    return decoded_msg;
+}
 int srslte_decode_dci_single_location_yx(srslte_ue_dl_t*     q,
                                 uint32_t cfi, uint32_t tti,
                                srslte_active_ue_list_t* active_ue_list,
@@ -369,10 +524,11 @@ int srslte_decode_dci_single_location_yx(srslte_ue_dl_t*     q,
 
     // Loop over all formats
     for(int i=0;i<NOF_UE_ALL_FORMATS;i++){
+	//if(i==0){continue;};
         //if (i != 2 && i != 5){continue;}  // We skip the uplink dci and format 1C
-        if (i!=0 && i != 2 && i != 5){continue;}  // We skip the uplink dci and format 1C
+        //if (i!=0 && i != 2 && i != 5){continue;}  // We skip the uplink dci and format 1C
         format = ue_all_formats[i];
-        ret = srslte_pdcch_decode_msg_yx(&(q->pdcch),  cfi, tti, format, location, &dci_msg_yx[i]);
+        ret = srslte_pdcch_decode_msg_yx(&(q->pdcch),  cfi, tti, true, format, location, &dci_msg_yx[i]);
         if (ret == SRSLTE_SUCCESS){
             count++;
         }
@@ -394,6 +550,35 @@ int extract_UL_DL_dci_msg(srslte_dci_msg_paws* dci_msg_in, srslte_dci_msg_paws* 
     }  
     return count; 
 } 
+int srslte_decode_dci_all_loc_block_yx(srslte_ue_dl_t*     q,
+                                uint32_t cfi, uint32_t tti,
+                               srslte_active_ue_list_t* active_ue_list,
+			       srslte_dci_location_blk_paws_t* loc_blocks,
+                               srslte_dci_subframe_t* dci_msg_subframe,
+                               uint32_t nof_locations)
+{
+    srslte_dci_msg_paws dci_msg_vector[15];
+
+    int msg_cnt = 0, output_msg_cnt = 0, cnt = 0;
+    int CELL_MAX_PRB = q->cell.nof_prb;
+
+    for(int i=0;i<nof_locations;i++){
+	//printf("decoding %d-th location blocks!\n",i);
+	cnt = srslte_decode_dci_single_location_blk_yx(q, cfi, tti, active_ue_list, &loc_blocks[i], &dci_msg_vector[msg_cnt]);
+	if( cnt > 0){
+	    msg_cnt += cnt;
+	}	
+    }
+
+    printf("before pruning %d messages decoded!\n", msg_cnt);
+    dci_msg_list_display(dci_msg_vector, msg_cnt);
+
+    srslte_subframe_prune_dl_ul_all(dci_msg_vector, active_ue_list, dci_msg_subframe, CELL_MAX_PRB, msg_cnt);
+
+    output_msg_cnt = dci_msg_subframe->dl_msg_cnt + dci_msg_subframe->ul_msg_cnt; 
+    return output_msg_cnt;
+}
+
 int srslte_decode_dci_wholeSF_yx(srslte_ue_dl_t*     q,
                                 uint32_t cfi, uint32_t tti,
                                srslte_active_ue_list_t* active_ue_list,
@@ -402,6 +587,7 @@ int srslte_decode_dci_wholeSF_yx(srslte_ue_dl_t*     q,
                                uint32_t nof_locations)
 {
     srslte_dci_msg_paws dci_msg_vector[10];
+    memset(dci_msg_vector, 0, 10 * sizeof(srslte_dci_msg_paws));
 
     srslte_dci_msg_paws dci_msg_downlink[10];
     srslte_dci_msg_paws dci_msg_uplink[10];
@@ -454,10 +640,8 @@ int srslte_decode_dci_wholeSF_yx(srslte_ue_dl_t*     q,
     return output_msg_cnt;
 }
 
-/* The dci decoding function
-utput the message in mssage array dci_msg_out
+/* The dci decoding function output the message in mssage array dci_msg_out
 *  return the number of decoded dci messages        */
-
 int srslte_dci_decoder_yx(  srslte_ue_dl_t*     q,
                             srslte_active_ue_list_t* active_ue_list,
                             srslte_dci_subframe_t* dci_msg_subframe,
@@ -466,15 +650,11 @@ int srslte_dci_decoder_yx(  srslte_ue_dl_t*     q,
     uint32_t cfi;
     uint32_t sf_idx = tti%10;
     int ret = SRSLTE_ERROR;
-
     if ((ret = srslte_ue_dl_decode_fft_estimate_mbsfn(q, sf_idx, &cfi, SRSLTE_SF_NORM)) < 0) {
         return ret;
     }
 
     float noise_estimate = srslte_chest_dl_get_noise_estimate(&q->chest);
-    // Uncoment next line to do ZF by default in pdsch_ue example
-    //float noise_estimate = 0;
-
     if (srslte_pdcch_extract_llr_multi(&q->pdcch, q->sf_symbols_m, q->ce_m, noise_estimate, sf_idx, cfi)) {
         fprintf(stderr, "Error extracting LLRs\n");
         return SRSLTE_ERROR;
@@ -484,14 +664,34 @@ int srslte_dci_decoder_yx(  srslte_ue_dl_t*     q,
     uint32_t nof_locations = 0;
 
     srslte_dci_location_paws_t locations[MAX_CANDIDATES_ALL];
-
     // prepare the search space
     nof_locations = srslte_pdcch_search_space_all_yx(&(q->pdcch), cfi, locations);
     if( nof_locations == 0){
         return 0;
     }
-  // decode all possible locations
+    //decode all possible locations
     nof_dci_msg = srslte_decode_dci_wholeSF_yx(q, cfi, tti, active_ue_list, locations, dci_msg_subframe, nof_locations);
+// 
+//    srslte_dci_location_blk_paws_t loc_blocks[12];
+//    nof_locations = srslte_pdcch_location_blocks_yx(&(q->pdcch), cfi, loc_blocks);
+//
+//    //for(int i=0;i<nof_locations;i++){
+//    //    printf("%d-th block -- L:%d ncce:%d |", i, loc_blocks[i].loc_L3[0].L, loc_blocks[i].loc_L3[0].ncce);
+//    //    for(int j=0;j<2;j++){
+//    //        printf("|L:%d ncce:%d |",loc_blocks[i].loc_L2[j].L, loc_blocks[i].loc_L2[j].ncce);
+//    //    }
+//    //    for(int j=0;j<4;j++){
+//    //        printf("|L:%d ncce:%d |",loc_blocks[i].loc_L1[j].L, loc_blocks[i].loc_L1[j].ncce);
+//    //    }
+//    //    for(int j=0;j<8;j++){
+//    //        printf("|L:%d ncce:%d |",loc_blocks[i].loc_L0[j].L, loc_blocks[i].loc_L0[j].ncce);
+//    //    }
+//    //    printf("\n");
+//    //}
+//
+//    // decode all possible locations
+//    nof_dci_msg = srslte_decode_dci_all_loc_block_yx(q, cfi, tti, active_ue_list, loc_blocks, dci_msg_subframe, nof_locations);
+//    printf("nof_dci_msg:%d\n",nof_dci_msg);
     return nof_dci_msg;
 }
 

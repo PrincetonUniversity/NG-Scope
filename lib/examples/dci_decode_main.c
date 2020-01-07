@@ -423,10 +423,21 @@ void* dci_decode_multi(void* p){
     uint32_t nof_prb;
     uint32_t sfn = 0;
     int thd_id = (int)*(int *)p;
-    FILE *FD_TIME;
+   
+    bool time_flag, dl_flag, ul_flag;
+    time_flag   = true;
+    dl_flag     = false;
+    ul_flag     = false;
+ 
+    FILE *FD_TIME, *FD_DCI_DL, *FD_DCI_UL;
     char fileName[30];
-    sprintf(fileName, "./time_thd_%d.txt",thd_id);
+    sprintf(fileName, "./time_dci_%d.txt",thd_id);
     FD_TIME = fopen(fileName,"w+");
+    sprintf(fileName, "./dci_dl_dci_%d.txt",thd_id);
+    FD_DCI_DL = fopen(fileName,"w+");
+    sprintf(fileName, "./dci_ul_dci_%d.txt",thd_id);
+    FD_DCI_UL = fopen(fileName,"w+");
+
 
     pthread_mutex_lock(&mutex_cell);
     nof_prb = cell.nof_prb;
@@ -498,9 +509,10 @@ void* dci_decode_multi(void* p){
 	dci_msg_subframe.dl_msg_cnt = 0;	
 	dci_msg_subframe.ul_msg_cnt = 0;	
 
-	gettimeofday(&t[1], NULL);
-        timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
-
+	if(time_flag){
+            gettimeofday(&t[1], NULL);
+            timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
+        }
 	pthread_mutex_lock( &mutex_ue_sync);
         ret = srslte_ue_sync_zerocopy_multi(&ue_sync, sf_buffer);
         uint32_t sfidx = srslte_ue_sync_get_sfidx(&ue_sync);
@@ -566,16 +578,16 @@ void* dci_decode_multi(void* p){
                         pthread_mutex_lock( &mutex_list);
                         srslte_copy_active_ue_list(&ue_list, &active_ue_list);
 			pthread_mutex_unlock( &mutex_list);
-
-		        gettimeofday(&t[2], NULL);
-			timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
-		    	fprintf(FD_TIME,"%d %ld %ld %ld ",tti, timestamp1, timestamp2, timestamp2-timestamp1);
- 
-                        get_time_interval(t);
-                        elapsed1 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
-			gettimeofday(&t[1], NULL);
-			timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
-
+			
+			if(time_flag){
+                            gettimeofday(&t[2], NULL);
+                            timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
+                            fprintf(FD_TIME,"%d %ld %ld %ld ",tti, timestamp1, timestamp2, timestamp2-timestamp1);
+                            get_time_interval(t);
+                            elapsed1 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
+                            gettimeofday(&t[1], NULL);
+                            timestamp1 =  t[1].tv_usec + t[1].tv_sec*1e6;
+                        }
 			n = srslte_dci_decoder_yx(&ue_dl, &active_ue_list, &dci_msg_subframe, tti);
 
                         pthread_mutex_lock( &mutex_list);
@@ -583,6 +595,13 @@ void* dci_decode_multi(void* p){
 			    srslte_enqueue_subframe_msg(&dci_msg_subframe, &ue_list, tti);
 			    //dci_msg_list_display(dci_msg_subframe.downlink_msg, dci_msg_subframe.dl_msg_cnt);
 			    //dci_msg_list_display(dci_msg_subframe.uplink_msg, dci_msg_subframe.ul_msg_cnt);
+			    //printf("\n");
+			    if(dl_flag && dci_msg_subframe.dl_msg_cnt > 0){
+                                record_dci_msg_log(FD_DCI_DL, dci_msg_subframe.downlink_msg, dci_msg_subframe.dl_msg_cnt);
+                            }
+                            if(ul_flag && dci_msg_subframe.ul_msg_cnt > 0){
+                                record_dci_msg_log(FD_DCI_UL, dci_msg_subframe.uplink_msg, dci_msg_subframe.ul_msg_cnt);
+                            }
                         }
                         srslte_update_ue_list_every_subframe(&ue_list, tti);
 			pthread_mutex_unlock( &mutex_list);
@@ -591,15 +610,14 @@ void* dci_decode_multi(void* p){
                         rsrp0 = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 0), rsrp0, 0.05f);
                         rsrp1 = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 1), rsrp1, 0.05f);
                         noise = SRSLTE_VEC_EMA(srslte_chest_dl_get_noise_estimate(&ue_dl.chest), noise, 0.05f);
-			gettimeofday(&t[2], NULL);
-			timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
-
-		    	fprintf(FD_TIME, "%ld %ld %ld\n", timestamp1, timestamp2, timestamp2-timestamp1);
-
-                        get_time_interval(t);
-                        elapsed2 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
-
-                        nframes++;
+			if(time_flag){
+                            gettimeofday(&t[2], NULL);
+                            timestamp2 =  t[2].tv_usec + t[2].tv_sec*1e6;
+                            fprintf(FD_TIME, "%ld %ld %ld\n", timestamp1, timestamp2, timestamp2-timestamp1);
+                            get_time_interval(t);
+                            elapsed2 = (float) t[0].tv_usec + t[0].tv_sec*1.0e+6f;
+                        }   	
+		        nframes++;
                         if (isnan(rsrq)) { rsrq = 0; }
                         if (isnan(noise)) { noise = 0; }
                         if (isnan(rsrp0)) { rsrp0 = 0; }
@@ -640,6 +658,9 @@ void* dci_decode_multi(void* p){
             free(sf_buffer[i]);
         }
     }
+    fclose(FD_TIME);
+    fclose(FD_DCI_DL);
+    fclose(FD_DCI_UL);
     pthread_exit(NULL);
 }
 

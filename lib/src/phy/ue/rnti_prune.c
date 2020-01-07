@@ -35,8 +35,8 @@ void dci_msg_display(srslte_dci_msg_paws* dci_msg_yx){
     printf("%d\t%d\t",dci_msg_yx->mcs_idx_tb1, dci_msg_yx->mcs_idx_tb2);
     printf("%3.1f\t",dci_msg_yx->decode_prob);
     printf("L:%d\tn:%d\t",dci_msg_yx->L,dci_msg_yx->ncce);
-    printf("%d\t%d\t%d\t",dci_msg_yx->max_freq_ue,dci_msg_yx->max_freq_ue_cnt, dci_msg_yx->nof_active_ue);
-    printf("%d\t%d\t",dci_msg_yx->active, dci_msg_yx->my_cnt);
+    printf("%d\t%d\t%d\t%d\t",dci_msg_yx->max_freq_ue, dci_msg_yx->max_ul_freq_ue, dci_msg_yx->max_ul_freq_ue, dci_msg_yx->nof_active_ue);
+    printf("%d\t%d\t%d\t",dci_msg_yx->active, dci_msg_yx->my_dl_cnt, dci_msg_yx->my_ul_cnt);
     printf("%d\t%d\t",dci_msg_yx->tbs_tb1, dci_msg_yx->tbs_tb2);
     printf("%d\t%d\t",dci_msg_yx->tbs_hm_tb1, dci_msg_yx->tbs_hm_tb2);
     display_format(dci_msg_yx->format);
@@ -48,23 +48,24 @@ void dci_msg_list_display(srslte_dci_msg_paws* dci_msg_yx, int nof_msg){
     }
 }
 
-void record_dci_msg_single(srslte_dci_msg_paws* dci_msg_yx, FILE* FD_DCI){
+void record_dci_msg_single(FILE* FD_DCI, srslte_dci_msg_paws* dci_msg_yx){
     fprintf(FD_DCI, "%d\t%d\t%d\t",dci_msg_yx->tti, dci_msg_yx->rnti, dci_msg_yx->nof_prb);
     fprintf(FD_DCI, "%d\t%d\t",dci_msg_yx->mcs_idx_tb1, dci_msg_yx->mcs_idx_tb2);
     fprintf(FD_DCI, "%d\t%d\t",dci_msg_yx->tbs_tb1, dci_msg_yx->tbs_tb2);
     fprintf(FD_DCI, "%d\t%d\t",dci_msg_yx->tbs_hm_tb1, dci_msg_yx->tbs_hm_tb2);
     fprintf(FD_DCI, "%3.1f\t",dci_msg_yx->decode_prob);
     fprintf(FD_DCI, "%d\t%d\t",dci_msg_yx->L,dci_msg_yx->ncce);
-    fprintf(FD_DCI, "%d\t%d\t%d\t",dci_msg_yx->max_freq_ue,dci_msg_yx->nof_active_ue, dci_msg_yx->active);
+    fprintf(FD_DCI,"%d\t%d\t%d\t%d\t",dci_msg_yx->max_freq_ue,dci_msg_yx->max_dl_freq_ue,dci_msg_yx->max_ul_freq_ue, dci_msg_yx->nof_active_ue);
+    fprintf(FD_DCI,"%d\t%d\t%d\t",dci_msg_yx->active, dci_msg_yx->my_dl_cnt, dci_msg_yx->my_ul_cnt);
     fprintf(FD_DCI, "%d\n", (int)dci_msg_yx->format);
 }
 
-void record_dci_msg_log(srslte_dci_msg_paws* dci_msg_ret, int nof_msg, FILE* FD_DCI)
+void record_dci_msg_log(FILE* FD_DCI, srslte_dci_msg_paws* dci_msg_ret, int nof_msg)
 {
     srslte_dci_msg_paws* dci_msg_yx;
     for(int i=0;i<nof_msg;i++){
 	dci_msg_yx = &dci_msg_ret[i];
-	record_dci_msg_single(dci_msg_yx, FD_DCI);	    
+	record_dci_msg_single(FD_DCI, dci_msg_yx);	    
     }
     return;
 }
@@ -193,10 +194,16 @@ int dci_msg_location_pruning(srslte_active_ue_list_t* q,
 {
     int count;
     int index = 0, idx_tmp;
+    int inlist_index =0;
     count = count_high_confidence_rnti(dci_msg_list, &index);
+    int inlist_count = count_rnti_in_list(q, dci_msg_list,&inlist_index);
+   
+    //for(int i=0;i<NOF_UE_ALL_FORMATS;i++){
+    //    printf("%5.1f ",dci_msg_list[i].decode_prob); 
+    //}printf("\n");
     // If only one format has rnti with prob larger then threshold
     if(count == 1){
-        //printf("Only 1 UE has high prob!\n");
+        //printf("Only 1 UE has high prob! INLIST:%d high_prob index:%d inlist_index:%d\n", inlist_count, index, inlist_index);
         if ( (index == 6) && (dci_msg_list[5].decode_prob >90) ){
             // we prefer format 2 instead of 2A
             index = 5;
@@ -240,16 +247,16 @@ int dci_msg_location_pruning(srslte_active_ue_list_t* q,
         }
     }
 
-    int inlist_count = count_rnti_in_list(q, dci_msg_list,&index);
     if (inlist_count == 0){
+        //printf("No UE in active list \n");
         return 0;
     }else if(inlist_count == 1){
         //printf("Only 1 UE in list \n");
-        memcpy(dci_decode_ret, &dci_msg_list[index], sizeof(srslte_dci_msg_paws));
+        memcpy(dci_decode_ret, &dci_msg_list[inlist_index], sizeof(srslte_dci_msg_paws));
         //dci_msg_display(q, &dci_msg_list[index]);
         return 1;
     }else{
-        printf("We found %d in-list rnti!\n",inlist_count);
+        //printf("We found %d in-list rnti!\n",inlist_count);
         return 0;
     }
     return 0;
@@ -475,75 +482,271 @@ int dci_subframe_pruning(srslte_active_ue_list_t* q,
     int nof_inlist_ue = 0;
     int nof_not_inlist_ue = 0;
     int CELL_MAX_PRB  = max_prb; 
-    srslte_dci_msg_paws* dci_inlist;
-    srslte_dci_msg_paws* dci_not_inlist;
-
-    // UE that is active or not active 
-    dci_inlist	    = (srslte_dci_msg_paws*)malloc(msg_cnt_input * sizeof(srslte_dci_msg_paws));
-    dci_not_inlist  = (srslte_dci_msg_paws*)malloc(msg_cnt_input * sizeof(srslte_dci_msg_paws));
-
-    nof_inlist_ue	= extract_intlist_ue(q, dci_ret_input, dci_inlist, dci_not_inlist, msg_cnt_input, &nof_prb); 
-    nof_not_inlist_ue	= msg_cnt_input - nof_inlist_ue;
-
-    if(nof_inlist_ue == 0){
-	// if there is no active UE
-	int idx_vec[nof_not_inlist_ue];
-	int dci_num = dci_combination_sum(dci_not_inlist, idx_vec, nof_not_inlist_ue,  0, CELL_MAX_PRB);
-	if(dci_num >0){
-	    // if there is any combination of dci messages whose total allocated PRB match the cell PRB
-	    copy_to_output_dci(dci_not_inlist, dci_ret_output, idx_vec, dci_num); 
-	    //printf("No UE in list. Match with MAX_PRB\n");
-	    //dci_msg_list_display(q, dci_ret_output, dci_num);
-	    free(dci_inlist);free(dci_not_inlist);
-	    return dci_num;  
-	}
-	// If such a combination cannot be found 
-	//printf("No UE in list. Doesn't match with MAX_PRB\n");
-	int total_msg_output = handle_not_inlist_ue(dci_ret_output, 0, 
-						    dci_not_inlist, nof_not_inlist_ue, 0, CELL_MAX_PRB);
-	free(dci_inlist);free(dci_not_inlist);
-	return total_msg_output;
-    }else{ 
-	int idx_vec[nof_not_inlist_ue];
-	dci_num = dci_combination_sum(dci_not_inlist, idx_vec, nof_not_inlist_ue,  0, CELL_MAX_PRB);
-	if(dci_num >0){
-	    // if there is any combination of dci messages of inactive UEs
-	    //  whose total allocated PRB match the cell PRB
-	    copy_to_output_dci(dci_not_inlist, dci_ret_output, idx_vec, dci_num); 
-	    //printf("UE in list. But UE not in list match with MAX_PRB\n");
-	    //dci_msg_list_display(q, dci_ret_output, dci_num);
-	    free(dci_inlist);free(dci_not_inlist);
-	    return dci_num;  
-	}
-
-	// The dci messages of active UE is highly reliable and thus we always keep it
-	memcpy(dci_ret_output, dci_inlist, nof_inlist_ue*sizeof(srslte_dci_msg_paws));
-	
-	if( (nof_prb >= CELL_MAX_PRB) || 
-		    (nof_prb + min_nof_prb(dci_not_inlist, nof_not_inlist_ue, CELL_MAX_PRB)) > CELL_MAX_PRB ){
-	    // If the total number of allocated PRB of active UE equals to the total PRB
-	    //printf("UE in list. Larger than MAX_PRB\n");
-	    free(dci_inlist);free(dci_not_inlist);
-	    return nof_inlist_ue;
-	}
-		
-	dci_num = dci_combination_sum(dci_not_inlist, idx_vec, nof_not_inlist_ue,  nof_prb, CELL_MAX_PRB);
-	if(dci_num >0){
-	    // if there is any combination of dci messages of a mix of active and inactive UEs
-	    // whose total allocated PRB match the cell PRB
-	    copy_to_output_dci(dci_not_inlist, &dci_ret_output[nof_inlist_ue], idx_vec, dci_num); 
-	    //printf("UE in list. Match with MAX_PRB\n");
-	    //dci_msg_list_display(q, dci_ret_output, nof_inlist_ue+dci_num);
-	    free(dci_inlist);free(dci_not_inlist);
-	    return nof_inlist_ue+dci_num;  
-	}
-	// If such a combination cannot be found 
-	//printf("UE in list. Doesn't match with MAX_PRB\n");
-	int total_msg_output = handle_not_inlist_ue(dci_ret_output, nof_inlist_ue, 
-						    dci_not_inlist, nof_not_inlist_ue, nof_prb, CELL_MAX_PRB);
-	free(dci_inlist);free(dci_not_inlist);
-	return total_msg_output;
+    int idx_vec_all[msg_cnt_input];
+    dci_num = dci_combination_sum(dci_ret_input, idx_vec_all, msg_cnt_input,  0, CELL_MAX_PRB);
+    if(dci_num > 0){	
+	copy_to_output_dci(dci_ret_input, dci_ret_output, idx_vec_all, dci_num); 
+	//printf("INPUT:\n");
+	//dci_msg_list_display(dci_ret_input, msg_cnt_input);
+	//printf("OUTPUT:\n");
+	//dci_msg_list_display(dci_ret_output, dci_num);
+	//printf("\n");
+	return dci_num;  
     }
-    free(dci_inlist);free(dci_not_inlist);
+    dci_num = dci_combination_sum(dci_ret_input, idx_vec_all, msg_cnt_input,  0, CELL_MAX_PRB-4);
+    if(dci_num > 0){	
+	copy_to_output_dci(dci_ret_input, dci_ret_output, idx_vec_all, dci_num); 
+	//printf("INPUT:\n");
+	//dci_msg_list_display(dci_ret_input, msg_cnt_input);
+	//printf("OUTPUT:\n");
+	//dci_msg_list_display(dci_ret_output, dci_num);
+	//printf("\n");
+	
+	return dci_num;  
+    }
+    dci_num = dci_combination_sum(dci_ret_input, idx_vec_all, msg_cnt_input,  0, CELL_MAX_PRB-8);
+    if(dci_num > 0){	
+	copy_to_output_dci(dci_ret_input, dci_ret_output, idx_vec_all, dci_num); 
+	//printf("INPUT:\n");
+	//dci_msg_list_display(dci_ret_input, msg_cnt_input);
+	//printf("OUTPUT:\n");
+	//dci_msg_list_display(dci_ret_output, dci_num);
+	//printf("\n");
+	
+	return dci_num;  
+    }
+
+    memcpy(dci_ret_output, dci_ret_input,  msg_cnt_input * sizeof(srslte_dci_msg_paws));
+    //printf("INPUT AND OUTPUT IS THE SAME:\n");
+    //dci_msg_list_display(dci_ret_input, msg_cnt_input);
+    //printf("\n");
+	
+    return  msg_cnt_input;
+
+//    srslte_dci_msg_paws* dci_inlist;
+//    srslte_dci_msg_paws* dci_not_inlist;
+//    // UE that is active or not active 
+//    dci_inlist	    = (srslte_dci_msg_paws*)malloc(msg_cnt_input * sizeof(srslte_dci_msg_paws));
+//    dci_not_inlist  = (srslte_dci_msg_paws*)malloc(msg_cnt_input * sizeof(srslte_dci_msg_paws));
+//
+//    nof_inlist_ue	= extract_intlist_ue(q, dci_ret_input, dci_inlist, dci_not_inlist, msg_cnt_input, &nof_prb); 
+//    nof_not_inlist_ue	= msg_cnt_input - nof_inlist_ue;
+//    dci_msg_list_display(dci_ret_input, msg_cnt_input); 
+//    dci_msg_list_display(dci_inlist, nof_inlist_ue); 
+//
+//    if(nof_inlist_ue == 0){
+//	// if there is no active UE
+//	int idx_vec[nof_not_inlist_ue];
+//	int dci_num = dci_combination_sum(dci_not_inlist, idx_vec, nof_not_inlist_ue,  0, CELL_MAX_PRB);
+//	if(dci_num >0){
+//	    // if there is any combination of dci messages whose total allocated PRB match the cell PRB
+//	    copy_to_output_dci(dci_not_inlist, dci_ret_output, idx_vec, dci_num); 
+//	    printf("No UE in list. Match with MAX_PRB\n");
+//	    //dci_msg_list_display(q, dci_ret_output, dci_num);
+//	    free(dci_inlist);free(dci_not_inlist);
+//	    return dci_num;  
+//	}
+//	// If such a combination cannot be found 
+//	printf("No UE in list. Doesn't match with MAX_PRB\n");
+//	int total_msg_output = handle_not_inlist_ue(dci_ret_output, 0, 
+//						    dci_not_inlist, nof_not_inlist_ue, 0, CELL_MAX_PRB);
+//	free(dci_inlist);free(dci_not_inlist);
+//	return total_msg_output;
+//    }else{ 
+//	int idx_vec[nof_not_inlist_ue];
+//	dci_num = dci_combination_sum(dci_not_inlist, idx_vec, nof_not_inlist_ue,  0, CELL_MAX_PRB);
+//	if(dci_num >0){
+//	    // if there is any combination of dci messages of inactive UEs
+//	    //  whose total allocated PRB match the cell PRB
+//	    copy_to_output_dci(dci_not_inlist, dci_ret_output, idx_vec, dci_num); 
+//	    printf("UE in list. But UE not in list match with MAX_PRB\n");
+//	    //dci_msg_list_display(q, dci_ret_output, dci_num);
+//	    free(dci_inlist);free(dci_not_inlist);
+//	    return dci_num;  
+//	}
+//
+//	// The dci messages of active UE is highly reliable and thus we always keep it
+//	memcpy(dci_ret_output, dci_inlist, nof_inlist_ue*sizeof(srslte_dci_msg_paws));
+//	
+//	if( (nof_prb >= CELL_MAX_PRB) || 
+//		    (nof_prb + min_nof_prb(dci_not_inlist, nof_not_inlist_ue, CELL_MAX_PRB)) > CELL_MAX_PRB ){
+//	    // If the total number of allocated PRB of active UE equals to the total PRB
+//	    printf("UE in list. Larger than MAX_PRB\n");
+//	    free(dci_inlist);free(dci_not_inlist);
+//	    return nof_inlist_ue;
+//	}
+//		
+//	dci_num = dci_combination_sum(dci_not_inlist, idx_vec, nof_not_inlist_ue,  nof_prb, CELL_MAX_PRB);
+//	if(dci_num >0){
+//	    // if there is any combination of dci messages of a mix of active and inactive UEs
+//	    // whose total allocated PRB match the cell PRB
+//	    copy_to_output_dci(dci_not_inlist, &dci_ret_output[nof_inlist_ue], idx_vec, dci_num); 
+//	    printf("UE in list. Match with MAX_PRB\n");
+//	    //dci_msg_list_display(q, dci_ret_output, nof_inlist_ue+dci_num);
+//	    free(dci_inlist);free(dci_not_inlist);
+//	    return nof_inlist_ue+dci_num;  
+//	}
+//	// If such a combination cannot be found 
+//	printf("UE in list. Doesn't match with MAX_PRB\n");
+//	int total_msg_output = handle_not_inlist_ue(dci_ret_output, nof_inlist_ue, 
+//						    dci_not_inlist, nof_not_inlist_ue, nof_prb, CELL_MAX_PRB);
+//	free(dci_inlist);free(dci_not_inlist);
+//	return total_msg_output;
+//    }
+//    free(dci_inlist);free(dci_not_inlist);
+//    return 0;
+}
+
+
+int prune_extract_UL_DL_dci_msg(srslte_dci_msg_paws* dci_msg_in, srslte_dci_msg_paws* dci_msg_out, uint32_t nof_msg, bool downlink)
+{
+    int count = 0;
+    for(int i=0;i<nof_msg;i++){
+        if(dci_msg_in[i].downlink == downlink){
+            memcpy(&dci_msg_out[count], &dci_msg_in[i], sizeof(srslte_dci_msg_paws));
+            count++;
+        }
+    }
+    return count;
+}
+
+int match_ul_dl_rnti(srslte_dci_msg_paws* dci_dl, int dl_num, 
+		     srslte_dci_msg_paws* dci_ul, int ul_num, 
+		     int* index_dl, int* index_ul)
+{
+    int count = 0;
+    for(int i=0;i<dl_num;i++){
+	for(int j=0;j<ul_num;j++){
+	    if(dci_dl[i].rnti == dci_ul[j].rnti){
+		index_dl[count] = i;
+		index_ul[count] = j;
+		count++;
+	    }
+	}
+    }
+    return count;
+}
+bool index_in_vec(int* match_idx, int match_number, int index)
+{
+    for(int i=0;i<match_number;i++){
+	if (index == match_idx[i]){
+	    return true;
+	}
+    }
+    return false;
+}
+int separate_msg_list(srslte_dci_msg_paws* in,
+		    srslte_dci_msg_paws* out_reliable,
+		    srslte_dci_msg_paws* out_unreliable,
+		    int nof_in,
+		    int* nof_reliable, int* nof_unreliable,
+		    int* match_idx, int match_number)
+{
+    int cnt_re=0, cnt_unre = 0;
+    for(int i=0;i<nof_in;i++){
+	if(in[i].off_tree || index_in_vec(match_idx, match_number, i)){
+	    memcpy(&out_reliable[cnt_re], &in[i], sizeof(srslte_dci_msg_paws));
+	    cnt_re++;
+	}else{
+	    memcpy(&out_unreliable[cnt_unre], &in[i], sizeof(srslte_dci_msg_paws));
+	    cnt_unre++;
+	}
+    }
+    *nof_reliable   = cnt_re;
+    *nof_unreliable = cnt_unre;
+    return 0;
+}
+int prune_unreliable(srslte_dci_msg_paws* in, int nof_in,
+		     srslte_dci_msg_paws* out, 
+		     int CELL_MAX_PRB, int nof_reliable_prb)
+{
+    int dci_num = 0;
+    int idx_vec_all[nof_in];
+    dci_num = dci_combination_sum(in, idx_vec_all, nof_in,  nof_reliable_prb, CELL_MAX_PRB);
+    if(dci_num > 0){
+        copy_to_output_dci(in, out, idx_vec_all, dci_num);
+        return dci_num;
+    }
+
+    dci_num = dci_combination_sum(in, idx_vec_all, nof_in,  nof_reliable_prb, CELL_MAX_PRB - 4);
+    if(dci_num > 0){
+        copy_to_output_dci(in, out, idx_vec_all, dci_num);
+        return dci_num;
+    }
+    if(CELL_MAX_PRB > 50){ 
+	dci_num = dci_combination_sum(in, idx_vec_all, nof_in,  nof_reliable_prb, CELL_MAX_PRB - 8);
+	if(dci_num > 0){
+	    copy_to_output_dci(in, out, idx_vec_all, dci_num);
+	    return dci_num;
+	}
+    }
+    memcpy(out, in, nof_in * sizeof(srslte_dci_msg_paws));
+    return nof_in;
+}
+int prune_reliable(srslte_dci_msg_paws* in,
+		     srslte_dci_msg_paws* out,
+		     int nof_in, int MAX_CELL_PRB,
+		     int* match_idx, int match_number)
+{
+    srslte_dci_msg_paws reliable[15];
+    srslte_dci_msg_paws unreliable[15];
+    int nof_reliable, nof_unreliable, nof_reliable_prb;
+
+    // separate the reliable and unreliable dci messages
+    separate_msg_list(in, reliable, unreliable, nof_in, &nof_reliable, &nof_unreliable, match_idx, match_number);
+    printf(" total msg:%d nof reliable:%d nof unreliable:%d\n", nof_in, nof_reliable, nof_unreliable);
+    // copy all reliable messages to the output
+    memcpy(out, reliable, nof_reliable);
+
+    // count the number of total prbs
+    nof_reliable_prb = nof_prb_one_subframe(reliable, nof_reliable);
+
+    int nof_pruned = prune_unreliable(unreliable, nof_unreliable, &out[nof_reliable], MAX_CELL_PRB, nof_reliable_prb);
+
+    return nof_pruned + nof_reliable;
+
+}
+int srslte_subframe_prune_dl_ul_all(srslte_dci_msg_paws* dci_msg_vector, 
+				    srslte_active_ue_list_t* active_ue_list, 
+				    srslte_dci_subframe_t* dci_msg_subframe,
+				    uint32_t CELL_MAX_PRB,
+				    int msg_cnt)
+{
+    srslte_dci_msg_paws dci_msg_downlink[10];
+    srslte_dci_msg_paws dci_msg_uplink[10];
+
+    int index_dl[10];
+    int index_ul[10];
+    int rnti_match_cnt = 0;
+
+    int msg_cnt_dl = prune_extract_UL_DL_dci_msg(dci_msg_vector, dci_msg_downlink, msg_cnt, true);
+    int msg_cnt_ul = prune_extract_UL_DL_dci_msg(dci_msg_vector, dci_msg_uplink, msg_cnt, false);
+
+    /* Prune the downlink dci messages */
+    int nof_prb_dl = nof_prb_one_subframe(dci_msg_downlink, msg_cnt_dl);
+    int nof_prb_ul = nof_prb_one_subframe(dci_msg_uplink, msg_cnt_ul);
+    printf("msg dl cnt:%d ul_cnt:%d nof_prb dl:%d ul:%d\n", msg_cnt_dl, msg_cnt_ul, nof_prb_dl, nof_prb_ul);
+    if ( (nof_prb_dl > CELL_MAX_PRB) || (nof_prb_ul > CELL_MAX_PRB) ){
+	rnti_match_cnt = match_ul_dl_rnti(dci_msg_downlink, msg_cnt_dl, dci_msg_uplink, msg_cnt_ul, index_dl, index_ul);
+	printf("%d dl ul rnti matched!", rnti_match_cnt);
+    }
+
+    /* Prune the downlink dci messages */
+    if(nof_prb_dl > CELL_MAX_PRB){
+        dci_msg_subframe->dl_msg_cnt = prune_reliable(dci_msg_downlink, dci_msg_subframe->downlink_msg, msg_cnt_dl, CELL_MAX_PRB, 
+							    index_dl, rnti_match_cnt);
+    }else{
+        dci_msg_subframe->dl_msg_cnt = msg_cnt_dl;
+        memcpy(dci_msg_subframe->downlink_msg, dci_msg_downlink, msg_cnt_dl*sizeof(srslte_dci_msg_paws));
+    }
+
+    /* Prune the uplink dci messages */
+    if(nof_prb_ul > CELL_MAX_PRB){
+	dci_msg_subframe->ul_msg_cnt = prune_reliable(dci_msg_uplink, dci_msg_subframe->uplink_msg, msg_cnt_ul, CELL_MAX_PRB, 
+							    index_ul, rnti_match_cnt);
+    }else{
+        dci_msg_subframe->ul_msg_cnt = msg_cnt_ul;
+        memcpy(dci_msg_subframe->uplink_msg, dci_msg_uplink, msg_cnt_ul*sizeof(srslte_dci_msg_paws));
+    }
     return 0;
 }

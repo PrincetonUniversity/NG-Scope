@@ -110,7 +110,11 @@
 #include "srslte/phy/ue/ue_cell_search.h"
 #include "srslte/phy/ue/ue_dl.h"
 #include "srslte/phy/ue/ue_ul.h"
+
+#include "srslte/phy/ue/ue_list.h"
+#include "srslte/phy/ue/ue_cell_status.h"
 #include "srslte/phy/ue/lte_scope.h"
+#include "srslte/phy/ue/rnti_prune.h"
 
 #include "srslte/phy/enb/enb_dl.h"
 #include "srslte/phy/enb/enb_ul.h"

@@ -8,7 +8,7 @@
 
 SRSLTE_API void dci_msg_display(srslte_dci_msg_paws* dci_msg_yx);
 SRSLTE_API void dci_msg_list_display(srslte_dci_msg_paws* dci_msg_yx, int nof_msg);
-SRSLTE_API void record_dci_msg_log(srslte_dci_msg_paws* dci_msg_yx, int nof_msg, FILE* FD_DCI);
+SRSLTE_API void record_dci_msg_log(FILE* FD_DCI, srslte_dci_msg_paws* dci_msg_yx, int nof_msg);
 
 SRSLTE_API int nof_prb_one_subframe(srslte_dci_msg_paws* dci_ret, int msg_cnt);
 
@@ -25,4 +25,10 @@ SRSLTE_API int dci_subframe_pruning(srslte_active_ue_list_t* q,
                         srslte_dci_msg_paws*  dci_ret_output,
 			int max_prb,
                         int msg_cnt_input);
+
+SRSLTE_API int srslte_subframe_prune_dl_ul_all(srslte_dci_msg_paws* dci_msg_vector,
+                                    srslte_active_ue_list_t* active_ue_list,
+                                    srslte_dci_subframe_t* dci_msg_subframe,
+                                    uint32_t CELL_MAX_PRB,
+                                    int msg_cnt);
 #endif

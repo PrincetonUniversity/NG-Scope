@@ -22,9 +22,12 @@
 # Add subdirectories
 ########################################################################
 add_subdirectory(src)
+#add_subdirectory(lib_src)
 add_subdirectory(include)
 add_subdirectory(examples)
 add_subdirectory(test)
+add_subdirectory(LTEScope)
+#add_subdirectory(ltecc)
 
 ########################################################################
 # Install library headers

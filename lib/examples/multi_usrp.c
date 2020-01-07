@@ -50,6 +50,7 @@
 #include "srslte/phy/rf/rf_utils.h"
 
 #include "dci_decode_multi_usrp.h"
+#include "read_cfg.h"
 
 
 #define PRINT_CHANGE_SCHEDULIGN
@@ -77,18 +78,20 @@ void sig_int_handler(int signo)
 }
 
 int main(int argc, char **argv) {
-    srslte_debug_handle_crash(argc, argv);
-    for(int i=0;i<MAX_NOF_USRP;i++){
+    //srslte_debug_handle_crash(argc, argv);
+    srslte_config_t main_config;
+    read_config_master(&main_config);
+    int nof_usrp;
+    nof_usrp = main_config.nof_usrp;
+
+    for(int i=0;i<nof_usrp;i++){
 	srslte_init_ue_list(&ue_list[i]);  
 	args_default(&prog_args[i]);
+	prog_args[i].rf_freq = main_config.usrp_config[i].rf_freq;
+	prog_args[i].nof_thread = main_config.usrp_config[i].nof_thread;
+	prog_args[i].rf_args	= malloc(100 * sizeof(char));
+	strcpy(prog_args[i].rf_args, main_config.usrp_config[i].rf_args);
     }
-    prog_args[0].rf_freq = 1.94e9;
-    prog_args[0].rf_args = "type=x300";
-    prog_args[0].nof_thread = 2;
-
-    prog_args[1].rf_freq = 2.355e9;
-    prog_args[1].rf_args = "serial=31993A8";
-    prog_args[1].nof_thread = 2;
 
     sigset_t sigset;
     sigemptyset(&sigset);
@@ -99,12 +102,13 @@ int main(int argc, char **argv) {
     int usrp_idx[MAX_NOF_USRP];
     pthread_t usrp_thd[MAX_NOF_USRP];
 
-    for(int i=0;i<2;i++){
+    for(int i=0;i<nof_usrp;i++){
 	usrp_idx[i] = i;
 	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
+	sleep(2);
     }	
     
-    for(int i=0;i<2;i++){
+    for(int i=0;i<nof_usrp;i++){
 	pthread_join(usrp_thd[i], NULL);
     }
     printf("\nBye MAIN FUNCTION!\n");

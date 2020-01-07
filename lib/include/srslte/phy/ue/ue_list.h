@@ -8,6 +8,8 @@ SRSLTE_API void srslte_init_ue_list(srslte_ue_list_t* q);
 SRSLTE_API void srslte_update_ue_list_every_subframe(srslte_ue_list_t* q, uint32_t tti);
 SRSLTE_API void fill_ue_statistics(srslte_ue_list_t* q, srslte_dci_msg_paws* dci_msg);
 SRSLTE_API void srslte_enqueue_subframe_msg(srslte_dci_subframe_t* q, srslte_ue_list_t* ue_list, uint32_t tti);
+SRSLTE_API void srslte_subframe_prb_status(srslte_dci_subframe_t* q, srslte_subframe_bw_usage* sf_bw_usage, 
+					srslte_dci_msg_paws* ue_dci, uint16_t targetRNTI, int MAX_CELL_PRB);
 
 // Enqueu one rnti into the list
 SRSLTE_API void srslte_enqueue_ue(srslte_ue_list_t* q, uint16_t rnti, uint32_t tti, bool downlink);
