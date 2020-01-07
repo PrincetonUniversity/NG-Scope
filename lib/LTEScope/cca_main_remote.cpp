@@ -165,7 +165,8 @@ int main(int argc, char **argv) {
 	}
     }	
     sleep(8);
-    int ret = system("~//pantheon/startCCATest.sh bbr >/dev/null");
+    //int ret = system("~/pantheon/startCCATest.sh bbr >/dev/null");
+    int ret = system("./test_BBR.sh");
     printf("system command return value:%d\n",ret);
     
     go_exit = true;
@@ -204,7 +205,7 @@ int main(int argc, char **argv) {
     }
     sleep(10);
 
-    ret = system("~//pantheon/startCCATest.sh bbr >/dev/null");
+    ret = system("./test_BBR.sh");
     printf("system command return value:%d\n",ret);
 
     //***     cca function    *** /// 

@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     int server_sock;
     int client_sock;
     int nof_sock = accept_slave_connect(&server_sock, &client_sock);
-    
+    printf("%d client connected\n", nof_sock);
     int efd;
     struct epoll_event ev, events[1];
 
