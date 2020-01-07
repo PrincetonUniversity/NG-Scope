@@ -34,6 +34,8 @@
 #include <unistd.h>
 #include <assert.h>
 #include <signal.h>
+#include <iostream>
+
 #include <pthread.h>
 #include <semaphore.h>
 #include "srslte/common/gen_mch_tables.h"
@@ -98,7 +100,7 @@ int main(int argc, char **argv) {
     struct epoll_event ev, events[1];
 
     srslte_lteCCA_rate lteCCA_rate;
-    FILE* FD = fopen("time.txt"); 
+    FILE* FD = fopen("time.txt","w+"); 
     ev.data.fd = server_sock;
     ev.events = EPOLLIN;
     epoll_ctl(efd, EPOLL_CTL_ADD, server_socket.get_sock(), &ev); //添加到epoll监听队列中
