@@ -28,7 +28,7 @@ int read_config_master(srslte_config_t* config){
 	if(! config_lookup_int64(cfg, name, &config->usrp_config[i].rf_freq)){
 	    printf("ERROR: reading nof_usrp\n");
 	}else{
-	    printf("rf_freq:%ld ",config->usrp_config[i].rf_freq);
+	    printf("rf_freq:%lld ",config->usrp_config[i].rf_freq);
 	}
 	    
 	sprintf(name, "usrp_config%d.N_id_2",i);

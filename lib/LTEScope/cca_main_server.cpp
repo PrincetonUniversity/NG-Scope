@@ -38,6 +38,8 @@
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/poll.h>
+#include <sys/socket.h>
+#include <sys/timerfd.h>
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -58,6 +60,7 @@ extern "C"{
 #include "dci_decode_multi_usrp.h"
 #include "read_cfg.h"
 }
+#include "client.hh"
 #include "cca_main.h"
 #include "usrp_sock.h"
 #include "socket.hh"
@@ -93,53 +96,153 @@ void sig_int_handler(int signo)
     exit(1);
   }
 }
+srslte_lteCCA_rate lteCCA_rate;
 
 int main(int argc, char **argv) {
+    srslte_lteCCA_rate lteCCA_rate;
+
+    FILE* FD = fopen("client_log","w+"); 
+
+    // Connection (with AWS server) parameters
+    int con_time_s  = 20;
+    int con_time_ns = 0;
+    char AWS_servIP[100];
+    strcpy(AWS_servIP, "18.224.62.96");
+
+    // Connection (with USRP PC) parameters 
     int server_sock;
     int client_sock;
     int nof_sock = accept_slave_connect(&server_sock, &client_sock);
-    printf("%d client connected\n", nof_sock);
-    int efd;
-    struct epoll_event ev, events[1];
+    printf("%d client connected\n", nof_sock);	
 
-    srslte_lteCCA_rate lteCCA_rate;
-    FILE* FD = fopen("time.txt","w+"); 
+    // Set up UDP with AWS server
+    Socket AWS_client_socket;
+    int sender_id = getpid();
+    Socket::Address AWS_server_address( UNKNOWN );
+    AWS_client_socket.bind( Socket::Address( "0.0.0.0", 9003 ) );
+    AWS_server_address = Socket::Address( AWS_servIP, 9001 );
+    Client client(AWS_client_socket, AWS_server_address, FD);
+
+    // Set up Epoll 
+    int efd;
+    struct epoll_event ev, events[4];
+    int tfd, tfd_QAM;
+    struct itimerspec time_intv, time_intv_QAM; //用来存储时间
+
+    // Create timer     
+    tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);   //创建定时器 non-block
+    if(tfd == -1) {
+        printf("create timer fd fail \r\n");
+        return 0;
+    }
+    tfd_QAM = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);   //创建定时器 non-block
+    if(tfd_QAM == -1) {
+        printf("create timer fd fail \r\n");
+        return 0;
+    }
+    
+    time_intv.it_value.tv_sec = con_time_s;
+    time_intv.it_value.tv_nsec = con_time_ns;
+    time_intv.it_interval.tv_sec = 0;   // non periodic
+    time_intv.it_interval.tv_nsec = 0;
+
+    time_intv_QAM.it_value.tv_sec = 0;
+    time_intv_QAM.it_value.tv_nsec = 2e8;
+    time_intv_QAM.it_interval.tv_sec = 0;   // non periodic
+    time_intv_QAM.it_interval.tv_nsec = 0;
+    
+    // Create epoll 
     efd = epoll_create(4); //创建epoll实例
     if (efd == -1) {
 	printf("create epoll fail \r\n");	
 	return 0;
     }
+    ev.data.fd = tfd;
+    ev.events = EPOLLIN;    //监听定时器读事件，当定时器超时时，定时器描述符可读。
+    epoll_ctl(efd, EPOLL_CTL_ADD, tfd, &ev); //添加到epoll监听队列中
+
+    ev.data.fd = tfd_QAM;
+    ev.events = EPOLLIN;    //监听定时器读事件，当定时器超时时，定时器描述符可读。
+    epoll_ctl(efd, EPOLL_CTL_ADD, tfd_QAM, &ev); //添加到epoll监听队列中
+
     ev.data.fd = client_sock;
     ev.events = EPOLLIN;
     epoll_ctl(efd, EPOLL_CTL_ADD, client_sock, &ev); //添加到epoll监听队列中
+
+    ev.data.fd = AWS_client_socket.get_sock();
+    ev.events = EPOLLIN;    //监听定时器读事件，当定时器超时时，定时器描述符可读。
+    epoll_ctl(efd, EPOLL_CTL_ADD, AWS_client_socket.get_sock(), &ev); //添加到epoll监听队列中
+
+    client.set_blk_ack(3);
+    client.init_connection();
+    timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器
+    timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器
+    bool exit_loop = false;
     while(true){
-	int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-	if(recv_len > 0){
-	    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",
-			lteCCA_rate.probe_rate,
-			lteCCA_rate.probe_rate_hm,
-			lteCCA_rate.ue_rate,
-			lteCCA_rate.ue_rate_hm);
-	    uint64_t curr_time = Socket::timestamp();  
-	    fprintf(FD,"%ld\n",curr_time); 
+	int nfds = epoll_wait(efd, events, 4, 10000);
+	if(nfds > 0){
+	    for(int i=0;i<nfds;i++){
+		// receive the update of the data rate
+		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
+		    int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+		    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",lteCCA_rate.probe_rate,
+				lteCCA_rate.probe_rate_hm, lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm);
+		    uint64_t curr_time = Socket::timestamp();  
+		}
+		// Handle the ack from AWS server
+		// timeout for the connection
+		if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
+		    //client.recv_noRF();		    
+		}
+
+		if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
+		    exit_loop = true; 
+		}
+
+		// timeout for the QAM 
+		if( (events[i].data.fd == tfd_QAM) && (events[i].events & POLLIN) ){
+		    client.set_256QAM(true);
+		}
+	    }
 	}
-	//int nfds = epoll_wait(efd, events, 1, 10000);
-	//if(nfds > 0){
-	//    for(int i=0;i<nfds;i++){
-	//	if( (events[i].data.fd == server_sock) && (events[i].events & POLLIN) ){
-	//	    int recv_len = recv(server_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-	//	    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",
-	//			lteCCA_rate.probe_rate,
-	//			lteCCA_rate.probe_rate_hm,
-	//			lteCCA_rate.ue_rate,
-	//			lteCCA_rate.ue_rate_hm);
-	//	    uint64_t curr_time = Socket::timestamp();  
-	//	    fprintf(FD,"%ld\n",curr_time); 
-	//	}
-	//    }
-	//}
+	if(exit_loop){
+	    break;
+	}
     }
+    client.close_connection();
+
+    // garbage collection -- 0.5s
+    time_intv.it_value.tv_sec = 0;
+    time_intv.it_value.tv_nsec = 5e8;
+    time_intv.it_interval.tv_sec = 0;   // non periodic
+    time_intv.it_interval.tv_nsec = 0;
+
+    timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器
+    exit_loop = false;
+    printf("garbage collection\n");
+    while (true){
+        int nfds = epoll_wait(efd, events, 2, 0);
+        if(nfds < 0){
+            printf("Epoll wait failure!\n");
+            continue;
+        }
+        for(int i=0;i<nfds;i++){
+            if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
+                //client.recv_noRF();
+            }
+            if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
+                exit_loop = true;
+            }
+        }
+        if( exit_loop){
+           break;
+        }
+    }
+    close(tfd);
+    close(AWS_client_socket.get_sock());
     close(server_sock);
+    close(client_sock);
+
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);
 }

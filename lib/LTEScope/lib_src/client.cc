@@ -14,6 +14,7 @@
 #define NOF_BITS_PER_PKT 12000  // 1400Bytes, change later
 extern srslte_ue_cell_usage ue_cell_usage;
 extern pthread_mutex_t mutex_usage;
+//extern srslte_lteCCA_rate lteCCA_rate;
 
 Client::Client( const Socket & s_send, const Socket::Address & s_remote, FILE* file_fd)
   : _log_file(file_fd),
@@ -289,6 +290,47 @@ void Client::recv( void )
     }
     fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t %d\t%d\t\n",
       contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp,Socket::timestamp(), oneway, current_tti, _last_exp_rate, _last_est_rate, set_rate ); 
+    return;
+}
+
+void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
+{
+    /* get the data packet */
+    Socket::Packet incoming( _send.recv() );
+    Payload *contents = (Payload *) incoming.payload.data();
+    contents->recv_timestamp = incoming.timestamp;
+    _pkt_received++;
+
+    int64_t oneway_ns = contents->recv_timestamp - contents->sent_timestamp;
+    double oneway = oneway_ns / 1.e9;
+
+    if ( _remote == UNKNOWN ) {
+	return;
+    }
+    assert( !(_remote == UNKNOWN) );
+    int set_rate = 500;  
+    if(_256QAM){
+	set_rate = lteCCA_rate->probe_rate_hm;	
+    }else{
+	set_rate = lteCCA_rate->probe_rate;
+    }
+
+    if( (_pkt_received % _blk_ack) == 0){
+	//printf("_Pkt_received:%d blk_ack:%d\n", _pkt_received, _blk_ack);
+	/* send ack */
+	AckPayload outgoing;
+	//printf("ACK: %d\n",contents->sequence_number);
+	if(contents->sequence_number >= _max_ack_number){
+	    _max_ack_number = contents->sequence_number;
+	}
+	outgoing.sequence_number = contents->sequence_number;
+	outgoing.ack_number	 = _max_ack_number;
+	outgoing.int_pkt_t_us    = set_rate;
+	outgoing.sent_timestamp  = contents->sent_timestamp;
+	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
+    }
+    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t\n",
+      contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp,Socket::timestamp(), oneway, set_rate ); 
     return;
 }
 void Client::init_connection(void)
