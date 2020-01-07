@@ -37,6 +37,7 @@
 #include <iostream>
 #include <sys/epoll.h>
 #include <sys/types.h>
+#include <sys/poll.h>
 
 #include <pthread.h>
 #include <semaphore.h>
