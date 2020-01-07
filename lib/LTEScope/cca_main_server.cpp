@@ -113,21 +113,31 @@ int main(int argc, char **argv) {
     ev.events = EPOLLIN;
     epoll_ctl(efd, EPOLL_CTL_ADD, server_sock, &ev); //添加到epoll监听队列中
     while(true){
-	int nfds = epoll_wait(efd, events, 1, 10000);
-	if(nfds > 0){
-	    for(int i=0;i<nfds;i++){
-		if( (events[i].data.fd == server_sock) && (events[i].events & POLLIN) ){
-		    int recv_len = recv(server_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-		    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",
-				lteCCA_rate.probe_rate,
-				lteCCA_rate.probe_rate_hm,
-				lteCCA_rate.ue_rate,
-				lteCCA_rate.ue_rate_hm);
-		    uint64_t curr_time = Socket::timestamp();  
-		    fprintf(FD,"%ld\n",curr_time); 
-		}
-	    }
+	int recv_len = recv(server_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+	if(recv_len > 0){
+	    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",
+			lteCCA_rate.probe_rate,
+			lteCCA_rate.probe_rate_hm,
+			lteCCA_rate.ue_rate,
+			lteCCA_rate.ue_rate_hm);
+	    uint64_t curr_time = Socket::timestamp();  
+	    fprintf(FD,"%ld\n",curr_time); 
 	}
+	//int nfds = epoll_wait(efd, events, 1, 10000);
+	//if(nfds > 0){
+	//    for(int i=0;i<nfds;i++){
+	//	if( (events[i].data.fd == server_sock) && (events[i].events & POLLIN) ){
+	//	    int recv_len = recv(server_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+	//	    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",
+	//			lteCCA_rate.probe_rate,
+	//			lteCCA_rate.probe_rate_hm,
+	//			lteCCA_rate.ue_rate,
+	//			lteCCA_rate.ue_rate_hm);
+	//	    uint64_t curr_time = Socket::timestamp();  
+	//	    fprintf(FD,"%ld\n",curr_time); 
+	//	}
+	//    }
+	//}
     }
     close(server_sock);
     printf("\nBye MAIN FUNCTION!\n");
