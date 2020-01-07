@@ -36,6 +36,7 @@
 #include <signal.h>
 #include <iostream>
 #include <sys/epoll.h>
+#include <sys/types.h>
 
 #include <pthread.h>
 #include <semaphore.h>
