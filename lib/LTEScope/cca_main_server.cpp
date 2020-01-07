@@ -55,7 +55,7 @@ extern "C"{
 }
 #include "cca_main.h"
 #include "usrp_sock.h"
-#include "socket.h"
+#include "socket.hh"
 #define PRINT_CHANGE_SCHEDULIGN
 
 extern float mean_exec_time;
