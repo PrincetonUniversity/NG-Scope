@@ -104,6 +104,11 @@ int main(int argc, char **argv) {
 
     srslte_lteCCA_rate lteCCA_rate;
     FILE* FD = fopen("time.txt","w+"); 
+    efd = epoll_create(4); //创建epoll实例
+    if (efd == -1) {
+	printf("create epoll fail \r\n");	
+	return 0;
+    }
     ev.data.fd = server_sock;
     ev.events = EPOLLIN;
     epoll_ctl(efd, EPOLL_CTL_ADD, server_sock, &ev); //添加到epoll监听队列中
