@@ -109,11 +109,11 @@ int main(int argc, char **argv) {
 	printf("create epoll fail \r\n");	
 	return 0;
     }
-    ev.data.fd = server_sock;
+    ev.data.fd = client_sock;
     ev.events = EPOLLIN;
-    epoll_ctl(efd, EPOLL_CTL_ADD, server_sock, &ev); //添加到epoll监听队列中
+    epoll_ctl(efd, EPOLL_CTL_ADD, client_sock, &ev); //添加到epoll监听队列中
     while(true){
-	int recv_len = recv(server_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+	int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
 	if(recv_len > 0){
 	    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",
 			lteCCA_rate.probe_rate,
