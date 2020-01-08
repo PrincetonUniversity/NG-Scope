@@ -356,6 +356,13 @@ int lteCCA_tbs_to_rate_us(int tbs){
     int int_pkt_t_us = (int) ( (1000 * NOF_BITS_PER_PKT) / tbs);
     return int_pkt_t_us;
 }
+int lteCCA_cell_usage(srslte_ue_cell_usage* q){
+    int cell_sum_prb    = lteCCA_sum_cell_prb(q, 0, EMPTY_CELL_LEN);
+    float cell_usage_f	= (float) cell_sum_prb / (float) EMPTY_CELL_LEN;
+    int cell_usage	= (int)( cell_usage_f * 100);
+    return cell_usage;
+}
+     
 int lteCCA_predict_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm, int* full_load, int* full_load_hm){
     int tbs, tbs_hm;
     int full_load_tbs, full_load_hm_tbs;
@@ -438,6 +445,7 @@ int lteCCA_rate_predication(srslte_ue_cell_usage* q, srslte_lteCCA_rate* lteCCA_
 
     lteCCA_predict_rate(q, &probe_rate, &probe_rate_hm, &full_load, &full_load_hm); 
     lteCCA_average_ue_rate(q, &ue_rate, &ue_rate_hm);
+    int cell_usage = lteCCA_cell_usage(q);
 
     lteCCA_rate->probe_rate	= probe_rate;
     lteCCA_rate->probe_rate_hm	= probe_rate_hm;
@@ -448,6 +456,7 @@ int lteCCA_rate_predication(srslte_ue_cell_usage* q, srslte_lteCCA_rate* lteCCA_
     lteCCA_rate->ue_rate	= ue_rate;
     lteCCA_rate->ue_rate_hm	= ue_rate_hm;
 
+    lteCCA_rate->cell_usage	= cell_usage;
     return 0;
 }
 

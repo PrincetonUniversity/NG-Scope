@@ -73,6 +73,7 @@ typedef struct SRSLTE_API{
     int full_load_hm;
     int ue_rate;
     int ue_rate_hm;
+    int cell_usage;
 }srslte_lteCCA_rate;
 
 // Init the rnti list
