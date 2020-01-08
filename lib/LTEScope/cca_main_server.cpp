@@ -221,14 +221,25 @@ int main(int argc, char **argv) {
     }
     client.close_connection();
 
+    lteCCA_rate.probe_rate      = -1;
+    lteCCA_rate.probe_rate_hm   = -2;
+    lteCCA_rate.full_load       = -3;
+    lteCCA_rate.full_load_hm    = -4;
+    lteCCA_rate.ue_rate         = -5;
+    lteCCA_rate.ue_rate_hm      = -6;
+    lteCCA_rate.cell_usage      = -7;
+   
+    // Tell the USRP PC that we are going to end the connection -prepare for it
+    send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+
     // garbage collection -- 0.5s
     time_intv.it_value.tv_sec = 0;
     time_intv.it_value.tv_nsec = 5e8;
     time_intv.it_interval.tv_sec = 0;   // non periodic
     time_intv.it_interval.tv_nsec = 0;
-
     timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器
     exit_loop = false;
+    bool exit_loop_usrp = false;
     printf("garbage collection\n");
     while (true){
         int nfds = epoll_wait(efd, events, 2, 0);
@@ -237,6 +248,18 @@ int main(int argc, char **argv) {
             continue;
         }
         for(int i=0;i<nfds;i++){
+	    if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
+		int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+		if(recv_len == 0 && errno == EAGAIN){
+		    printf("connection with USRP PC is closed!\n");
+		    exit_loop_usrp = true;
+		}
+		if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
+			(lteCCA_rate.full_load_hm == -1) && (lteCCA_rate.ue_rate == -1) && (lteCCA_rate.ue_rate_hm == -1)){
+		    // the usrp dci decoder is ready!
+		    exit_loop_usrp = true;
+		} 
+	    }
             if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
                 client.recv_noRF(&lteCCA_rate);
             }
@@ -244,7 +267,7 @@ int main(int argc, char **argv) {
                 exit_loop = true;
             }
         }
-        if( exit_loop){
+        if( exit_loop && exit_loop_usrp){
            break;
         }
     }

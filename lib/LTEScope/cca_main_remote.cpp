@@ -251,14 +251,33 @@ int main(int argc, char **argv) {
                         printf("connection with CCA server is closed!\n");
                         exit_loop = true;
                     }
+		    if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -2) && (lteCCA_rate.full_load == -3) &&
+			    (lteCCA_rate.full_load_hm == -4) && (lteCCA_rate.ue_rate == -5) && (lteCCA_rate.ue_rate_hm == -6)){
+			// the usrp dci decoder is ready!
+			exit_loop = true;
+		    }
 		}
 	    }
+	}
+	if(exit_loop == true){
+	    break;
 	}
     }
     go_exit = true;
     for(int i=0;i<nof_usrp;i++){
 	pthread_join(usrp_thd[i], NULL);
     }
+
+    lteCCA_rate.probe_rate	= -1;
+    lteCCA_rate.probe_rate_hm	= -1;
+    lteCCA_rate.full_load	= -1;
+    lteCCA_rate.full_load_hm	= -1;
+    lteCCA_rate.ue_rate		= -1;
+    lteCCA_rate.ue_rate_hm	= -1;
+    lteCCA_rate.cell_usage	= -1;
+
+    // tell the CCA server that it is safe to close
+    send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
 
     exit_heartBeat = true;
     srslte_UeCell_set_logFlag(&ue_cell_usage, true);

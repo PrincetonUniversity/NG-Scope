@@ -368,8 +368,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
     }
-    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t\n",
-      contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, set_rate ); 
+    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t\n",
+      contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, set_rate, _slow_start); 
     return;
 }
 void Client::init_connection(void)
