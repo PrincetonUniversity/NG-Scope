@@ -69,6 +69,8 @@ typedef struct SRSLTE_API{
 typedef struct SRSLTE_API{
     int probe_rate;
     int probe_rate_hm;
+    int full_load;
+    int full_load_hm;
     int ue_rate;
     int ue_rate_hm;
 }srslte_lteCCA_rate;

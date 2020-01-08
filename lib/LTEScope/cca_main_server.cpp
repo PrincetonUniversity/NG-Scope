@@ -185,8 +185,9 @@ int main(int argc, char **argv) {
 		// receive the update of the data rate
 		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
 		    int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-		    printf("probe rate:%d rate_hm:%d ue rate:%d ue_rate_hm:%d\n",lteCCA_rate.probe_rate,
-				lteCCA_rate.probe_rate_hm, lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm);
+		    printf("probe rate:%d rate_hm:%d full_load:%d load_hm:%d ue rate:%d ue_rate_hm:%d\n",lteCCA_rate.probe_rate,
+				lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
+				lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm);
 		    uint64_t curr_time = Socket::timestamp();  
 		}
 		// Handle the ack from AWS server
