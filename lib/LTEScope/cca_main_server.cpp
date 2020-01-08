@@ -40,6 +40,7 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/timerfd.h>
+#include <errno.h>
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -185,7 +186,11 @@ int main(int argc, char **argv) {
 		// receive the update of the data rate
 		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
 		    int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-		    printf("probe rate:%d rate_hm:%d full_load:%d load_hm:%d ue rate:%d ue_rate_hm:%d usage:%d\n",
+		    if(recv_len == 0 && errno = EAGAIN){
+			printf("connection with USRP PC is closed!\n");
+			exit_loop = true;
+		    }
+		    printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
 		    lteCCA_rate.probe_rate, lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
 		    lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
 

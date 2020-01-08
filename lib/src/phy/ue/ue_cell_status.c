@@ -358,7 +358,7 @@ int lteCCA_tbs_to_rate_us(int tbs){
 }
 int lteCCA_cell_usage(srslte_ue_cell_usage* q){
     int cell_sum_prb    = lteCCA_sum_cell_prb(q, 0, EMPTY_CELL_LEN);
-    float cell_usage_f	= (float) cell_sum_prb / (float) EMPTY_CELL_LEN;
+    float cell_usage_f	= (float) cell_sum_prb / (float) (EMPTY_CELL_LEN * q->max_cell_prb[0]);
     int cell_usage	= (int)( cell_usage_f * 100);
     return cell_usage;
 }
