@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 		// receive the update of the data rate
 		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
 		    int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-		    if(recv_len == 0 && errno = EAGAIN){
+		    if(recv_len == 0 && errno == EAGAIN){
 			printf("connection with USRP PC is closed!\n");
 			exit_loop = true;
 		    }
