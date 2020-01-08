@@ -137,6 +137,25 @@ int tbs_to_rate(int tbs){
     int int_pkt_t_us = (int) ( (1000 * NOF_BITS_PER_PKT) / tbs); 
     return int_pkt_t_us;
 }
+
+int rate_us_to_rate_bit(int rate_us){
+    int nof_pkt_per_sec  = 1000000 / rate_us;
+    int nof_bits_per_sec = nof_pkt_per_sec * NOF_BITS_PER_PKT;
+    return nof_bits_per_sec;
+}
+int bits_per_sec_to_us(int rate_bits){
+    int nof_pkt_p_sec	= rate_bits / NOF_BITS_PER_PKT;
+    int rate_us		= 1000000 / nof_pkt_p_sec; 
+    return rate_us;
+}
+int rate_combine_3_rates(int exp_rate, int est_rate, int tx_rate){
+    int exp_rate_bits	= rate_us_to_rate_bit(exp_rate);
+    int est_rate_bits	= rate_us_to_rate_bit(est_rate);
+    int tx_rate_bits	= rate_us_to_rate_bit(tx_rate);
+    int rate_bits_p_sec = exp_rate_bits - ( (exp_rate_bits - est_rate_bits) * (tx_rate_bits - est_rate_bits)) / exp_rate_bits;
+    int rate_us	    =  bits_per_sec_to_us(rate_bits_p_sec);
+    return rate_us;
+}
 int rate_us_to_rateM(int rate_t_us){
     int nof_pkt_per_sec = 1000000 / rate_t_us;
     int nof_bits	= nof_pkt_per_sec * NOF_BITS_PER_PKT;
@@ -363,9 +382,19 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    lteCCA_rate->probe_rate_hm = 1000;
 	}
 	if(_256QAM){
-	    set_rate = lteCCA_rate->probe_rate; 
+	    if( (lteCCA_rate->probe_rate > lteCCA_rate->ue_rate) && (tx_rate_us > lteCCA_rate->ue_rate)){
+		int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, tx_rate_us); 
+		set_rate = rate_us; 
+	    }else{
+		set_rate = lteCCA_rate->probe_rate; 
+	    }
 	}else{
-	    set_rate = lteCCA_rate->probe_rate_hm; 
+	    if( (lteCCA_rate->probe_rate_hm > lteCCA_rate->ue_rate_hm) && (tx_rate_us > lteCCA_rate->ue_rate_hm)){
+		int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate_hm, tx_rate_us); 
+		set_rate = rate_us; 
+	    }else{
+		set_rate = lteCCA_rate->probe_rate_hm; 
+	    }
 	}	
     }
     if( (_pkt_received % _blk_ack) == 0){
