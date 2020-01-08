@@ -327,7 +327,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 
     int     tx_rate_us = contents->tx_rate_us;
 
-    int64_t oneway_ns	= contents->recv_timestamp - contents->sent_timestamp;
+    int64_t  oneway_ns	= contents->recv_timestamp - contents->sent_timestamp;
     uint32_t oneway_us  = (uint32_t) (oneway_ns / 1000);
     uint64_t curr_time	= Socket::timestamp();
     uint32_t time	= (uint32_t) (curr_time / 1000);
@@ -335,7 +335,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     uint32_t windowed_min_delay = minmax_get(&win_delay_us);
     double oneway = oneway_ns / 1.e9;
 
-    if(oneway_us > (windowed_min_delay + 8*3) ){
+    // 8ms is the HARQ handle delay -- 8000 us
+    if(oneway_us > (windowed_min_delay + 8000*3) ){
 	_nof_delayed_pkt++;
     }else{
 	_nof_delayed_pkt = 0;
@@ -439,9 +440,9 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     fprintf( _log_file,"%d\t %d\t %ld\t %ld\t %ld\t %.4f\t",
     contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway);
     fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t %d\t",
-	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
-    fprintf( _log_file,"%d\t %d\t ",
-	windowed_min_delay, _nof_delayed_pkt); 
+	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
+    fprintf( _log_file,"%d\t %d\t %d\t ",
+	oneway_us, windowed_min_delay, _nof_delayed_pkt); 
     fprintf( _log_file,"\n");
     return;
 }
