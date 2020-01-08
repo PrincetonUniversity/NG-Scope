@@ -237,7 +237,6 @@ int main(int argc, char **argv) {
 
     // tell the CCA server that we are ready
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
-    printf("TELL the CCA server we are ready!\n");
 
     bool exit_loop = false;
     while(true){
@@ -278,11 +277,13 @@ int main(int argc, char **argv) {
 
     // tell the CCA server that it is safe to close
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
-    printf("TELL THE CCA server that it is safe to close!\n");
+
     exit_heartBeat = true;
     srslte_UeCell_set_logFlag(&ue_cell_usage, true);
+
     printf("close fd");
     fclose(FD_DCI);
+
     close(client_sock);
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);

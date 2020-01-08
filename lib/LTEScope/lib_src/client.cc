@@ -302,6 +302,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     contents->recv_timestamp = incoming.timestamp;
     _pkt_received++;
 
+    int     tx_rate_us = contents->tx_rate_us;
+
     int64_t oneway_ns = contents->recv_timestamp - contents->sent_timestamp;
     double oneway = oneway_ns / 1.e9;
 
@@ -323,6 +325,12 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     }
     if(_slow_start){
 	if(_256QAM){
+	    if(lteCCA_rate->full_load > 3000){
+		lteCCA_rate->full_load = 1000;
+	    }
+	    if(lteCCA_rate->full_load_hm > 3000){
+		lteCCA_rate->full_load_hm = 1000;
+	    }
 	    if( time_passed_ms < interval){
 		set_rate = lteCCA_rate->full_load * 4;	
 	    }else if(time_passed_ms > interval){
@@ -348,6 +356,12 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    }
 	}
     }else{
+	if (lteCCA_rate->probe_rate > 3000){
+	    lteCCA_rate->probe_rate = 1000;
+	}
+	if (lteCCA_rate->probe_rate_hm > 3000){
+	    lteCCA_rate->probe_rate_hm = 1000;
+	}
 	if(_256QAM){
 	    set_rate = lteCCA_rate->probe_rate; 
 	}else{
@@ -368,8 +382,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
     }
-    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t\n",
-      contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, set_rate, _slow_start); 
+    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t %d\t\n",
+    contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, set_rate, tx_rate_us, _slow_start); 
     return;
 }
 void Client::init_connection(void)
