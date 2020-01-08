@@ -102,7 +102,8 @@ srslte_lteCCA_rate lteCCA_rate;
 int main(int argc, char **argv) {
     srslte_lteCCA_rate lteCCA_rate;
 
-    FILE* FD = fopen("client_log","w+"); 
+    FILE* FD	    = fopen("client_log","w+"); 
+    FILE* FD_rate   = fopen("CCA_rate_log","w+"); 
 
     // Connection (with AWS server) parameters
     int con_time_s  = 20;
@@ -175,6 +176,7 @@ int main(int argc, char **argv) {
     epoll_ctl(efd, EPOLL_CTL_ADD, AWS_client_socket.get_sock(), &ev); //添加到epoll监听队列中
 
     client.set_blk_ack(3);
+    bool log_flag = false;
     bool exit_loop = false;
     while(true){
 	int nfds = epoll_wait(efd, events, 4, 10000);
@@ -187,9 +189,6 @@ int main(int argc, char **argv) {
 			printf("connection with USRP PC is closed!\n");
 			exit_loop = true;
 		    }
-		    printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
-		    lteCCA_rate.probe_rate, lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
-		    lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
 		    if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
 			    (lteCCA_rate.full_load_hm == -1) && (lteCCA_rate.ue_rate == -1) && (lteCCA_rate.ue_rate_hm == -1)){
 			// the usrp dci decoder is ready!
@@ -198,11 +197,20 @@ int main(int argc, char **argv) {
 			timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器 for QAM
 		    } 
 		    uint64_t curr_time = Socket::timestamp();  
+		    if(log_flag){
+			fprintf(FD_rate, "%lld\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", curr_time, lteCCA_rate.probe_rate, 
+				    lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
+				    lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
+			printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
+				lteCCA_rate.probe_rate, lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
+				lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
+		    } 
 		}
 		// Handle the ack from AWS server
 		// timeout for the connection
 		if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
-		    //client.recv_noRF(&lteCCA_rate); 
+		    client.recv_noRF(&lteCCA_rate); 
+		    log_flag = true;
 		}
 
 		if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
@@ -231,7 +239,6 @@ int main(int argc, char **argv) {
    
     // Tell the USRP PC that we are going to end the connection -prepare for it
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
-    printf(" TELL the usrp PC that we are going to end the connection!\n");
 
     // garbage collection -- 0.5s
     time_intv.it_value.tv_sec = 0;
@@ -241,7 +248,7 @@ int main(int argc, char **argv) {
     timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器
     exit_loop = false;
     bool exit_loop_usrp = false;
-    printf("garbage collection\n");
+    printf("\n\n Enter garbage collection...\n\n");
     while (true){
         int nfds = epoll_wait(efd, events, 2, 0);
         if(nfds < 0){
@@ -254,16 +261,17 @@ int main(int argc, char **argv) {
 		if(recv_len == 0 && errno == EAGAIN){
 		    printf("connection with USRP PC is closed!\n");
 		    exit_loop_usrp = true;
+		    continue;
 		}
 		if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
 			(lteCCA_rate.full_load_hm == -1) && (lteCCA_rate.ue_rate == -1) && (lteCCA_rate.ue_rate_hm == -1)){
 		    // the usrp dci decoder is ready!
-		    printf("We receive from the usrp PC that we are safe to close!\n");
+		    //printf("We receive from the usrp PC that we are safe to close!\n");
 		    exit_loop_usrp = true;
 		} 
 	    }
             if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
-                //client.recv_noRF(&lteCCA_rate);
+                client.recv_noRF(&lteCCA_rate);
             }
             if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
                 exit_loop = true;
