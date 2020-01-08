@@ -241,10 +241,13 @@ int main(int argc, char **argv) {
 
     bool exit_loop = false;
     while(true){
-	int nfds = epoll_wait(efd, events, 1, 1000000);     
+	int nfds = epoll_wait(efd, events, 1, 1000000);    
+	printf("nfds:%d\n",nfds); 
+
 	if(nfds > 0){
 	    for(int i=0;i<nfds;i++){
 		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
+		    printf("we got somethiing!\n");
 		    char buffer[100];
 		    int recv_len = recv(client_sock, buffer, 100, 0);
                     if(recv_len == 0 && errno == EAGAIN){

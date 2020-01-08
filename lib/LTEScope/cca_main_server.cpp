@@ -231,6 +231,7 @@ int main(int argc, char **argv) {
    
     // Tell the USRP PC that we are going to end the connection -prepare for it
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
+    printf(" TELL the usrp PC that we are going to end the connection!\n");
 
     // garbage collection -- 0.5s
     time_intv.it_value.tv_sec = 0;
