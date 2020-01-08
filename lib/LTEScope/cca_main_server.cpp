@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 		// Handle the ack from AWS server
 		// timeout for the connection
 		if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
-		    client.recv_noRF(&lteCCA_rate); 
+		    //client.recv_noRF(&lteCCA_rate); 
 		}
 
 		if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
@@ -257,11 +257,12 @@ int main(int argc, char **argv) {
 		if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
 			(lteCCA_rate.full_load_hm == -1) && (lteCCA_rate.ue_rate == -1) && (lteCCA_rate.ue_rate_hm == -1)){
 		    // the usrp dci decoder is ready!
+		    printf("We receive from the usrp PC that we are safe to close!\n");
 		    exit_loop_usrp = true;
 		} 
 	    }
             if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
-                client.recv_noRF(&lteCCA_rate);
+                //client.recv_noRF(&lteCCA_rate);
             }
             if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
                 exit_loop = true;

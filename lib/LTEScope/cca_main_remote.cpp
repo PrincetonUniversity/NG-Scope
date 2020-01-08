@@ -161,55 +161,55 @@ int main(int argc, char **argv) {
     int usrp_idx[MAX_NOF_USRP];
     pthread_t usrp_thd[MAX_NOF_USRP];
 
-    int count = 0;
-    for(int i=0;i<nof_usrp;i++){
-	usrp_idx[i] = i;
-	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
-	for(int j=0;j<prog_args[i].nof_thread;j++){
-	    free_order[count] = 1;
-	    count++;
-	}
-    }	
-    sleep(8);
-    //int ret = system("~/pantheon/startCCATest.sh bbr >/dev/null");
-    int ret = system("./test_BBR.sh");
-    printf("system command return value:%d\n",ret);
-    
-    go_exit = true;
+//    int count = 0;
+//    for(int i=0;i<nof_usrp;i++){
+//	usrp_idx[i] = i;
+//	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
+//	for(int j=0;j<prog_args[i].nof_thread;j++){
+//	    free_order[count] = 1;
+//	    count++;
+//	}
+//    }	
+//    sleep(8);
+//    //int ret = system("~/pantheon/startCCATest.sh bbr >/dev/null");
+//    int ret = system("./test_BBR.sh");
+//    printf("system command return value:%d\n",ret);
+//    
+//    go_exit = true;
+//
+//    for(int i=0;i<nof_usrp;i++){
+//	pthread_join(usrp_thd[i], NULL);
+//    }
+//    fclose(FD_DCI);
 
-    for(int i=0;i<nof_usrp;i++){
-	pthread_join(usrp_thd[i], NULL);
-    }
-    fclose(FD_DCI);
 
-
-    targetRNTI_const = ue_list[0].max_dl_freq_ue;
-    srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
-    printf("\n\n\n MAX freq rnti:%d freq:%d \n\n\n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
-
-    pthread_t heart_beat_thd;
-    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
-
-    FD_DCI  = fopen("./dci_log", "w+");
-    srslte_UeCell_set_file_descriptor(&ue_cell_usage, FD_DCI);
-    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
-    srslte_UeCell_reset(&ue_cell_usage);
-
-    // setup remote
-    srslte_UeCell_set_remote_sock(&ue_cell_usage, client_sock);
-    srslte_UeCell_set_remote_flag(&ue_cell_usage, true);
-
-    count = 0;
-    go_exit = false;
-    for(int i=0;i<nof_usrp;i++){
-	usrp_idx[i] = i;
-	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
-	for(int j=0;j<prog_args[i].nof_thread;j++){
-	    free_order[count] = 1;
-	    count++;
-	}
-    }
-    sleep(10);
+//    targetRNTI_const = ue_list[0].max_dl_freq_ue;
+//    srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
+//    printf("\n\n\n MAX freq rnti:%d freq:%d \n\n\n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
+//
+//    pthread_t heart_beat_thd;
+//    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
+//
+//    FD_DCI  = fopen("./dci_log", "w+");
+//    srslte_UeCell_set_file_descriptor(&ue_cell_usage, FD_DCI);
+//    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
+//    srslte_UeCell_reset(&ue_cell_usage);
+//
+//    // setup remote
+//    srslte_UeCell_set_remote_sock(&ue_cell_usage, client_sock);
+//    srslte_UeCell_set_remote_flag(&ue_cell_usage, true);
+//
+//    count = 0;
+//    go_exit = false;
+//    for(int i=0;i<nof_usrp;i++){
+//	usrp_idx[i] = i;
+//	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
+//	for(int j=0;j<prog_args[i].nof_thread;j++){
+//	    free_order[count] = 1;
+//	    count++;
+//	}
+//    }
+//    sleep(10);
 
     //ret = system("./test_BBR.sh");
     //printf("system command return value:%d\n",ret);
@@ -222,7 +222,6 @@ int main(int argc, char **argv) {
         printf("create epoll fail \r\n");
         return 0;
     }
-
     ev.data.fd	= client_sock;
     ev.events	= EPOLLIN;
     epoll_ctl(efd, EPOLL_CTL_ADD, client_sock, &ev); //添加到epoll监听队列中
@@ -238,10 +237,11 @@ int main(int argc, char **argv) {
 
     // tell the CCA server that we are ready
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
+    printf("TELL the CCA server we are ready!\n");
 
     bool exit_loop = false;
     while(true){
-	int nfds = epoll_wait(efd, events, 4, 1000000);     
+	int nfds = epoll_wait(efd, events, 1, 1000000);     
 	if(nfds > 0){
 	    for(int i=0;i<nfds;i++){
 		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
@@ -253,7 +253,8 @@ int main(int argc, char **argv) {
                     }
 		    if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -2) && (lteCCA_rate.full_load == -3) &&
 			    (lteCCA_rate.full_load_hm == -4) && (lteCCA_rate.ue_rate == -5) && (lteCCA_rate.ue_rate_hm == -6)){
-			// the usrp dci decoder is ready!
+			// the usrp dci decoder is closed!
+			printf("We receive a message from remote server that he closes!\n");
 			exit_loop = true;
 		    }
 		}
@@ -263,10 +264,10 @@ int main(int argc, char **argv) {
 	    break;
 	}
     }
-    go_exit = true;
-    for(int i=0;i<nof_usrp;i++){
-	pthread_join(usrp_thd[i], NULL);
-    }
+//    go_exit = true;
+//    for(int i=0;i<nof_usrp;i++){
+//	pthread_join(usrp_thd[i], NULL);
+//    }
 
     lteCCA_rate.probe_rate	= -1;
     lteCCA_rate.probe_rate_hm	= -1;
@@ -278,11 +279,11 @@ int main(int argc, char **argv) {
 
     // tell the CCA server that it is safe to close
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
-
-    exit_heartBeat = true;
-    srslte_UeCell_set_logFlag(&ue_cell_usage, true);
-    printf("close fd");
-    fclose(FD_DCI);
+    printf("TELL THE CCA server that it is safe to close!\n");
+//    exit_heartBeat = true;
+//    srslte_UeCell_set_logFlag(&ue_cell_usage, true);
+//    printf("close fd");
+//    fclose(FD_DCI);
     close(client_sock);
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);
