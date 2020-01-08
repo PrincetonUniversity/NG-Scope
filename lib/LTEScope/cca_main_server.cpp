@@ -175,8 +175,6 @@ int main(int argc, char **argv) {
     epoll_ctl(efd, EPOLL_CTL_ADD, AWS_client_socket.get_sock(), &ev); //添加到epoll监听队列中
 
     client.set_blk_ack(3);
-    client.init_connection();
-
     bool exit_loop = false;
     while(true){
 	int nfds = epoll_wait(efd, events, 4, 10000);
@@ -195,7 +193,7 @@ int main(int argc, char **argv) {
 		    if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
 			    (lteCCA_rate.full_load_hm == -1) && (lteCCA_rate.ue_rate == -1) && (lteCCA_rate.ue_rate_hm == -1)){
 			// the usrp dci decoder is ready!
-			client.init_connection();
+			client.init_connection();		    // Start the connection with remote server
 			timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器 for connection
 			timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器 for QAM
 		    } 
