@@ -333,8 +333,13 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     uint32_t time	= (uint32_t) (curr_time / 1000);
     minmax_running_min(&win_delay_us, _delay_window_us, time, oneway_us);
     uint32_t windowed_min_delay = minmax_get(&win_delay_us);
-
     double oneway = oneway_ns / 1.e9;
+
+    if(oneway_us > windowed_min_delay + 8*2){
+	_nof_delayed_pkt++;
+    }else{
+	_nof_delayed_pkt = 0;
+    }
 
     if ( _remote == UNKNOWN ) {
 	return;
@@ -398,7 +403,11 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	   // }else{
 	   //     set_rate = lteCCA_rate->probe_rate; 
 	   // }
-	    set_rate = lteCCA_rate->probe_rate; 
+	    if(_nof_delayed_pkt > 20){
+		set_rate = lteCCA_rate->ue_rate; 
+	    }else{
+		set_rate = lteCCA_rate->probe_rate; 
+	    }
 	}else{
 	   // if( (lteCCA_rate->probe_rate_hm < lteCCA_rate->ue_rate_hm) && (tx_rate_us < lteCCA_rate->ue_rate_hm)){
 	   //     int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate_hm, tx_rate_us); 
@@ -406,7 +415,11 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	   // }else{
 	   //     set_rate = lteCCA_rate->probe_rate_hm; 
 	   // }
-	    set_rate = lteCCA_rate->probe_rate_hm; 
+	    if(_nof_delayed_pkt > 20){
+		set_rate = lteCCA_rate->ue_rate_hm; 
+	    }else{
+		set_rate = lteCCA_rate->probe_rate_hm; 
+	    }
 	}	
     }
     if( (_pkt_received % _blk_ack) == 0){
