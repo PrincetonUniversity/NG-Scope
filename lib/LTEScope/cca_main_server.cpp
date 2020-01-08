@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
 		    } 
 		    uint64_t curr_time = Socket::timestamp();  
 		    if(log_flag){
-			fprintf(FD_rate, "%lld\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", curr_time, lteCCA_rate.probe_rate, 
+			fprintf(FD_rate, "%ld\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", curr_time, lteCCA_rate.probe_rate, 
 				    lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
 				    lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
 			printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
