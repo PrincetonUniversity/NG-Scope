@@ -442,6 +442,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
     fprintf( _log_file,"%d\t %d\t ",
 	windowed_min_delay, _nof_delayed_pkt); 
+    fprintf( _log_file,"\n");
     return;
 }
 void Client::init_connection(void)
