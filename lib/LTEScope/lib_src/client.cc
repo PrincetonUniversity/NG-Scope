@@ -27,12 +27,16 @@ Client::Client( const Socket & s_send, const Socket::Address & s_remote, FILE* f
     _last_exp_rate( 500 ),
     _last_est_rate( 500 ),
     _start_time( 0 ),
+    _delay_window_us( 1000000 ),
+    _nof_delayed_pkt( 0 ),
     _blk_ack(1),
     _256QAM(false),
     _slow_start (true),
     _overhead_factor(0.1),
     _last_rate( 500)
 {
+    uint32_t curr_time = (uint32_t) (Socket::timestamp() % 1000);
+    minmax_reset(&win_delay_us, curr_time, 100000000);
     for(int i=0;i<MAX_NOF_CA;i++){
 	cellMaxPrb[i]	= 0;
 	ca_active[i]	= false;
@@ -323,14 +327,20 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 
     int     tx_rate_us = contents->tx_rate_us;
 
-    int64_t oneway_ns = contents->recv_timestamp - contents->sent_timestamp;
+    int64_t oneway_ns	= contents->recv_timestamp - contents->sent_timestamp;
+    uint32_t oneway_us  = (uint32_t) (oneway_ns / 1000);
+    uint64_t curr_time	= Socket::timestamp();
+    uint32_t time	= (uint32_t) (curr_time / 1000);
+    minmax_running_min(&win_delay_us, _delay_window_us, time, oneway_us);
+    uint32_t windowed_min_delay = minmax_get(&win_delay_us);
+
     double oneway = oneway_ns / 1.e9;
 
     if ( _remote == UNKNOWN ) {
 	return;
     }
     assert( !(_remote == UNKNOWN) );
-    uint64_t curr_time		= Socket::timestamp();
+
     if( _start_time == 0){
 	_start_time = curr_time;
     }
@@ -413,9 +423,9 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
     }
-    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t %d\t %d\t %d\t\n",
+    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t %d\t %d\t %d\t %d\t\n",
     contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, 
-	set_rate, lteCCA_rate->ue_rate_hm, tx_rate_us, lteCCA_rate->probe_rate_hm, _slow_start); 
+	set_rate, lteCCA_rate->ue_rate_hm, tx_rate_us, lteCCA_rate->probe_rate_hm, windowed_min_delay, _slow_start); 
     return;
 }
 void Client::init_connection(void)

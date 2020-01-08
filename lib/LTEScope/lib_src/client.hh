@@ -3,6 +3,7 @@
 #include <fstream>
 #include "socket.hh"
 #include "srslte/srslte.h"
+#include "win_minmax.h"
 
 #define cell_prb_len NOF_REPORT_SF
 #define ue_tbs_len 10
@@ -23,7 +24,11 @@ private:
     int	     _last_exp_rate;
     int	     _last_est_rate;
     uint64_t _start_time;
- 
+
+    struct   minmax win_delay_us; 
+    uint32_t _delay_window_us;
+    int	     _nof_delayed_pkt;
+
     int	     _blk_ack; 
     bool     _256QAM;
     bool     _slow_start;

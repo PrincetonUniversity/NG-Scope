@@ -194,7 +194,8 @@ int main(int argc, char **argv) {
 			// the usrp dci decoder is ready!
 			client.init_connection();		    // Start the connection with remote server
 			timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器 for connection
-			timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器 for QAM
+		    
+			//timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器 for QAM  stop it for iphone
 		    } 
 		    uint64_t curr_time = Socket::timestamp();  
 		    if(log_flag){
