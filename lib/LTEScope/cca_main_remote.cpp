@@ -77,7 +77,7 @@ pthread_mutex_t mutex_exit = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_usage = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_free_order = PTHREAD_MUTEX_INITIALIZER;
 
-
+int client_sock;
 uint16_t targetRNTI_const = 0;
 void sig_int_handler(int signo)
 {
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 
     char masterIP[50];
     strcpy(masterIP, "192.168.1.20");
-    int client_sock	= connect_server(masterIP);
+    client_sock = connect_server(masterIP);
 
     //srslte_debug_handle_crash(argc, argv);
     srslte_config_t main_config;

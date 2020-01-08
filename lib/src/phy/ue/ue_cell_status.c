@@ -353,9 +353,11 @@ int lteCCA_predict_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm){
     int nof_cell = q->nof_cell;
     if(nof_cell > 1){
 	for(int i=1;i<nof_cell;i++){
-	    lteCCA_predict_tbs_single_cell(q, i, &tbs, &tbs_hm);
-	    exp_tbs	+= tbs;
-	    exp_tbs_hm	+= tbs_hm;
+	    if(q->cell_triggered[i]){
+		lteCCA_predict_tbs_single_cell(q, i, &tbs, &tbs_hm);
+		exp_tbs	+= tbs;
+		exp_tbs_hm	+= tbs_hm;
+	    }
 	}
     }
 
@@ -378,19 +380,26 @@ int lteCCA_average_ue_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm){
     int tuned_tbs_hm	= lteCCA_tuning_tbs(ue_tbs_hm);
     ave_tbs	+=  tuned_tbs / AVE_UE_RATE; 
     ave_tbs_hm	+=  tuned_tbs_hm / AVE_UE_RATE; 
-
+    
+    printf("sum tbs:%d tbs_hm:%d tuned tbs:%d tbs_hm:%d ave_tbs:%d tbs_hm:%d\n",
+	    ue_tbs, ue_tbs_hm, tuned_tbs, tuned_tbs_hm, ave_tbs, ave_tbs_hm);
     int nof_cell = q->nof_cell;
     if(nof_cell > 1){
 	for(int i=1;i<nof_cell;i++){
-	    lteCCA_sum_tbs(q, i, AVE_UE_RATE, &ue_tbs, &ue_tbs_hm);
-	    tuned_tbs	    = lteCCA_tuning_tbs(ue_tbs);
-	    tuned_tbs_hm    = lteCCA_tuning_tbs(ue_tbs_hm);
-	    ave_tbs	+=  tuned_tbs / AVE_UE_RATE; 
-	    ave_tbs_hm	+=  tuned_tbs_hm / AVE_UE_RATE; 
+	    if(q->cell_triggered[i]){
+		lteCCA_sum_tbs(q, i, AVE_UE_RATE, &ue_tbs, &ue_tbs_hm);
+		tuned_tbs	= lteCCA_tuning_tbs(ue_tbs);
+		tuned_tbs_hm    = lteCCA_tuning_tbs(ue_tbs_hm);
+		ave_tbs		+=  tuned_tbs / AVE_UE_RATE; 
+		ave_tbs_hm	+=  tuned_tbs_hm / AVE_UE_RATE; 
+		printf("sum tbs:%d tbs_hm:%d tuned tbs:%d tbs_hm:%d ave_tbs:%d tbs_hm:%d\n",
+		    ue_tbs, ue_tbs_hm, tuned_tbs, tuned_tbs_hm, ave_tbs, ave_tbs_hm);
+	    }
 	}
     }
     int ue_rate	    = lteCCA_tbs_to_rate_us(ave_tbs);
     int ue_rate_hm  = lteCCA_tbs_to_rate_us(ave_tbs_hm);
+    printf("final ue_rate:%d ue_rate_hm:%d\n",ue_rate, ue_rate_hm);
     *rate	= ue_rate;
     *rate_hm	= ue_rate_hm;
     return 0;

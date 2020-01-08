@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
 		}
 
 		if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
-		    exit_loop = true; 
+		    //exit_loop = true; 
 		}
 
 		// timeout for the QAM 
