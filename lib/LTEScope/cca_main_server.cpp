@@ -176,8 +176,7 @@ int main(int argc, char **argv) {
 
     client.set_blk_ack(3);
     client.init_connection();
-    timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器
-    timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器
+
     bool exit_loop = false;
     while(true){
 	int nfds = epoll_wait(efd, events, 4, 10000);
@@ -193,17 +192,23 @@ int main(int argc, char **argv) {
 		    printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
 		    lteCCA_rate.probe_rate, lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
 		    lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
-
+		    if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
+			    (lteCCA_rate.full_load_hm == -1) && (lteCCA_rate.ue_rate == -1) && (lteCCA_rate.ue_rate_hm == -1)){
+			// the usrp dci decoder is ready!
+			client.init_connection();
+			timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器 for connection
+			timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器 for QAM
+		    } 
 		    uint64_t curr_time = Socket::timestamp();  
 		}
 		// Handle the ack from AWS server
 		// timeout for the connection
 		if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
-		    //client.recv_noRF();		    
+		    client.recv_noRF(&lteCCA_rate); 
 		}
 
 		if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
-		    //exit_loop = true; 
+		    exit_loop = true; 
 		}
 
 		// timeout for the QAM 
@@ -235,7 +240,7 @@ int main(int argc, char **argv) {
         }
         for(int i=0;i<nfds;i++){
             if( (events[i].data.fd == AWS_client_socket.get_sock()) && (events[i].events & POLLIN) ){
-                //client.recv_noRF();
+                client.recv_noRF(&lteCCA_rate);
             }
             if( (events[i].data.fd == tfd) && (events[i].events & POLLIN) ){
                 exit_loop = true;

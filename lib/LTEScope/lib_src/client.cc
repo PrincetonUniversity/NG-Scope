@@ -26,6 +26,7 @@ Client::Client( const Socket & s_send, const Socket::Address & s_remote, FILE* f
     _last_tti(0),
     _last_exp_rate( 500 ),
     _last_est_rate( 500 ),
+    _start_time( 0 ),
     _blk_ack(1),
     _256QAM(false),
     _slow_start (true),
@@ -308,13 +309,51 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	return;
     }
     assert( !(_remote == UNKNOWN) );
-    int set_rate = 500;  
-    if(_256QAM){
-	set_rate = lteCCA_rate->probe_rate_hm;	
-    }else{
-	set_rate = lteCCA_rate->probe_rate;
+    uint64_t curr_time		= Socket::timestamp();
+    if( _start_time == 0){
+	_start_time = curr_time;
     }
-
+    uint64_t time_passed_ms	= (curr_time - _start_time) / 1000000;
+    
+    int set_rate = 500;  
+    uint32_t interval = 20;
+    int cell_usage_thread = 70;
+    if(lteCCA_rate->cell_usage > cell_usage_thread){
+	_slow_start = false;
+    }
+    if(_slow_start){
+	if(_256QAM){
+	    if( time_passed_ms < interval){
+		set_rate = lteCCA_rate->full_load * 4;	
+	    }else if(time_passed_ms > interval){
+		set_rate = lteCCA_rate->full_load * 2;	
+	    }else if(time_passed_ms > 2*interval){
+		set_rate = lteCCA_rate->full_load * 1.25;	
+	    }else if(time_passed_ms > 3*interval){
+		set_rate = lteCCA_rate->full_load * 1.1;	
+	    }else{
+		printf("The time passed value incorrect!\n");
+	    }
+	}else{
+	    if( time_passed_ms < interval){
+		set_rate = lteCCA_rate->full_load_hm * 4;	
+	    }else if(time_passed_ms > interval){
+		set_rate = lteCCA_rate->full_load_hm * 2;	
+	    }else if(time_passed_ms > 2*interval){
+		set_rate = lteCCA_rate->full_load_hm * 1.25;	
+	    }else if(time_passed_ms > 3*interval){
+		set_rate = lteCCA_rate->full_load_hm * 1.1;	
+	    }else{
+		printf("The time passed value incorrect!\n");
+	    }
+	}
+    }else{
+	if(_256QAM){
+	    set_rate = lteCCA_rate->probe_rate; 
+	}else{
+	    set_rate = lteCCA_rate->probe_rate_hm; 
+	}	
+    }
     if( (_pkt_received % _blk_ack) == 0){
 	//printf("_Pkt_received:%d blk_ack:%d\n", _pkt_received, _blk_ack);
 	/* send ack */
@@ -330,7 +369,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
     }
     fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t\n",
-      contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp,Socket::timestamp(), oneway, set_rate ); 
+      contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, set_rate ); 
     return;
 }
 void Client::init_connection(void)

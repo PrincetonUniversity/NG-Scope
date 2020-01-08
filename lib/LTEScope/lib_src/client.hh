@@ -22,7 +22,8 @@ private:
 
     int	     _last_exp_rate;
     int	     _last_est_rate;
-    
+    uint64_t _start_time;
+ 
     int	     _blk_ack; 
     bool     _256QAM;
     bool     _slow_start;

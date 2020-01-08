@@ -36,6 +36,12 @@
 #include <signal.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/poll.h>
+
+#include <errno.h>
+
 #include "srslte/common/gen_mch_tables.h"
 #include "srslte/common/crash_handler.h"
 #include <srslte/phy/common/phy_common.h>
@@ -205,25 +211,50 @@ int main(int argc, char **argv) {
     }
     sleep(10);
 
-    ret = system("./test_BBR.sh");
-    printf("system command return value:%d\n",ret);
+    //ret = system("./test_BBR.sh");
+    //printf("system command return value:%d\n",ret);
 
-    //***     cca function    *** /// 
-    //cca_server_t server_t;
-    ////strcpy(server_t.servIP, "3.14.132.89");
-    //strcpy(server_t.servIP, "3.135.188.130");
-    //server_t.servPort   = 9001;
-    //server_t.con_time_s = 40;
-    //server_t.con_time_ns= 0;
+    int efd;
+    struct epoll_event ev, events[1];
+    // Create epoll
+    efd = epoll_create(1); //创建epoll实例
+    if (efd == -1) {
+        printf("create epoll fail \r\n");
+        return 0;
+    }
 
-    //srslte_UeCell_set_logFlag(&ue_cell_usage, true);
-    //cca_main( &server_t);
+    ev.data.fd	= client_sock;
+    ev.events	= EPOLLIN;
+    epoll_ctl(efd, EPOLL_CTL_ADD, client_sock, &ev); //添加到epoll监听队列中
 
-    //pthread_t cca_main_thd;
-    //pthread_create(&cca_main_thd, NULL, cca_main_multi, (void *)&server_t);
-    //pthread_join(cca_main_thd, NULL);
+    srslte_lteCCA_rate lteCCA_rate;
+    lteCCA_rate.probe_rate	= -1;
+    lteCCA_rate.probe_rate_hm	= -1;
+    lteCCA_rate.full_load	= -1;
+    lteCCA_rate.full_load_hm	= -1;
+    lteCCA_rate.ue_rate		= -1;
+    lteCCA_rate.ue_rate_hm	= -1;
+    lteCCA_rate.cell_usage	= -1;
 
-    //*** end of cca function *** /// 
+    // tell the CCA server that we are ready
+    send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
+
+    bool exit_loop = false;
+    while(true){
+	int nfds = epoll_wait(efd, events, 4, 1000000);     
+	if(nfds > 0){
+	    for(int i=0;i<nfds;i++){
+		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
+		    char buffer[100];
+		    int recv_len = recv(client_sock, buffer, 100, 0);
+                    if(recv_len == 0 && errno == EAGAIN){
+                        printf("connection with CCA server is closed!\n");
+                        exit_loop = true;
+                    }
+		}
+	    }
+	}
+    }
     go_exit = true;
     for(int i=0;i<nof_usrp;i++){
 	pthread_join(usrp_thd[i], NULL);
