@@ -283,8 +283,8 @@ int main(int argc, char **argv) {
     }
     close(tfd);
     close(AWS_client_socket.get_sock());
-    close(server_sock);
     close(client_sock);
+    close(server_sock);
 
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);
