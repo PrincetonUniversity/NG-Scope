@@ -382,19 +382,21 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    lteCCA_rate->probe_rate_hm = 1000;
 	}
 	if(_256QAM){
-	    if( (lteCCA_rate->probe_rate < lteCCA_rate->ue_rate) && (tx_rate_us < lteCCA_rate->ue_rate)){
-		int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, tx_rate_us); 
-		set_rate = rate_us; 
-	    }else{
-		set_rate = lteCCA_rate->probe_rate; 
-	    }
+	   // if( (lteCCA_rate->probe_rate < lteCCA_rate->ue_rate) && (tx_rate_us < lteCCA_rate->ue_rate)){
+	   //     int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, tx_rate_us); 
+	   //     set_rate = rate_us; 
+	   // }else{
+	   //     set_rate = lteCCA_rate->probe_rate; 
+	   // }
+	    set_rate = lteCCA_rate->probe_rate; 
 	}else{
-	    if( (lteCCA_rate->probe_rate_hm < lteCCA_rate->ue_rate_hm) && (tx_rate_us < lteCCA_rate->ue_rate_hm)){
-		int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate_hm, tx_rate_us); 
-		set_rate = rate_us; 
-	    }else{
-		set_rate = lteCCA_rate->probe_rate_hm; 
-	    }
+	   // if( (lteCCA_rate->probe_rate_hm < lteCCA_rate->ue_rate_hm) && (tx_rate_us < lteCCA_rate->ue_rate_hm)){
+	   //     int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate_hm, tx_rate_us); 
+	   //     set_rate = rate_us; 
+	   // }else{
+	   //     set_rate = lteCCA_rate->probe_rate_hm; 
+	   // }
+	    set_rate = lteCCA_rate->probe_rate_hm; 
 	}	
     }
     if( (_pkt_received % _blk_ack) == 0){
