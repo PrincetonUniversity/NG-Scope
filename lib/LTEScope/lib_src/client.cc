@@ -335,7 +335,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     uint32_t windowed_min_delay = minmax_get(&win_delay_us);
     double oneway = oneway_ns / 1.e9;
 
-    if(oneway_us > windowed_min_delay + 8*2){
+    if(oneway_us > (windowed_min_delay + 8*3) ){
 	_nof_delayed_pkt++;
     }else{
 	_nof_delayed_pkt = 0;
@@ -436,9 +436,12 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
     }
-    fprintf( _log_file,"%d\t %ld\t %ld\t %ld\t %.4f\t %d\t %d\t %d\t %d\t %d\t %d\t\n",
-    contents->sequence_number, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, 
-	set_rate, lteCCA_rate->ue_rate_hm, tx_rate_us, lteCCA_rate->probe_rate_hm, windowed_min_delay, _slow_start); 
+    fprintf( _log_file,"%d\t %d\t %ld\t %ld\t %ld\t %.4f\t",
+    contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway);
+    fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t %d\t",
+	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
+    fprintf( _log_file,"%d\t %d\t ",
+	windowed_min_delay, _nof_delayed_pkt); 
     return;
 }
 void Client::init_connection(void)
