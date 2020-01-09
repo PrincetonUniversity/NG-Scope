@@ -49,6 +49,12 @@ int accept_slave_connect(int* server_fd, int* client_fd_vec){
         return 0;
     }
 
+    int option = 1;
+    if(setsockopt(server_sockfd, SOL_SOCKET, (SO_REUSEPORT | SO_REUSEADDR),(char*)&option,sizeof(option)) < 0)
+    {
+        perror("set sock error");
+        return 0;
+    }
     /*监听连接请求--监听队列长度为5*/
     if(listen(server_sockfd,5)<0)
     {

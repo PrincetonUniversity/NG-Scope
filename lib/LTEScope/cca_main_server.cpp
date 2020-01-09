@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
     ev.events = EPOLLIN;    //监听定时器读事件，当定时器超时时，定时器描述符可读。
     epoll_ctl(efd, EPOLL_CTL_ADD, AWS_client_socket.get_sock(), &ev); //添加到epoll监听队列中
 
-    client.set_blk_ack(3);
+    client.set_blk_ack(2);
     bool log_flag = false;
     bool exit_loop = false;
     while(true){
