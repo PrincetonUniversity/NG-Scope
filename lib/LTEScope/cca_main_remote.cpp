@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
     close(client_sock);
     char cmd[100];
     // analyze and move the bbr trace first
-    sprintf(cmd,"./mv_trace_cca_test.sh %d 7", trace_idx);
+    sprintf(cmd,"./mv_trace_cca_test.sh %d 6", trace_idx);
     ret = system(cmd);
     printf("system command return value:%d\n",ret);
     for(int i=0;i<6;i++){
