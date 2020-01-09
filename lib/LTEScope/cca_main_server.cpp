@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
     int con_time_s  = 20;
     int con_time_ns = 0;
     char AWS_servIP[100];
-    strcpy(AWS_servIP, "18.224.62.96");
+    strcpy(AWS_servIP, "3.15.219.113");
 
     // Connection (with USRP PC) parameters 
     int server_sock;
