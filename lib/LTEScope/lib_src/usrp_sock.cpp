@@ -78,7 +78,7 @@ int connect_server(char *masterIP){
     memset(&remote_addr,0,sizeof(remote_addr)); //数据初始化--清零
     remote_addr.sin_family=AF_INET; //设置为IP通信
     if(masterIP == NULL){
-	remote_addr.sin_addr.s_addr=inet_addr("192.168.1.10");//服务器IP地址
+	remote_addr.sin_addr.s_addr=inet_addr("192.168.2.20");//服务器IP地址
     }else{
 	remote_addr.sin_addr.s_addr=inet_addr( masterIP );//服务器IP地址
     }

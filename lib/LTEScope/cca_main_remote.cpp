@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     srslte_debug_handle_crash(argc, argv);
 
     char masterIP[50];
-    strcpy(masterIP, "192.168.1.20");
+    strcpy(masterIP, "192.168.2.20");
     client_sock = connect_server(masterIP);
 
     //srslte_debug_handle_crash(argc, argv);
