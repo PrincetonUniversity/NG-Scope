@@ -1,5 +1,5 @@
 #include "stdio.h"
-float protocol_overhead = 0.03;
+float protocol_overhead = 0.07;
 
 // 1- 1x10^(-6),  2- 1.5x10^(-6), ......, 19- 10x10^(-6)
 float overhead_ratio_phy[19][100] = {
