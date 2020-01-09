@@ -36,6 +36,7 @@ Client::Client( const Socket & s_send, const Socket::Address & s_remote, FILE* f
     _nof_normal_pkt( 0 ),
     _blk_ack(1),
     _256QAM(false),
+    _BER_sel( 5 ),
     _slow_start (true),
     _overhead_factor(0.1),
     _last_rate( 500)
@@ -506,6 +507,9 @@ void Client::close_connection( void )
     _send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
 }
 
+void Client::set_ber_sel(int ber_sel){
+    _BER_sel = ber_sel;
+}
 void Client::set_256QAM(bool is_256QAM){
     _256QAM = is_256QAM;
 }

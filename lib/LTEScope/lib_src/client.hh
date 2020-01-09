@@ -36,6 +36,8 @@ private:
 
     int	     _blk_ack; 
     bool     _256QAM;
+    int	     _BER_sel;
+
     bool     _slow_start;
     float    _overhead_factor;    	
 public:
@@ -62,9 +64,10 @@ public:
     void    set_cell_num_prb( void );
     void    set_blk_ack(int);
     void    set_256QAM(bool);
+    void    set_ber_sel(int );
     void    set_overhead_factor(float);
     int	    get_rcvPkt( void );
-    
+        
     void    set_remote( const Socket::Address & s_remote ) { _remote = s_remote; }
 
 //    Client( const Client & ) = delete;
