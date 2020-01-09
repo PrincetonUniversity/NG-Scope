@@ -98,10 +98,15 @@ void sig_int_handler(int signo)
 int main(int argc, char **argv) {
     int opt;
     int trace_idx = 0;
-    while ((opt = getopt(argc, argv, "t")) != -1) {
+    int cca_test  = 0;
+
+    while ((opt = getopt(argc, argv, "tc")) != -1) {
         switch (opt) {
         case 't':
             trace_idx = atoi(argv[optind]);
+            break;
+        case 'c':
+            cca_test = atoi(argv[optind]);
             break;
         default:
             printf("no input found\n");
@@ -292,17 +297,18 @@ int main(int argc, char **argv) {
     sprintf(cmd,"./mv_lteCCA_trace.sh %d", trace_idx);
     ret = system(cmd);
     printf("system command return value:%d\n",ret);
-    for(int i=0;i<6;i++){
+    if(cca_test == 1){
+	for(int i=0;i<6;i++){
 
-	sprintf(cmd,"./cca_test.sh %d",i);
-        ret = system(cmd);
-        printf("system command return value:%d\n",ret);
+	    sprintf(cmd,"./cca_test.sh %d",i);
+	    ret = system(cmd);
+	    printf("system command return value:%d\n",ret);
 
-	sprintf(cmd,"./mv_trace_cca_test.sh %d %d", trace_idx, i);
-        ret = system(cmd);
-        printf("system command return value:%d\n",ret);	
-    } 
-
+	    sprintf(cmd,"./mv_trace_cca_test.sh %d %d", trace_idx, i);
+	    ret = system(cmd);
+	    printf("system command return value:%d\n",ret);	
+	} 
+    }
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);
 }
