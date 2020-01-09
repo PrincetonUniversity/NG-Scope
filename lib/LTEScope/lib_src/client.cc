@@ -430,6 +430,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    if(_switch2wire){
 		if(switched_time < 40){
 		    set_rate = (int) (lteCCA_rate->ue_rate * (1 / _switch_drain_factor)); 
+		    //set_rate = lteCCA_rate->ue_rate; 
 		}else{
 		    set_rate = lteCCA_rate->ue_rate; 
 		}
@@ -441,6 +442,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    if(_switch2wire){
 		if(switched_time < 40){
 		    set_rate = (int) (lteCCA_rate->ue_rate_hm * (1 / _switch_drain_factor)); 
+		    //set_rate = lteCCA_rate->ue_rate_hm; 
 		}else{
 		    set_rate = lteCCA_rate->ue_rate_hm; 
 		}
