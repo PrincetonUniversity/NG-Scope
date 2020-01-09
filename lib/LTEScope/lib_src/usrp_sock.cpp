@@ -90,6 +90,11 @@ int connect_server(char *masterIP){
         perror("socket error");
         return 0;
     }
+    int prioriety = 7;
+    int ret = setsockopt(client_sockfd, SOL_SOCKET, SO_PRIORITY, (void *)&prioriety, sizeof(prioriety));
+    if(ret == -1){
+	printf("SET socket prioriety failed!\n");
+    }
 
     /*将套接字绑定到服务器的网络地址上*/
     if(connect(client_sockfd,(struct sockaddr *)&remote_addr,sizeof(struct sockaddr))<0)

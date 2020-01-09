@@ -24,10 +24,15 @@ private:
     int	     _last_exp_rate;
     int	     _last_est_rate;
     uint64_t _start_time;
+    uint32_t _switch2wire_time_us;
+    uint32_t _switched_t_threshold_us;
+    float    _switch_drain_factor;
+    bool     _switch2wire;
 
     struct   minmax win_delay_us; 
     uint32_t _delay_window_us;
     int	     _nof_delayed_pkt;
+    int	     _nof_normal_pkt;
 
     int	     _blk_ack; 
     bool     _256QAM;

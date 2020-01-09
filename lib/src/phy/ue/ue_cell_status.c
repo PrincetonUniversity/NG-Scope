@@ -327,8 +327,8 @@ int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* t
 	exp_available_prb   = max_cell_prb;
     }
 
-    printf("empty prb:%d ue_prb:%d ue_tbs:%d tbs_hm:%d phy_rate:%d rate_hm:%d\n",
-	    cell_empty_prb, ave_ue_prb, ue_tbs, ue_tbs_hm, ue_phy_rate, ue_phy_rate_hm);
+    //printf("empty prb:%d ue_prb:%d ue_tbs:%d tbs_hm:%d phy_rate:%d rate_hm:%d\n",
+//	    cell_empty_prb, ave_ue_prb, ue_tbs, ue_tbs_hm, ue_phy_rate, ue_phy_rate_hm);
 
     int exp_tbs		    = exp_available_prb * ue_phy_rate;	// expected tbs for the ue
     int exp_tbs_hm	    = exp_available_prb * ue_phy_rate_hm;	// expected tbs hm

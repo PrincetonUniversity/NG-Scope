@@ -27,8 +27,13 @@ Client::Client( const Socket & s_send, const Socket::Address & s_remote, FILE* f
     _last_exp_rate( 500 ),
     _last_est_rate( 500 ),
     _start_time( 0 ),
-    _delay_window_us( 1000000 ),
+    _switch2wire_time_us( 0 ),
+    _switched_t_threshold_us( 120000 ), //120ms
+    _switch_drain_factor( 0.7 ),
+    _switch2wire( false ),
+    _delay_window_us( 4000000 ), // 4 seconds
     _nof_delayed_pkt( 0 ),
+    _nof_normal_pkt( 0 ),
     _blk_ack(1),
     _256QAM(false),
     _slow_start (true),
@@ -327,19 +332,42 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 
     int     tx_rate_us = contents->tx_rate_us;
 
-    int64_t  oneway_ns	= contents->recv_timestamp - contents->sent_timestamp;
-    uint32_t oneway_us  = (uint32_t) (oneway_ns / 1000);
-    uint64_t curr_time	= Socket::timestamp();
-    uint32_t time	= (uint32_t) (curr_time / 1000);
-    minmax_running_min(&win_delay_us, _delay_window_us, time, oneway_us);
+    int64_t  oneway_ns	    = contents->recv_timestamp - contents->sent_timestamp;
+    uint32_t oneway_us	    = (uint32_t) (oneway_ns / 1000);
+    uint64_t curr_time	    = Socket::timestamp();
+    uint32_t curr_time_us   = (uint32_t) (curr_time / 1000);
+    minmax_running_min(&win_delay_us, _delay_window_us, curr_time_us, oneway_us);
+
     uint32_t windowed_min_delay = minmax_get(&win_delay_us);
     double oneway = oneway_ns / 1.e9;
 
     // 8ms is the HARQ handle delay -- 8000 us
     if(oneway_us > (windowed_min_delay + 8000*3) ){
 	_nof_delayed_pkt++;
+	_nof_normal_pkt = 0;
     }else{
 	_nof_delayed_pkt = 0;
+	_nof_normal_pkt++;
+    }
+    // handle the switch between wired and wireless bottlenecks
+    if(_nof_delayed_pkt > 20){
+	// switch to wired bottleneck mode
+	_switch2wire		= true;
+	_switch2wire_time_us	= curr_time_us;
+    }
+
+    uint32_t switched_time	= curr_time_us - _switch2wire_time_us;
+    // if we are in wired bottleneck mode 
+    if(_switch2wire){
+	if( (switched_time > _switched_t_threshold_us)){
+	    if( _nof_normal_pkt > 20){
+		// get out of the wired bottleneck mode
+		_switch2wire = false;
+	    }else{
+		// start another round 
+		_switch2wire_time_us	= curr_time_us;
+	    }
+	}
     }
 
     if ( _remote == UNKNOWN ) {
@@ -398,26 +426,24 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    lteCCA_rate->probe_rate_hm = 1000;
 	}
 	if(!_256QAM){
-	   // if( (lteCCA_rate->probe_rate < lteCCA_rate->ue_rate) && (tx_rate_us < lteCCA_rate->ue_rate)){
-	   //     int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate, lteCCA_rate->ue_rate, tx_rate_us); 
-	   //     set_rate = rate_us; 
-	   // }else{
-	   //     set_rate = lteCCA_rate->probe_rate; 
-	   // }
-	    if(_nof_delayed_pkt > 20){
-		set_rate = lteCCA_rate->ue_rate; 
+	    //if(_nof_delayed_pkt > 20){
+	    if(_switch2wire){
+		if(switched_time < 40){
+		    set_rate = (int) (lteCCA_rate->ue_rate * (1 / _switch_drain_factor)); 
+		}else{
+		    set_rate = lteCCA_rate->ue_rate; 
+		}
 	    }else{
 		set_rate = lteCCA_rate->probe_rate; 
 	    }
 	}else{
-	   // if( (lteCCA_rate->probe_rate_hm < lteCCA_rate->ue_rate_hm) && (tx_rate_us < lteCCA_rate->ue_rate_hm)){
-	   //     int rate_us = rate_combine_3_rates(lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate_hm, tx_rate_us); 
-	   //     set_rate = rate_us; 
-	   // }else{
-	   //     set_rate = lteCCA_rate->probe_rate_hm; 
-	   // }
-	    if(_nof_delayed_pkt > 20){
-		set_rate = lteCCA_rate->ue_rate_hm; 
+	    //if(_nof_delayed_pkt > 20){
+	    if(_switch2wire){
+		if(switched_time < 40){
+		    set_rate = (int) (lteCCA_rate->ue_rate_hm * (1 / _switch_drain_factor)); 
+		}else{
+		    set_rate = lteCCA_rate->ue_rate_hm; 
+		}
 	    }else{
 		set_rate = lteCCA_rate->probe_rate_hm; 
 	    }
@@ -441,8 +467,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway);
     fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t %d\t",
 	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
-    fprintf( _log_file,"%d\t %d\t %d\t ",
-	oneway_us, windowed_min_delay, _nof_delayed_pkt); 
+    fprintf( _log_file,"%d\t %d\t %d\t %d\t",
+	oneway_us, windowed_min_delay, _nof_delayed_pkt, _switch2wire); 
     fprintf( _log_file,"\n");
     return;
 }
