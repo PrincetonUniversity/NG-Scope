@@ -289,6 +289,9 @@ int main(int argc, char **argv) {
     sprintf(cmd,"./mv_trace_cca_test.sh %d 6", trace_idx);
     ret = system(cmd);
     printf("system command return value:%d\n",ret);
+    sprintf(cmd,"./mv_lteCCA_trace.sh %d", trace_idx);
+    ret = system(cmd);
+    printf("system command return value:%d\n",ret);
     for(int i=0;i<6;i++){
 
 	sprintf(cmd,"./cca_test.sh %d",i);
