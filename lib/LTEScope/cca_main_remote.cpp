@@ -283,8 +283,23 @@ int main(int argc, char **argv) {
 
     printf("close fd");
     fclose(FD_DCI);
-
     close(client_sock);
+    char cmd[100];
+    // analyze and move the bbr trace first
+    sprintf(cmd,"./mv_trace_cca_test.sh %d 7", trace_idx);
+    ret = system(cmd);
+    printf("system command return value:%d\n",ret);
+    for(int i=0;i<6;i++){
+
+	sprintf(cmd,"./cca_test.sh %d",i);
+        ret = system(cmd);
+        printf("system command return value:%d\n",ret);
+
+	sprintf(cmd,"./mv_trace_cca_test.sh %d %d", trace_idx, i);
+        ret = system(cmd);
+        printf("system command return value:%d\n",ret);	
+    } 
+
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);
 }
