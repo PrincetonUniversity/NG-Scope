@@ -29,7 +29,7 @@ int accept_slave_connect(int* server_fd, int* client_fd_vec){
     memset(&my_addr,0,sizeof(my_addr)); //数据初始化--清零
     my_addr.sin_family=AF_INET; //设置为IP通信
     my_addr.sin_addr.s_addr=INADDR_ANY;//服务器IP地址--允许连接到所有本地地址上
-    my_addr.sin_port=htons(6767); //服务器端口号
+    my_addr.sin_port=htons(0); //服务器端口号
 
     /*创建服务器端套接字--IPv4协议，面向连接通信，TCP协议*/
     if((server_sockfd=socket(PF_INET,SOCK_STREAM,0))<0)
@@ -84,7 +84,7 @@ int connect_server(char *masterIP){
     }else{
 	remote_addr.sin_addr.s_addr=inet_addr( masterIP );//服务器IP地址
     }
-    remote_addr.sin_port=htons(6767); //服务器端口号
+    remote_addr.sin_port=htons(0); //服务器端口号
 
     /*创建客户端套接字--IPv4协议，面向连接通信，TCP协议*/
     if((client_sockfd=socket(PF_INET,SOCK_STREAM,0))<0)

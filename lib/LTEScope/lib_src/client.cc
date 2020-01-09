@@ -469,8 +469,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway);
     fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t %d\t",
 	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
-    fprintf( _log_file,"%d\t %d\t %d\t %d\t",
-	oneway_us, windowed_min_delay, _nof_delayed_pkt, _switch2wire); 
+    fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t",
+	oneway_us, windowed_min_delay, _nof_delayed_pkt, _switch2wire, _256QAM); 
     fprintf( _log_file,"\n");
     return;
 }
