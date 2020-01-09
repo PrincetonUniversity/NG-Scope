@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <errno.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -91,9 +93,9 @@ int connect_server(char *masterIP){
         return 0;
     }
     int prioriety = 7;
-    int ret = setsockopt(client_sockfd, SOL_SOCKET, SO_PRIORITY, (void *)&prioriety, sizeof(prioriety));
+    int ret = setsockopt(client_sockfd, SOL_SOCKET, SO_PRIORITY, (void *)&prioriety, sizeof(int));
     if(ret == -1){
-	printf("SET socket prioriety failed!\n");
+	printf("SET socket prioriety failed! ERRNO:%s\n", strerror(errno));
     }
 
     /*将套接字绑定到服务器的网络地址上*/
