@@ -124,6 +124,7 @@ int main(int argc, char **argv) {
     char AWS_servIP[100];
     strcpy(AWS_servIP, "13.58.172.157");
 
+
     // Set up UDP with AWS server
     Socket AWS_client_socket;
     int sender_id = getpid();
