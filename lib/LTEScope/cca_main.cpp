@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
 	}
     }	
     sleep(8);
-    int ret = system("~//pantheon/startCCATest.sh bbr >/dev/null");
+    int ret = system("~/pantheon/startCCATest.sh bbr >/dev/null");
     printf("system command return value:%d\n",ret);
     
     //if(iperf_config.remote){

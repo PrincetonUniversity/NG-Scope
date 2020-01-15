@@ -475,6 +475,37 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     fprintf( _log_file,"\n");
     return;
 }
+
+void Client::recv_noRF_noACK()
+{
+    /* get the data packet */
+    Socket::Packet incoming( _send.recv() );
+    Payload *contents = (Payload *) incoming.payload.data();
+    contents->recv_timestamp = incoming.timestamp;
+    _pkt_received++;
+
+    int     tx_rate_us = contents->tx_rate_us;
+    int64_t  oneway_ns	    = contents->recv_timestamp - contents->sent_timestamp;
+    uint32_t oneway_us	    = (uint32_t) (oneway_ns / 1000);
+    uint64_t curr_time	    = Socket::timestamp();
+    uint32_t curr_time_us   = (uint32_t) (curr_time / 1000);
+    double oneway = oneway_ns / 1.e9;
+    
+
+    if ( _remote == UNKNOWN ) {
+	return;
+    }
+    assert( !(_remote == UNKNOWN) );
+
+    fprintf( _log_file,"%d\t %d\t %ld\t %ld\t %ld\t %.4f\t%d\t",
+    contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway, oneway_us);
+    fprintf( _log_file,"\n");
+    if( _pkt_received % 100 == 0){
+	printf("received %d pkt sequence number:%d \n",_pkt_received, contents->sequence_number);
+    }
+    return;
+}
+
 void Client::init_connection(void)
 {
     if ( _remote == UNKNOWN ) {

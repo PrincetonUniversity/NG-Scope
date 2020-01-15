@@ -131,6 +131,8 @@ int main(int argc, char **argv) {
 
     int usrp_idx[MAX_NOF_USRP];
     pthread_t usrp_thd[MAX_NOF_USRP];
+    pthread_t heart_beat_thd;
+    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
 
     int count = 0;
     for(int i=0;i<nof_usrp;i++){
@@ -142,39 +144,17 @@ int main(int argc, char **argv) {
 	}
     }	
     sleep(20);
-	int ret = system("./iperf_test.sh ");
-	printf("system command return value:%d\n",ret);
-    //if(iperf_config.remote){
-    //    int ret = system("./iperf_test_local_remote.sh remote >/dev/null");
-    //    printf("system command return value:%d\n",ret);
-    //}else{
-    //    int ret = system("./iperf_test_local_remote.sh local >/dev/null");
-    //    printf("system command return value:%d\n",ret);
-    //} 
-    go_exit = true;
 
-    for(int i=0;i<nof_usrp;i++){
-	pthread_join(usrp_thd[i], NULL);
-    }
+    int ret = system("./test_BBR.sh ");
+    printf("system command return value:%d\n",ret);
 
     targetRNTI_const = ue_list[0].max_dl_freq_ue;
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
     printf("\n\n\n MAX freq rnti:%d freq:%d \n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
 
-    pthread_t heart_beat_thd;
-    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
-
     srslte_UeCell_reset(&ue_cell_usage);
-    count = 0;
-    go_exit = false;
-    for(int i=0;i<nof_usrp;i++){
-	usrp_idx[i] = i;
-	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
-	for(int j=0;j<prog_args[i].nof_thread;j++){
-	    free_order[count] = 1;
-	    count++;
-	}
-    }
+    
+    sleep(3); 
     sock_parm_t sock_parm;
     sock_parm.pkt_intval = 1000;
     sock_parm.con_time_s = 5000;
@@ -182,7 +162,6 @@ int main(int argc, char **argv) {
     sock_parm.local_rf_enable = false;
     sock_parm.if_name = NULL;
     strcpy(sock_parm.servIP, "3.135.188.130");
-    sleep(40);
     for(int index=0;index<sock_config.nof_test;index++){
 	if(go_exit) break;
 	for(int pkt_idx=0;pkt_idx<sock_config.nof_pkt_intval;pkt_idx++){
@@ -203,7 +182,10 @@ int main(int argc, char **argv) {
 
 		srslte_UeCell_set_logFlag(&ue_cell_usage, false);
 		fclose(FD);
-		sleep(5);
+		sprintf(fileName, "./mv_client_log.sh %d %d %d", 
+			sock_parm.con_time_s, sock_parm.pkt_intval, index+1);
+		ret = system(fileName);
+		sleep(2);
 		printf("We are out of remote!\n");
 		/*   END THREADs */
 	    }

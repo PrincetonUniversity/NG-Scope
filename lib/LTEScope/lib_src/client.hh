@@ -60,6 +60,7 @@ public:
     void    close_connection( void );
     void    recv( void );
     void    recv_noRF( srslte_lteCCA_rate* );
+    void    recv_noRF_noACK( );
 
     void    set_cell_num_prb( void );
     void    set_blk_ack(int);

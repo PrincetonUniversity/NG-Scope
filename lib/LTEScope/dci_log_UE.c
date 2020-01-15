@@ -128,6 +128,10 @@ int main(int argc, char **argv) {
     int usrp_idx[MAX_NOF_USRP];
     pthread_t usrp_thd[MAX_NOF_USRP];
 
+    pthread_t heart_beat_thd;
+    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
+
+
     int count = 0;
     for(int i=0;i<nof_usrp;i++){
 	usrp_idx[i] = i;
@@ -138,42 +142,21 @@ int main(int argc, char **argv) {
 	}
     }	
     sleep(7);
-    if(iperf_config.remote){
-	system("./iperf_test_local_remote.sh remote >/dev/null");
-    }else{
-	system("./iperf_test_local_remote.sh local >/dev/null");
-    } 
-    go_exit = true;
-
-    for(int i=0;i<nof_usrp;i++){
-	pthread_join(usrp_thd[i], NULL);
-    }
+    int ret = system("./test_BBR.sh");
+    printf("system command return value:%d\n",ret);
 
     targetRNTI_const = ue_list[0].max_dl_freq_ue;
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
     printf("\n\n\n MAX freq rnti:%d freq:%d \n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
 
-    pthread_t heart_beat_thd;
-    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
-
-    srslte_UeCell_reset(&ue_cell_usage);
+    //srslte_UeCell_reset(&ue_cell_usage);
     srslte_UeCell_set_logFlag(&ue_cell_usage, true); 
-    count = 0;
-    go_exit = false;
-    for(int i=0;i<nof_usrp;i++){
-	usrp_idx[i] = i;
-	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
-	for(int j=0;j<prog_args[i].nof_thread;j++){
-	    free_order[count] = 1;
-	    count++;
-	}
-    }
+
     for(int i=0;i<nof_usrp;i++){
 	pthread_join(usrp_thd[i], NULL);
     }
 
     exit_heartBeat = true;
-    srslte_UeCell_set_logFlag(&ue_cell_usage, true);
     printf("close fd");
     fclose(FD_DCI);
 

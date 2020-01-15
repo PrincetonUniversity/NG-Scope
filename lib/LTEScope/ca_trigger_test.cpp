@@ -133,6 +133,9 @@ int main(int argc, char **argv) {
     int usrp_idx[MAX_NOF_USRP];
     pthread_t usrp_thd[MAX_NOF_USRP];
 
+    pthread_t heart_beat_thd; 
+    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
+
     int count = 0;
     for(int i=0;i<nof_usrp;i++){
         usrp_idx[i] = i;
@@ -144,22 +147,16 @@ int main(int argc, char **argv) {
     }	
    
     sleep(7); 
-    int ret = system("./iperf_test.sh >/dev/null");
+    int ret = system("./test_BBR.sh >/dev/null");
     printf("system command return value:%d\n",ret);
     go_exit = true; 
     fclose(FD_DCI);
-
-    for(int i=0;i<nof_usrp;i++){
-        pthread_join(usrp_thd[i], NULL);
-    }
 
     targetRNTI_const = ue_list[0].max_dl_freq_ue;
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
     printf("\n\n\n MAX freq rnti:%d freq:%d \n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
     //targetRNTI_const = ue_list[1].max_dl_freq_ue;
     //printf("\n\n\n MAX freq rnti:%d freq:%d \n", targetRNTI_const, ue_list[1].ue_dl_cnt[targetRNTI_const]);
-    pthread_t heart_beat_thd; 
-    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
 
     sock_parm_t sock_parm;
     sock_parm.pkt_intval = 1000;
