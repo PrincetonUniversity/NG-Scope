@@ -34,8 +34,8 @@ target_link_libraries(ca_trigger_test srslte_phy srslte_common srslte_rf pthread
 add_executable(cca_test cca_test.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(cca_test srslte_phy srslte_common srslte_rf pthread config sockLib)
 
-add_executable(dci_multi_log multi_usrp_log.c dci_decode_multi_usrp.c read_cfg.c)
-target_link_libraries(dci_multi_log srslte_phy srslte_common srslte_rf pthread config)
+add_executable(dciLogMulti multi_usrp_log.c dci_decode_multi_usrp.c read_cfg.c)
+target_link_libraries(dciLogMulti srslte_phy srslte_common srslte_rf pthread config)
 
 add_executable(dci_logUE dci_log_UE.c dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(dci_logUE srslte_phy srslte_common srslte_rf pthread config)

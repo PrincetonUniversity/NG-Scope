@@ -149,7 +149,9 @@ int main(int argc, char **argv) {
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
     printf("\n\n\n MAX freq rnti:%d freq:%d \n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
 
-    //srslte_UeCell_reset(&ue_cell_usage);
+    srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
+    sleep(5);
+    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
     srslte_UeCell_set_logFlag(&ue_cell_usage, true); 
 
     for(int i=0;i<nof_usrp;i++){

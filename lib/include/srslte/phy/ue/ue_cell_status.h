@@ -28,10 +28,15 @@ typedef struct SRSLTE_API{
     uint32_t mcs_idx_tb1;
     int      tbs_tb1;
     int      tbs_hm_tb1;
+    int      rv_tb1;
+    bool     ndi_tb1;
 
     uint32_t mcs_idx_tb2;
     int      tbs_tb2;
     int      tbs_hm_tb2;
+    int      rv_tb2;
+    bool     ndi_tb2;
+
 }srslte_subframe_status;
 
 typedef struct SRSLTE_API{
@@ -88,6 +93,7 @@ SRSLTE_API int srslte_UeCell_get_status(srslte_ue_cell_usage* q, uint32_t last_t
                                         int tbs[][NOF_REPORT_SF], int tbs_hm[][NOF_REPORT_SF]);
 SRSLTE_API int srslte_UeCell_get_maxPRB(srslte_ue_cell_usage* q, int* cellMaxPrb); 
 SRSLTE_API int srslte_UeCell_get_nof_cell(srslte_ue_cell_usage* q);
+SRSLTE_API uint16_t srslte_UeCell_get_targetRNTI(srslte_ue_cell_usage* q);
 
 SRSLTE_API int srslte_UeCell_set_remote_sock(srslte_ue_cell_usage* q,  int sock);
 SRSLTE_API int srslte_UeCell_set_remote_flag(srslte_ue_cell_usage* q,  bool flag);

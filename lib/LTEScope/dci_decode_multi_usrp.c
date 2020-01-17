@@ -430,8 +430,10 @@ void* dci_decode_multi(void* p){
         pthread_mutex_unlock( &mutex_sfn[usrp_idx]);
 
         uint32_t tti   = sfn*10 + sfidx;
+
 	pthread_mutex_lock(&mutex_usage);
 	srslte_UeCell_ask_for_dci_token(&ue_cell_usage, usrp_idx, tti);
+	targetRNTI = srslte_UeCell_get_targetRNTI(&ue_cell_usage);
 	pthread_mutex_unlock(&mutex_usage);
 
 
@@ -752,7 +754,7 @@ void* heart_beat(void* p){
         }
         pthread_mutex_unlock( &mutex_exit);
 	count++;
-	if(count == 5){ 
+	if(count == 4){ 
 	    system("./heart_beat.sh");
 	    count = 0;
 	}

@@ -86,10 +86,19 @@ int srslte_UeCell_ask_for_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_
 static int enqueue_ue_dci(srslte_cell_status* q, srslte_dci_msg_paws* ue_dci, uint16_t index){
     q->sf_status[index].mcs_idx_tb1 = ue_dci->mcs_idx_tb1;
     q->sf_status[index].mcs_idx_tb2 = ue_dci->mcs_idx_tb2;
+
     q->sf_status[index].tbs_tb1 = ue_dci->tbs_tb1;
     q->sf_status[index].tbs_tb2 = ue_dci->tbs_tb2;
+
     q->sf_status[index].tbs_hm_tb1 = ue_dci->tbs_hm_tb1;
     q->sf_status[index].tbs_hm_tb2 = ue_dci->tbs_hm_tb2;
+
+    q->sf_status[index].rv_tb1 = ue_dci->rv_tb1;
+    q->sf_status[index].rv_tb2 = ue_dci->rv_tb2;
+
+    q->sf_status[index].ndi_tb1 = ue_dci->ndi_tb1;
+    q->sf_status[index].ndi_tb2 = ue_dci->ndi_tb2;
+
     return 0;
 }
 
@@ -100,6 +109,10 @@ static int empty_ue_dci(srslte_cell_status* q,  uint16_t index){
     q->sf_status[index].tbs_tb2 = 0;
     q->sf_status[index].tbs_hm_tb1 = 0;
     q->sf_status[index].tbs_hm_tb2 = 0;
+    q->sf_status[index].rv_tb1 = 0;
+    q->sf_status[index].rv_tb2 = 0;
+    q->sf_status[index].ndi_tb1 = 0;
+    q->sf_status[index].ndi_tb2 = 0;
     return 0;
 }
 
@@ -182,13 +195,18 @@ static void log_single_trace(srslte_ue_cell_usage* q, uint16_t index){
 	return;
     }
     for(int i=0;i<q->nof_cell;i++){
-	fprintf(FD, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",q->cell_status[i].sf_status[index].tti,
+	fprintf(FD, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t",
+		q->cell_status[i].sf_status[index].tti,
 		q->cell_status[i].sf_status[index].cell_dl_prb, 
 		q->cell_status[i].sf_status[index].ue_dl_prb,
 		q->cell_status[i].sf_status[index].mcs_idx_tb1,
 		q->cell_status[i].sf_status[index].mcs_idx_tb2,
 		q->cell_status[i].sf_status[index].tbs_tb1 + q->cell_status[i].sf_status[index].tbs_tb2,
 		q->cell_status[i].sf_status[index].tbs_hm_tb1 + q->cell_status[i].sf_status[index].tbs_hm_tb2,
+		q->cell_status[i].sf_status[index].rv_tb1,
+		q->cell_status[i].sf_status[index].rv_tb2,
+		q->cell_status[i].sf_status[index].ndi_tb1,
+		q->cell_status[i].sf_status[index].ndi_tb2,
 		q->cell_triggered[i]);
     }
     fprintf(FD, "\n");
@@ -502,15 +520,7 @@ int srslte_UeCell_get_status(srslte_ue_cell_usage* q, uint32_t last_tti, uint32_
     }
     return 0;
 }
-int srslte_UeCell_get_maxPRB(srslte_ue_cell_usage* q, int* cellMaxPrb){
-    for(int i=0;i<q->nof_cell;i++){
-	cellMaxPrb[i]	= q->max_cell_prb[i];
-    }
-    return 0;
-}
-int srslte_UeCell_get_nof_cell(srslte_ue_cell_usage* q){
-    return q->nof_cell; 
-}
+
 static void print_multi_trace(srslte_ue_cell_usage* q, uint16_t start, uint16_t end){
     for(int i=start+1;i<=end;i++){
 	uint16_t index = TTI_TO_IDX(i);
@@ -645,6 +655,20 @@ int srslte_UeCell_return_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_t
 }
 
 
+/* Functions for getting the parameters */
+int srslte_UeCell_get_maxPRB(srslte_ue_cell_usage* q, int* cellMaxPrb){
+    for(int i=0;i<q->nof_cell;i++){
+	cellMaxPrb[i]	= q->max_cell_prb[i];
+    }
+    return 0;
+}
+int srslte_UeCell_get_nof_cell(srslte_ue_cell_usage* q){
+    return q->nof_cell; 
+}
+uint16_t srslte_UeCell_get_targetRNTI(srslte_ue_cell_usage* q)
+{
+    return q->targetRNTI;
+}
 /* Functions for setting the parameters */
 
 int srslte_UeCell_set_remote_sock(srslte_ue_cell_usage* q,  int sock){

@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
 
     // Connection (with AWS server) parameters
     char AWS_servIP[100];
-    strcpy(AWS_servIP, "13.58.172.157");
+    strcpy(AWS_servIP, "3.136.19.195");
 
 
     // Set up UDP with AWS server
