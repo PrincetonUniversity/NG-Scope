@@ -27,7 +27,7 @@ add_subdirectory(include)
 add_subdirectory(examples)
 add_subdirectory(test)
 add_subdirectory(LTEScope)
-#add_subdirectory(ltecc)
+add_subdirectory(dciLog)
 
 ########################################################################
 # Install library headers
