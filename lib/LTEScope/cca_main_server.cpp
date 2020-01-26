@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     FILE* FD_rate   = fopen("CCA_rate_log","w+"); 
 
     // Connection (with AWS server) parameters
-    int con_time_s  = 25;
+    int con_time_s  = 40;
     int con_time_ns = 0;
     char AWS_servIP[100];
     strcpy(AWS_servIP, "13.58.103.15");
