@@ -175,46 +175,48 @@ int main(int argc, char **argv) {
 	    count++;
 	}
     }	
-    sleep(8);
+    sleep(13);
     //int ret = system("~/pantheon/startCCATest.sh bbr >/dev/null");
     int ret = system("./test_BBR.sh");
     printf("system command return value:%d\n",ret);
     
-    go_exit = true;
+    //go_exit = true;
 
-    for(int i=0;i<nof_usrp;i++){
-	pthread_join(usrp_thd[i], NULL);
-    }
+    //for(int i=0;i<nof_usrp;i++){
+    //    pthread_join(usrp_thd[i], NULL);
+    //}
     fclose(FD_DCI);
 
 
     targetRNTI_const = ue_list[0].max_dl_freq_ue;
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
     printf("\n\n\n MAX freq rnti:%d freq:%d \n\n\n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
+    printf("We finished test BBR, waiting for the lteCCA to start\n\n\n"); 
 
     pthread_t heart_beat_thd;
     pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
 
     FD_DCI  = fopen("./dci_log", "w+");
     srslte_UeCell_set_file_descriptor(&ue_cell_usage, FD_DCI);
-    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
+    srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
     srslte_UeCell_reset(&ue_cell_usage);
 
     // setup remote
     srslte_UeCell_set_remote_sock(&ue_cell_usage, client_sock);
     srslte_UeCell_set_remote_flag(&ue_cell_usage, true);
-
-    count = 0;
-    go_exit = false;
-    for(int i=0;i<nof_usrp;i++){
-	usrp_idx[i] = i;
-	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
-	for(int j=0;j<prog_args[i].nof_thread;j++){
-	    free_order[count] = 1;
-	    count++;
-	}
-    }
-    sleep(10);
+//
+//    count = 0;
+//    go_exit = false;
+//    for(int i=0;i<nof_usrp;i++){
+//	usrp_idx[i] = i;
+//	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
+//	for(int j=0;j<prog_args[i].nof_thread;j++){
+//	    free_order[count] = 1;
+//	    count++;
+//	}
+//    }
+    sleep(5);
+    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
 
     //ret = system("./test_BBR.sh");
     //printf("system command return value:%d\n",ret);
