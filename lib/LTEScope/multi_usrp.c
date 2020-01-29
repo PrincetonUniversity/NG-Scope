@@ -75,6 +75,12 @@ pthread_mutex_t mutex_exit = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_usage = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_free_order = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t mutex_dl_flag;
+pthread_mutex_t mutex_ul_flag;
+
+bool logDL_flag = false;
+bool logUL_flag = false;
+
 uint16_t targetRNTI_const = 0;
 void sig_int_handler(int signo)
 {

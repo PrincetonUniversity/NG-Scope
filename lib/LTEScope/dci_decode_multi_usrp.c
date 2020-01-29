@@ -25,6 +25,9 @@
 extern bool go_exit;
 extern bool exit_heartBeat;
 extern uint16_t targetRNTI_const;
+extern bool logDL_flag;
+extern bool logUL_flag;
+
 
 extern enum receiver_state state[MAX_NOF_USRP];
 extern srslte_ue_sync_t ue_sync[MAX_NOF_USRP];
@@ -36,6 +39,8 @@ extern uint32_t system_frame_number[MAX_NOF_USRP];
 extern int free_order[MAX_NOF_USRP*4];
 extern srslte_ue_cell_usage ue_cell_usage;
 
+extern pthread_mutex_t mutex_dl_flag;
+extern pthread_mutex_t mutex_ul_flag;
 
 extern pthread_mutex_t mutex_exit;
 extern pthread_mutex_t mutex_usage;
@@ -325,13 +330,10 @@ void* dci_decode_multi(void* p){
 	FD_TIME = fopen(fileName,"w+");
     }
     sprintf(fileName, "./dci_dl_usrp_%d_dci_%d.txt",usrp_idx,thd_id);
-    if(dl_flag){
-	FD_DCI_DL = fopen(fileName,"w+");
-    }
+    FD_DCI_DL = fopen(fileName,"w+");
+
     sprintf(fileName, "./dci_ul_usrp_%d_dci_%d.txt",usrp_idx,thd_id);
-    if(ul_flag){
-	FD_DCI_UL = fopen(fileName,"w+");
-    }
+    FD_DCI_UL = fopen(fileName,"w+");
 
     pthread_mutex_lock(&mutex_cell[usrp_idx]);
     nof_prb = cell[usrp_idx].nof_prb;
@@ -501,6 +503,13 @@ void* dci_decode_multi(void* p){
                         pthread_mutex_lock( &mutex_list[usrp_idx]);
                         if (n > 0) {
 			    srslte_enqueue_subframe_msg(&dci_msg_subframe, &ue_list[usrp_idx], tti);
+			    pthread_mutex_lock(&mutex_dl_flag);
+                            dl_flag = logDL_flag;
+                            pthread_mutex_unlock(&mutex_dl_flag);
+
+                            pthread_mutex_lock(&mutex_ul_flag);
+                            ul_flag = logUL_flag;
+                            pthread_mutex_unlock(&mutex_ul_flag);
 			    //dci_msg_list_display(dci_msg_subframe.downlink_msg, dci_msg_subframe.dl_msg_cnt);
 			    //dci_msg_list_display(dci_msg_subframe.uplink_msg, dci_msg_subframe.ul_msg_cnt);
 			    if(dl_flag && dci_msg_subframe.dl_msg_cnt > 0){
@@ -591,12 +600,9 @@ void* dci_decode_multi(void* p){
     if(time_flag){ 
 	fclose(FD_TIME);
     }
-    if(dl_flag){
-	fclose(FD_DCI_DL);
-    }
-    if(ul_flag){
-	fclose(FD_DCI_UL);
-    }
+    fclose(FD_DCI_DL);
+    fclose(FD_DCI_UL);
+
     printf("Bye -- USRP:%d DCI-Thread:%d\n", usrp_idx, thd_id);
     pthread_exit(NULL);
 }

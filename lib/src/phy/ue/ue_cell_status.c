@@ -299,11 +299,11 @@ int lteCCA_tuning_tbs(int tbs){
     int rateM       = tbs / 1000;
     if(rateM <=0){ rateM = 1;}
 
-    float overhead  = overhead_ratio_phy[9][rateM-1] + protocol_overhead;
+    float overhead  = overhead_ratio_phy[13][rateM-1] + protocol_overhead;
     //printf("overhead: %f \n", overhead);
     int tuned_tbs = (int) ( (1 - overhead) * tbs);
 
-    //printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_tbs);
+ //   printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_tbs);
     return tuned_tbs;
 }
 
@@ -390,6 +390,7 @@ int lteCCA_predict_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm, int* f
     int exp_full_load_tbs=0, exp_full_load_tbs_hm=0;
 
     // we always estimate the primary cell
+    //printf("Primary cell\n");
     lteCCA_predict_tbs_single_cell(q, 0, &tbs, &tbs_hm, &full_load_tbs, &full_load_hm_tbs);
     exp_tbs	+= tbs;
     exp_tbs_hm	+= tbs_hm;
@@ -402,6 +403,7 @@ int lteCCA_predict_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm, int* f
     if(nof_cell > 1){
 	for(int i=1;i<nof_cell;i++){
 	    if(q->cell_triggered[i]){
+		//printf("%d-th cell tower\n",i);
 		lteCCA_predict_tbs_single_cell(q, i, &tbs, &tbs_hm, &full_load_tbs, &full_load_hm_tbs);
 		exp_tbs	    += tbs;
 		exp_tbs_hm  += tbs_hm;
