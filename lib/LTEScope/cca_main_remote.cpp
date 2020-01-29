@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
     *	We finished running our congestion control algorithms 
     *************************************************************/
 
-    logDL_flag = false; // stopping recording dci 
+    //logDL_flag = false; // stopping recording dci 
     //srslte_UeCell_set_logFlag(&ue_cell_usage, false); 
     printf("close fd");
     fclose(FD_DCI);	    // close the dci log file
@@ -306,8 +306,10 @@ int main(int argc, char **argv) {
     // move our trace
     sprintf(cmd,"./mv_lteCCA_trace.sh %d", trace_idx);
     ret = system(cmd);
+    logDL_flag = false; // stopping recording dci 
     sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 7);
     ret = system(cmd);
+    logDL_flag = true; // stopping recording dci 
  
     //printf("system command return value:%d\n",ret);
     
@@ -331,10 +333,10 @@ int main(int argc, char **argv) {
     
 	srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
 	// we are testing BBR
-	logDL_flag = true; // stopping recording dci 
+	//logDL_flag = true; // stopping recording dci 
 
 	if(comp == 1){
-	    ret = system("./start_competing_user.sh");
+	    ret = system("./start_competing_user_bbr.sh");
 	    printf("system command return value:%d\n",ret);
 	}
 
@@ -345,11 +347,12 @@ int main(int argc, char **argv) {
 	sprintf(cmd,"./mv_trace_cca_test.sh %d %d", trace_idx, 6);
 	ret = system(cmd);
 	printf("system command return value:%d\n",ret);	
-	logDL_flag = false; // stopping recording dci 
+	//logDL_flag = false; // stopping recording dci 
 	sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
 	ret = system(cmd);
     }
 
+    logDL_flag = false; // stopping recording dci 
     // we are going to shut down the usrp
     go_exit = true;
     for(int i=0;i<nof_usrp;i++){
