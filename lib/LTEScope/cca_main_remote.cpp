@@ -302,6 +302,7 @@ int main(int argc, char **argv) {
     fclose(FD_DCI);	    // close the dci log file
     close(client_sock);	    // close the socket
 
+    srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
     char cmd[100];
     // move our trace
     sprintf(cmd,"./mv_lteCCA_trace.sh %d", trace_idx);
@@ -314,7 +315,7 @@ int main(int argc, char **argv) {
     //printf("system command return value:%d\n",ret);
     
     printf("We finished testing our cca, now testing other ccas!\n");
-    sleep(4);
+    sleep(5);
 
     if(cca_test == 1){
 	for(int i=0;i<6;i++){
@@ -331,7 +332,7 @@ int main(int argc, char **argv) {
 	} 
     }else if(cca_test == 2){
     
-	srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
+	srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
 	// we are testing BBR
 	//logDL_flag = true; // stopping recording dci 
 
@@ -348,6 +349,7 @@ int main(int argc, char **argv) {
 	ret = system(cmd);
 	printf("system command return value:%d\n",ret);	
 	//logDL_flag = false; // stopping recording dci 
+	logDL_flag = false; // stopping recording dci 
 	sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
 	ret = system(cmd);
     }

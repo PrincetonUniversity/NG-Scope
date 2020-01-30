@@ -183,7 +183,15 @@ int main(int argc, char **argv) {
     client.set_blk_ack(2);
     bool log_flag = false;
     bool exit_loop = false;
+    uint32_t start_time_ms = (uint32_t) (Socket::timestamp() % 1000000);
+    uint32_t curr_time_ms, last_time_ms = start_time_ms;
+
     while(true){
+	curr_time_ms	= (uint32_t) (Socket::timestamp() % 1000000);
+	if( (curr_time_ms - start_time_ms) >= (last_time_ms + 1000) ){
+	    printf("time passed :%d s \n",  (curr_time_ms - start_time_ms) % 1000);
+	    last_time_ms    = curr_time_ms;
+	}    
 	int nfds = epoll_wait(efd, events, 4, 10000);
 	if(nfds > 0){
 	    for(int i=0;i<nfds;i++){
@@ -191,7 +199,7 @@ int main(int argc, char **argv) {
 		if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
 		    int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
 		    if(recv_len == 0 && errno == EAGAIN){
-			printf("connection with USRP PC is closed!\n");
+			//printf("connection with USRP PC is closed!\n");
 			exit_loop = true;
 		    }
 		    if( (lteCCA_rate.probe_rate == -1) && (lteCCA_rate.probe_rate_hm == -1) && (lteCCA_rate.full_load == -1) &&
@@ -207,9 +215,9 @@ int main(int argc, char **argv) {
 			fprintf(FD_rate, "%ld\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", curr_time, lteCCA_rate.probe_rate, 
 				    lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
 				    lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
-			printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
-				lteCCA_rate.probe_rate, lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
-				lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
+			//printf("%04d\t%04d\t%04d\t%04d\t%04d\t%04d\t%03d\n",
+			//	lteCCA_rate.probe_rate, lteCCA_rate.probe_rate_hm, lteCCA_rate.full_load, lteCCA_rate.full_load_hm, 
+			//	lteCCA_rate.ue_rate, lteCCA_rate.ue_rate_hm, lteCCA_rate.cell_usage);
 		    } 
 		}
 		// Handle the ack from AWS server
