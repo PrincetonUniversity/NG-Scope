@@ -106,7 +106,9 @@ int main(int argc, char **argv) {
     int trace_idx = 0;
     int cca_test  = 0;
     int comp	  = 0;
-    while ((opt = getopt(argc, argv, "tcp")) != -1) {
+    int printLog  = 1;
+
+    while ((opt = getopt(argc, argv, "tcpl")) != -1) {
         switch (opt) {
         case 't':
             trace_idx = atoi(argv[optind]);
@@ -117,7 +119,9 @@ int main(int argc, char **argv) {
 	case 'p':
             comp = atoi(argv[optind]);
             break;
-        
+        case 'l':
+            printLog = atoi(argv[optind]);
+            break;
         default:
             printf("no input found\n");
             break;
@@ -219,6 +223,7 @@ int main(int argc, char **argv) {
 
     // we wait for five seconds 
     sleep(3);
+
     srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
 
     // we are going to record the DCI detailed log
@@ -331,8 +336,11 @@ int main(int argc, char **argv) {
 	    logDL_flag = false; // stopping recording dci 
 	} 
     }else if(cca_test == 2){
-    
-	srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
+	if(printLog == 0){
+	    srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
+	}else if(printLog == 1){
+	    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
+	}
 	// we are testing BBR
 	//logDL_flag = true; // stopping recording dci 
 

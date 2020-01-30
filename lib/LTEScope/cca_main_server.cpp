@@ -185,13 +185,15 @@ int main(int argc, char **argv) {
     bool exit_loop = false;
     uint32_t start_time_ms = (uint32_t) (Socket::timestamp() % 1000000);
     uint32_t curr_time_ms, last_time_ms = start_time_ms;
-
+    uint32_t time_passed_ms;
     while(true){
 	curr_time_ms	= (uint32_t) (Socket::timestamp() % 1000000);
-	if( (curr_time_ms - start_time_ms) >= (last_time_ms + 1000) ){
-	    printf("time passed :%d s \n",  (curr_time_ms - start_time_ms) % 1000);
-	    last_time_ms    = curr_time_ms;
-	}    
+	time_passed_ms	= curr_time_ms - start_time_ms; 
+	printf("time passed in ms:%d \n", time_passed_ms);
+	//if( time_passed_ms >= (last_time_ms + 2000) ){
+	//    printf("time passed :%d s \n",  time_passed_ms % 1000);
+	//    last_time_ms    = curr_time_ms;
+	//}    
 	int nfds = epoll_wait(efd, events, 4, 10000);
 	if(nfds > 0){
 	    for(int i=0;i<nfds;i++){
@@ -273,7 +275,7 @@ int main(int argc, char **argv) {
 	    if( (events[i].data.fd == client_sock) && (events[i].events & POLLIN) ){
 		int recv_len = recv(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0);
 		if(recv_len == 0 && errno == EAGAIN){
-		    printf("connection with USRP PC is closed!\n");
+		    //printf("connection with USRP PC is closed!\n");
 		    exit_loop_usrp = true;
 		    continue;
 		}
