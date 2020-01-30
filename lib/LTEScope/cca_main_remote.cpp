@@ -323,7 +323,7 @@ int main(int argc, char **argv) {
     sleep(5);
 
     if(cca_test == 1){
-	for(int i=0;i<6;i++){
+	for(int i=0;i<7;i++){
 
 	    logDL_flag = false; // stopping recording dci 
 	    sprintf(cmd,"./cca_test.sh %d",i);
@@ -363,6 +363,9 @@ int main(int argc, char **argv) {
     }
 
     logDL_flag = false; // stopping recording dci 
+    sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
+    ret = system(cmd);
+
     // we are going to shut down the usrp
     go_exit = true;
     for(int i=0;i<nof_usrp;i++){
