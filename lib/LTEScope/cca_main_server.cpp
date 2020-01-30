@@ -107,6 +107,9 @@ srslte_lteCCA_rate lteCCA_rate;
 int main(int argc, char **argv) {
     srslte_lteCCA_rate lteCCA_rate;
 
+    srslte_config_t main_config;
+    read_config_master(&main_config);
+
     FILE* FD	    = fopen("client_log","w+"); 
     FILE* FD_rate   = fopen("CCA_rate_log","w+"); 
 
@@ -114,7 +117,8 @@ int main(int argc, char **argv) {
     int con_time_s  = 40;
     int con_time_ns = 0;
     char AWS_servIP[100];
-    strcpy(AWS_servIP, "18.220.169.58");
+    //strcpy(AWS_servIP, "18.220.169.58");
+    strcpy(AWS_servIP, main_config.servIP);
 
     // Connection (with USRP PC) parameters 
     int server_sock;

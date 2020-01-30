@@ -125,9 +125,13 @@ int main(int argc, char **argv) {
     FILE* FD	    = fopen("client_log","w+"); 
     FILE* FD_rate   = fopen("CCA_rate_log","w+"); 
 
+    srslte_config_t main_config;
+    read_config_master(&main_config);
+
     // Connection (with AWS server) parameters
     char AWS_servIP[100];
-    strcpy(AWS_servIP, "13.58.103.15");
+    //strcpy(AWS_servIP, "13.58.103.15");
+    strcpy(AWS_servIP, main_config.servIP);
 
 
     // Set up UDP with AWS server

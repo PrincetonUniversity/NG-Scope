@@ -308,10 +308,13 @@ int main(int argc, char **argv) {
     close(client_sock);	    // close the socket
 
     srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
+
     char cmd[100];
     // move our trace
-    sprintf(cmd,"./mv_lteCCA_trace.sh %d", trace_idx);
+    sprintf(cmd,"./mv_lteCCA_trace.sh %d ", trace_idx);
+    strcat(cmd, main_config.servIP);
     ret = system(cmd);
+
     logDL_flag = false; // stopping recording dci 
     sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 7);
     ret = system(cmd);
@@ -326,7 +329,9 @@ int main(int argc, char **argv) {
 	for(int i=0;i<7;i++){
 
 	    logDL_flag = false; // stopping recording dci 
-	    sprintf(cmd,"./cca_test.sh %d",i);
+	    sprintf(cmd,"./cca_test.sh %d ",i);
+	    strcat(cmd, main_config.servIP);
+	
 	    ret = system(cmd);
 	    printf("system command return value:%d\n",ret);
 
@@ -349,7 +354,8 @@ int main(int argc, char **argv) {
 	    printf("system command return value:%d\n",ret);
 	}
 
-	sprintf(cmd,"./cca_test.sh 6");
+	sprintf(cmd,"./cca_test.sh 6 ");
+	strcat(cmd, main_config.servIP);
 	ret = system(cmd);
 	printf("system command return value:%d\n",ret);
 

@@ -16,7 +16,13 @@ int read_config_master(srslte_config_t* config){
         config_destroy(cfg);
         return(EXIT_FAILURE);
     }
-    
+
+    const char* servIP;
+    if(! config_lookup_string(cfg, "servIP", &servIP)){
+	printf("ERROR: reading servIP\n");
+    } 
+    strcpy(config->servIP, servIP);
+
     if(! config_lookup_int(cfg, "nof_usrp", &config->nof_usrp)){
         printf("ERROR: reading nof_usrp\n");
     }
@@ -48,7 +54,7 @@ int read_config_master(srslte_config_t* config){
 	sprintf(name, "usrp_config%d.rf_args",i);
 	const char* rf_args;
 	if(! config_lookup_string(cfg, name, &rf_args)){
-	    printf("ERROR: reading servIP!\n");
+	    printf("ERROR: reading rf_args!\n");
 	}else{
 	    strcpy(config->usrp_config[i].rf_args, rf_args);
 	    printf("rf_args:%s ",config->usrp_config[i].rf_args);

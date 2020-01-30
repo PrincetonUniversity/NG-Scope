@@ -10,6 +10,7 @@ typedef struct{
 
 typedef struct{
     int nof_usrp;
+    char servIP[100];
     usrp_config_t usrp_config[5];
 }srslte_config_t;
 

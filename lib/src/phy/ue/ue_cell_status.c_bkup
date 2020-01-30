@@ -269,32 +269,27 @@ int lteCCA_sum_ue_prb(srslte_ue_cell_usage* q, int cell_idx, int len){
     }
     return ue_prb_sum;
 }
-int lteCCA_sum_tbs(srslte_ue_cell_usage* q, int cell_idx, int len, int* ue_tbs1, int* ue_tbs2, int* ue_tbs_hm1, int* ue_tbs_hm2){
+int lteCCA_sum_tbs(srslte_ue_cell_usage* q, int cell_idx, int len, int* ue_tbs, int* ue_tbs_hm){
     uint16_t cell_header = q->header;
-    int	     ue_tbs1_sum	= 0;
-    int	     ue_tbs2_sum	= 0;
-    int	     ue_tbs_hm1_sum	= 0;
-    int	     ue_tbs_hm2_sum	= 0;
-
+    int	     ue_tbs_sum	    = 0;
+    int	     ue_tbs_hm_sum  = 0;
     for(int i=0;i<len;i++){
 	int index = cell_header - len + 1 + i;
 	if(index < 0){
 	    index += NOF_LOG_SF;
 	}
 	int idx = TTI_TO_IDX(index);
-	ue_tbs1_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_tb1);
+	ue_tbs_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_tb1);
 
-	ue_tbs2_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_tb2);
+	ue_tbs_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_tb2);
 
-	ue_tbs_hm1_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_hm_tb1);
+	ue_tbs_hm_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_hm_tb1);
 
-	ue_tbs_hm2_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_hm_tb2);
+	ue_tbs_hm_sum	+= (int) (q->cell_status[cell_idx].sf_status[idx].tbs_hm_tb2);
     }
 
-    *ue_tbs1	= ue_tbs1_sum;
-    *ue_tbs2	= ue_tbs2_sum;
-    *ue_tbs_hm1	= ue_tbs_hm1_sum;
-    *ue_tbs_hm2	= ue_tbs_hm2_sum;
+    *ue_tbs	= ue_tbs_sum;
+    *ue_tbs_hm	= ue_tbs_hm_sum;
     return 0;
 }
 int lteCCA_tuning_tbs(int tbs){
@@ -303,17 +298,17 @@ int lteCCA_tuning_tbs(int tbs){
     }
     int rateM       = tbs / 1000;
     if(rateM <=0){ rateM = 1;}
-    if(rateM > 100){ rateM = 100;}
 
-    float overhead  = overhead_ratio_phy[7][rateM-1] + protocol_overhead;
+    float overhead  = overhead_ratio_phy[3][rateM-1] + protocol_overhead;
     //printf("overhead: %f \n", overhead);
     int tuned_tbs = (int) ( (1 - overhead) * tbs);
 
- //   printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_tbs);
+    //printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_tbs);
     return tuned_tbs;
 }
 
 int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* tbs, int* tbs_hm, int* full_load, int *full_load_hm){
+    int full_load_rate = 0, full_load_rate_hm = 0;
     int max_cell_prb	= q->max_cell_prb[cell_idx];
 
     // we calculate how many empty prbs are in the cell  -- EMPTY_CELL_LEN determines nof_sf we average
@@ -325,40 +320,27 @@ int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* t
     int ave_ue_prb	= ue_sum_prb / AVE_UE_DL_PRB; 
     
     // we average the physical layer rate in the nearest AVE_UE_PHY_RATE subframes 
-    int ue_tbs1		= 0;
-    int ue_tbs2		= 0;
-    int ue_tbs_hm1	= 0;
-    int ue_tbs_hm2	= 0;
-
-    lteCCA_sum_tbs(q, cell_idx, AVE_UE_PHY_RATE, &ue_tbs1, &ue_tbs2, &ue_tbs_hm1, &ue_tbs_hm2);
+    int ue_tbs		= 0;
+    int ue_tbs_hm	= 0;
+    lteCCA_sum_tbs(q, cell_idx, AVE_UE_PHY_RATE, &ue_tbs, &ue_tbs_hm);
     ue_sum_prb		= lteCCA_sum_ue_prb(q, cell_idx, AVE_UE_PHY_RATE);
 
-    int ue_phy_rate1	= 0;
-    int ue_phy_rate2	= 0;
-    int ue_phy_rate_hm1	= 0;
-    int ue_phy_rate_hm2	= 0;
-
+    int ue_phy_rate	= 0;
+    int ue_phy_rate_hm	= 0;
     if(ue_sum_prb <= 0){
 	// the UE is not active in the past AVE_UE_PHY_RATE subframes,
 	// we thus use the rate from last round
-	ue_phy_rate1	= q->cell_status[cell_idx].last_rate_tbs1;
-	ue_phy_rate2	= q->cell_status[cell_idx].last_rate_tbs2;
-	ue_phy_rate_hm1	= q->cell_status[cell_idx].last_rate_hm1;
-	ue_phy_rate_hm2	= q->cell_status[cell_idx].last_rate_hm2;
-
+	ue_phy_rate	= q->cell_status[cell_idx].last_rate;
+	ue_phy_rate_hm	= q->cell_status[cell_idx].last_rate_hm;
     }else{
 	// otherwise, we use the calculated rate and update the last rate
-	ue_phy_rate1	= ue_tbs1 / ue_sum_prb;
-	ue_phy_rate2	= ue_tbs2 / ue_sum_prb;
-	ue_phy_rate_hm1	= ue_tbs_hm1 / ue_sum_prb;
-	ue_phy_rate_hm2	= ue_tbs_hm2 / ue_sum_prb;
-
-	q->cell_status[cell_idx].last_rate_tbs1	= ue_phy_rate1;
-	q->cell_status[cell_idx].last_rate_tbs2	= ue_phy_rate2;
-	q->cell_status[cell_idx].last_rate_hm1	= ue_phy_rate_hm1;
-	q->cell_status[cell_idx].last_rate_hm2	= ue_phy_rate_hm2;
-
-   }
+	ue_phy_rate	= ue_tbs    / ue_sum_prb;
+	ue_phy_rate_hm	= ue_tbs_hm / ue_sum_prb;
+	q->cell_status[cell_idx].last_rate	= ue_phy_rate;
+	q->cell_status[cell_idx].last_rate_hm	= ue_phy_rate_hm;
+	full_load_rate	    = ue_phy_rate;
+	full_load_rate_hm   = ue_phy_rate_hm;
+    }
     // the available PRB for the user is estimated
     int exp_available_prb   = cell_empty_prb + ave_ue_prb;   // available prb for the ue
     if(exp_available_prb > max_cell_prb){
@@ -368,21 +350,15 @@ int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* t
     //printf("empty prb:%d ue_prb:%d ue_tbs:%d tbs_hm:%d phy_rate:%d rate_hm:%d\n",
 //	    cell_empty_prb, ave_ue_prb, ue_tbs, ue_tbs_hm, ue_phy_rate, ue_phy_rate_hm);
 
-    int exp_tbs1	    = exp_available_prb * ue_phy_rate1;	// expected tbs for the ue
-    int exp_tbs2	    = exp_available_prb * ue_phy_rate2;	// expected tbs for the ue
-    int exp_tbs_hm1	    = exp_available_prb * ue_phy_rate_hm1;	// expected tbs hm
-    int exp_tbs_hm2	    = exp_available_prb * ue_phy_rate_hm2;	// expected tbs hm
-
-    int tuned_exp_tbs	    = lteCCA_tuning_tbs(exp_tbs1) + lteCCA_tuning_tbs(exp_tbs2);
-    int tuned_exp_tbs_hm    = lteCCA_tuning_tbs(exp_tbs_hm1) + lteCCA_tuning_tbs(exp_tbs_hm2);
-   
-    int full_load_tbs1		= max_cell_prb  * ue_phy_rate1;
-    int full_load_tbs2		= max_cell_prb  * ue_phy_rate2;
-    int full_load_tbs_hm1	= max_cell_prb  * ue_phy_rate_hm1 ;
-    int full_load_tbs_hm2	= max_cell_prb  * ue_phy_rate_hm2;
-
-    int tuned_full_load_tbs	=  lteCCA_tuning_tbs(full_load_tbs1) + lteCCA_tuning_tbs(full_load_tbs2);
-    int tuned_full_load_tbs_hm	=  lteCCA_tuning_tbs(full_load_tbs_hm1) + lteCCA_tuning_tbs(full_load_tbs_hm2);
+    int exp_tbs		    = exp_available_prb * ue_phy_rate;	// expected tbs for the ue
+    int exp_tbs_hm	    = exp_available_prb * ue_phy_rate_hm;	// expected tbs hm
+    int tuned_exp_tbs	    = lteCCA_tuning_tbs(exp_tbs);
+    int tuned_exp_tbs_hm    = lteCCA_tuning_tbs(exp_tbs_hm);
+    
+    int full_load_tbs		= max_cell_prb  * full_load_rate;
+    int full_load_tbs_hm	= max_cell_prb  * full_load_rate_hm;
+    int tuned_full_load_tbs	=  lteCCA_tuning_tbs(full_load_tbs);
+    int tuned_full_load_tbs_hm	=  lteCCA_tuning_tbs(full_load_tbs_hm);
 
     *tbs	    = tuned_exp_tbs;
     *tbs_hm	    = tuned_exp_tbs_hm;
@@ -452,19 +428,15 @@ int lteCCA_predict_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm, int* f
 }
 int lteCCA_average_ue_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm){
      // sum the tbs of nearest subframes
-    int ue_tbs1		= 0;
-    int ue_tbs2		= 0;
-    int ue_tbs_hm1	= 0;
-    int ue_tbs_hm2	= 0;
+    int ue_tbs		= 0;
+    int ue_tbs_hm	= 0;
     int ave_tbs=0, ave_tbs_hm=0;
 
-    lteCCA_sum_tbs(q, 0, AVE_UE_RATE, &ue_tbs1, &ue_tbs2, &ue_tbs_hm1, &ue_tbs_hm2);
-    ue_tbs1	= ue_tbs1 / AVE_UE_RATE;
-    ue_tbs2	= ue_tbs2 / AVE_UE_RATE;
-    ue_tbs_hm1	= ue_tbs_hm1 / AVE_UE_RATE;
-    ue_tbs_hm2	= ue_tbs_hm2 / AVE_UE_RATE;
-    ave_tbs	+= lteCCA_tuning_tbs(ue_tbs1) + lteCCA_tuning_tbs(ue_tbs2);
-    ave_tbs_hm	+= lteCCA_tuning_tbs(ue_tbs_hm1) + lteCCA_tuning_tbs(ue_tbs_hm2);
+    lteCCA_sum_tbs(q, 0, AVE_UE_RATE, &ue_tbs, &ue_tbs_hm);
+    ue_tbs	= ue_tbs / AVE_UE_RATE;
+    ue_tbs_hm	= ue_tbs_hm / AVE_UE_RATE;
+    ave_tbs	+= lteCCA_tuning_tbs(ue_tbs);
+    ave_tbs_hm	+= lteCCA_tuning_tbs(ue_tbs_hm);
 
     //printf("sum tbs:%d tbs_hm:%d ave_tbs:%d tbs_hm:%d\n", ue_tbs, ue_tbs_hm, ave_tbs, ave_tbs_hm);
 
@@ -472,14 +444,11 @@ int lteCCA_average_ue_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm){
     if(nof_cell > 1){
 	for(int i=1;i<nof_cell;i++){
 	    if(q->cell_triggered[i]){
-		lteCCA_sum_tbs(q, i, AVE_UE_RATE, &ue_tbs1, &ue_tbs2, &ue_tbs_hm1, &ue_tbs_hm2);
-		ue_tbs1	= ue_tbs1 / AVE_UE_RATE;
-		ue_tbs2	= ue_tbs2 / AVE_UE_RATE;
-		ue_tbs_hm1	= ue_tbs_hm1 / AVE_UE_RATE;
-		ue_tbs_hm2	= ue_tbs_hm2 / AVE_UE_RATE;
-		ave_tbs		+= lteCCA_tuning_tbs(ue_tbs1) + lteCCA_tuning_tbs(ue_tbs2);
-		ave_tbs_hm	+= lteCCA_tuning_tbs(ue_tbs_hm1) + lteCCA_tuning_tbs(ue_tbs_hm2);
-
+		lteCCA_sum_tbs(q, i, AVE_UE_RATE, &ue_tbs, &ue_tbs_hm);
+		ue_tbs	    = ue_tbs / AVE_UE_RATE;
+		ue_tbs_hm   = ue_tbs_hm / AVE_UE_RATE;
+		ave_tbs	    += lteCCA_tuning_tbs(ue_tbs);
+		ave_tbs_hm  += lteCCA_tuning_tbs(ue_tbs_hm);
 		//printf("sum tbs:%d tbs_hm:%d ave_tbs:%d tbs_hm:%d\n", ue_tbs, ue_tbs_hm, ave_tbs, ave_tbs_hm);
 	    }
 	}
