@@ -183,11 +183,11 @@ int main(int argc, char **argv) {
     client.set_blk_ack(2);
     bool log_flag = false;
     bool exit_loop = false;
-    uint32_t start_time_ms = (uint32_t) (Socket::timestamp() % 1000000);
+    uint32_t start_time_ms = (uint32_t) (Socket::timestamp() / 1000000);
     uint32_t curr_time_ms, last_time_ms = start_time_ms;
     uint32_t time_passed_ms;
     while(true){
-	curr_time_ms	= (uint32_t) (Socket::timestamp() % 1000000);
+	curr_time_ms	= (uint32_t) (Socket::timestamp() / 1000000);
 	time_passed_ms	= curr_time_ms - start_time_ms; 
 	printf("time passed in ms:%d \n", time_passed_ms);
 	//if( time_passed_ms >= (last_time_ms + 2000) ){
