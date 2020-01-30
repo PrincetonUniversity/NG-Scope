@@ -183,10 +183,10 @@ int main(int argc, char **argv) {
     client.set_blk_ack(2);
     bool log_flag = false;
     bool exit_loop = false;
-    uint32_t start_time_ms = (uint32_t) (Socket::timestamp() / 1000000);
+    uint32_t start_time_ms;
     uint32_t curr_time_ms, last_time_ms = start_time_ms;
     uint32_t time_passed_ms;
-    bool connected = false
+    bool connected = false;
     while(true){
 	if(connected){
 	    curr_time_ms	= (uint32_t) (Socket::timestamp() / 1000000);
