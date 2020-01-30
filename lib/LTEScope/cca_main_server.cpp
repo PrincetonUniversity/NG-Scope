@@ -186,14 +186,13 @@ int main(int argc, char **argv) {
     uint32_t start_time_ms = (uint32_t) (Socket::timestamp() / 1000000);
     uint32_t curr_time_ms, last_time_ms = start_time_ms;
     uint32_t time_passed_ms;
+    bool connected = false
     while(true){
-	curr_time_ms	= (uint32_t) (Socket::timestamp() / 1000000);
-	time_passed_ms	= curr_time_ms - start_time_ms; 
-	printf("time passed in ms:%d \n", time_passed_ms);
-	//if( time_passed_ms >= (last_time_ms + 2000) ){
-	//    printf("time passed :%d s \n",  time_passed_ms % 1000);
-	//    last_time_ms    = curr_time_ms;
-	//}    
+	if(connected){
+	    curr_time_ms	= (uint32_t) (Socket::timestamp() / 1000000);
+	    time_passed_ms	= curr_time_ms - start_time_ms; 
+	    printf("time passed in s:%d \n", time_passed_ms / 1000);
+	}
 	int nfds = epoll_wait(efd, events, 4, 10000);
 	if(nfds > 0){
 	    for(int i=0;i<nfds;i++){
@@ -209,7 +208,8 @@ int main(int argc, char **argv) {
 			// the usrp dci decoder is ready!
 			client.init_connection();		    // Start the connection with remote server
 			timerfd_settime(tfd, 0, &time_intv, NULL);  //启动定时器 for connection
-		    
+			start_time_ms = (uint32_t) (Socket::timestamp() / 1000000);
+			connected = true;
 			timerfd_settime(tfd_QAM, 0, &time_intv_QAM, NULL);  //启动定时器 for QAM  stop it for iphone
 		    } 
 		    uint64_t curr_time = Socket::timestamp();  
