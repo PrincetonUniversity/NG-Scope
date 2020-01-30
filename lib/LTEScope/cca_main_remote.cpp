@@ -357,9 +357,9 @@ int main(int argc, char **argv) {
 	ret = system(cmd);
 	printf("system command return value:%d\n",ret);	
 	//logDL_flag = false; // stopping recording dci 
-	logDL_flag = false; // stopping recording dci 
-	sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
-	ret = system(cmd);
+	//logDL_flag = false; // stopping recording dci 
+	//sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
+	//ret = system(cmd);
     }
 
     logDL_flag = false; // stopping recording dci 
