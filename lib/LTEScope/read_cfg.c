@@ -27,6 +27,12 @@ int read_config_master(srslte_config_t* config){
         printf("ERROR: reading nof_usrp\n");
     }
     printf("read nof usrp:%d\n", config->nof_usrp);
+    
+    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){
+        printf("ERROR: reading con_time_s\n");
+    }
+    printf("read connection time:%d\n", config->con_time_s);
+    
     for(int i=0;i<config->nof_usrp;i++){
 	char name[50];
 

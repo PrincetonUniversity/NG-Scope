@@ -1,6 +1,6 @@
 #include "stdio.h"
 
-float protocol_overhead = 0.08;
+float protocol_overhead = 0.06;
 
 // 1- 1x10^(-6),  2- 1.5x10^(-6), ......, 19- 10x10^(-6)
 

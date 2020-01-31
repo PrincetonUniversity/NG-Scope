@@ -305,11 +305,12 @@ int lteCCA_tuning_tbs(int tbs){
     if(rateM <=0){ rateM = 1;}
     if(rateM > 100){ rateM = 100;}
 
-    float overhead  = overhead_ratio_phy[7][rateM-1] + protocol_overhead;
+    float overhead  = overhead_ratio_phy[0][rateM-1] + protocol_overhead;
     //printf("overhead: %f \n", overhead);
     int tuned_tbs = (int) ( (1 - overhead) * tbs);
 
- //   printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_tbs);
+    int tuned_rateM       = tuned_tbs / 1000;
+    printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_rateM);
     return tuned_tbs;
 }
 
@@ -373,7 +374,9 @@ int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* t
     int exp_tbs_hm1	    = exp_available_prb * ue_phy_rate_hm1;	// expected tbs hm
     int exp_tbs_hm2	    = exp_available_prb * ue_phy_rate_hm2;	// expected tbs hm
 
+    printf("TBS: --\n");
     int tuned_exp_tbs	    = lteCCA_tuning_tbs(exp_tbs1) + lteCCA_tuning_tbs(exp_tbs2);
+    printf("TBS-HM: --\n");
     int tuned_exp_tbs_hm    = lteCCA_tuning_tbs(exp_tbs_hm1) + lteCCA_tuning_tbs(exp_tbs_hm2);
    
     int full_load_tbs1		= max_cell_prb  * ue_phy_rate1;
@@ -463,7 +466,9 @@ int lteCCA_average_ue_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm){
     ue_tbs2	= ue_tbs2 / AVE_UE_RATE;
     ue_tbs_hm1	= ue_tbs_hm1 / AVE_UE_RATE;
     ue_tbs_hm2	= ue_tbs_hm2 / AVE_UE_RATE;
+    printf("UE_RATE:\n");
     ave_tbs	+= lteCCA_tuning_tbs(ue_tbs1) + lteCCA_tuning_tbs(ue_tbs2);
+    printf("UE_RATE-HM:\n");
     ave_tbs_hm	+= lteCCA_tuning_tbs(ue_tbs_hm1) + lteCCA_tuning_tbs(ue_tbs_hm2);
 
     //printf("sum tbs:%d tbs_hm:%d ave_tbs:%d tbs_hm:%d\n", ue_tbs, ue_tbs_hm, ave_tbs, ave_tbs_hm);

@@ -11,7 +11,7 @@
 
 #define EMPTY_CELL_LEN 	30
 #define AVE_UE_DL_PRB	30
-#define AVE_UE_PHY_RATE 10
+#define AVE_UE_PHY_RATE 30
 #define AVE_UE_RATE 30
 
 #define NOF_BITS_PER_PKT 12000
