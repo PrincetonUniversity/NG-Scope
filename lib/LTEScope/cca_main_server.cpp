@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
 
 		// timeout for the QAM 
 		if( (events[i].data.fd == tfd_QAM) && (events[i].events & POLLIN) ){
-		    //client.set_256QAM(true);
+		    client.set_256QAM(true);
 		}
 	    }
 	}

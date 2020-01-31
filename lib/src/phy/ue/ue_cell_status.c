@@ -310,7 +310,7 @@ int lteCCA_tuning_tbs(int tbs){
     int tuned_tbs = (int) ( (1 - overhead) * tbs);
 
     int tuned_rateM       = tuned_tbs / 1000;
-    printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_rateM);
+    //printf("||| RateM:%d overhead %.4f tuned_tbs:%d\n", rateM, overhead, tuned_rateM);
     return tuned_tbs;
 }
 
@@ -366,7 +366,7 @@ int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* t
 	exp_available_prb   = max_cell_prb;
     }
 
-    //printf("empty prb:%d ue_prb:%d ue_tbs:%d tbs_hm:%d phy_rate:%d rate_hm:%d\n",
+    //printf("empty prb:%d ue_prb:%d ue_tbs1:%d ue_tbs2:%d tbs_hm:%d phy_rate:%d rate_hm:%d\n",
 //	    cell_empty_prb, ave_ue_prb, ue_tbs, ue_tbs_hm, ue_phy_rate, ue_phy_rate_hm);
 
     int exp_tbs1	    = exp_available_prb * ue_phy_rate1;	// expected tbs for the ue
@@ -374,9 +374,9 @@ int lteCCA_predict_tbs_single_cell(srslte_ue_cell_usage* q, int cell_idx, int* t
     int exp_tbs_hm1	    = exp_available_prb * ue_phy_rate_hm1;	// expected tbs hm
     int exp_tbs_hm2	    = exp_available_prb * ue_phy_rate_hm2;	// expected tbs hm
 
-    printf("TBS: --\n");
+    //printf("TBS: --\n");
     int tuned_exp_tbs	    = lteCCA_tuning_tbs(exp_tbs1) + lteCCA_tuning_tbs(exp_tbs2);
-    printf("TBS-HM: --\n");
+    //printf("TBS-HM: --\n");
     int tuned_exp_tbs_hm    = lteCCA_tuning_tbs(exp_tbs_hm1) + lteCCA_tuning_tbs(exp_tbs_hm2);
    
     int full_load_tbs1		= max_cell_prb  * ue_phy_rate1;
@@ -466,9 +466,9 @@ int lteCCA_average_ue_rate(srslte_ue_cell_usage* q, int* rate, int* rate_hm){
     ue_tbs2	= ue_tbs2 / AVE_UE_RATE;
     ue_tbs_hm1	= ue_tbs_hm1 / AVE_UE_RATE;
     ue_tbs_hm2	= ue_tbs_hm2 / AVE_UE_RATE;
-    printf("UE_RATE:\n");
+    //printf("UE_RATE:\n");
     ave_tbs	+= lteCCA_tuning_tbs(ue_tbs1) + lteCCA_tuning_tbs(ue_tbs2);
-    printf("UE_RATE-HM:\n");
+    //printf("UE_RATE-HM:\n");
     ave_tbs_hm	+= lteCCA_tuning_tbs(ue_tbs_hm1) + lteCCA_tuning_tbs(ue_tbs_hm2);
 
     //printf("sum tbs:%d tbs_hm:%d ave_tbs:%d tbs_hm:%d\n", ue_tbs, ue_tbs_hm, ave_tbs, ave_tbs_hm);
