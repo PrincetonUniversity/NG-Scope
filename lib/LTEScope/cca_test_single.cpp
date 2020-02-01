@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
     int printLog  = 1;
     uint16_t rnti   = 0;
 
-    while ((opt = getopt(argc, argv, "tcplr")) != -1) {
+    while ((opt = getopt(argc, argv, "tcplR")) != -1) {
         switch (opt) {
         case 't':
             trace_idx = atoi(argv[optind]);
@@ -158,8 +158,10 @@ int main(int argc, char **argv) {
 
     if(rnti != 0){
 	targetRNTI_const = rnti;
-	printf("We set the RNTI to %d\n", rnti);
+	printf("We set the RNTI to %d | %d\n", rnti, targetRNTI_const);
     }
+
+    sleep(10);
 
     srslte_UeCell_set_logFlag(&ue_cell_usage, false);   // start log
     srslte_UeCell_set_printFlag(&ue_cell_usage, true); // print  
@@ -238,10 +240,6 @@ int main(int argc, char **argv) {
 
     // tell the CCA server that we are ready
     send(client_sock, &lteCCA_rate, sizeof(srslte_lteCCA_rate), 0); 
-    if(comp == 1){
-	ret = system("./start_competing_user.sh");
-    	printf("system command return value:%d\n",ret);
-    }
     
     bool exit_loop = false;
     while(true){
