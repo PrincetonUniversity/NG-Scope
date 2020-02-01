@@ -294,11 +294,6 @@ int main(int argc, char **argv) {
     strcat(cmd, main_config.servIP);
     ret = system(cmd);
 
-    logDL_flag = false; // stopping recording dci 
-    sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 7);
-    ret = system(cmd);
- 
-
     // we are going to shut down the usrp
     go_exit = true;
     for(int i=0;i<nof_usrp;i++){
