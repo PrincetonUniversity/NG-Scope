@@ -4,6 +4,11 @@ include_directories(lib_src)
 add_executable(dci_multi multi_usrp.c dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(dci_multi srslte_phy srslte_common srslte_rf pthread config)
 
+add_executable(startHeartBeat heart_beat.c)
+
+add_executable(findRNTI findRNTI.cpp dci_decode_multi_usrp.c read_cfg.c)
+target_link_libraries(findRNTI srslte_phy srslte_common srslte_rf pthread config sockLib)
+
 add_executable(remote_serv_test remote_serv_test.cpp read_cfg.c)
 target_link_libraries(remote_serv_test srslte_phy srslte_common srslte_rf pthread config sockLib)
 
@@ -12,6 +17,9 @@ target_link_libraries(test_caTrigger srslte_phy srslte_common srslte_rf pthread 
 
 add_executable(cca_main_noRF cca_main_noRF.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(cca_main_noRF srslte_phy srslte_common srslte_rf pthread config sockLib)
+
+add_executable(cca_test_single cca_test_single.cpp dci_decode_multi_usrp.c read_cfg.c)
+target_link_libraries(cca_test_single srslte_phy srslte_common srslte_rf pthread config sockLib)
 
 add_executable(cca_main_remote cca_main_remote.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(cca_main_remote srslte_phy srslte_common srslte_rf pthread config sockLib)

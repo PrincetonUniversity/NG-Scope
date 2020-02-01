@@ -107,8 +107,9 @@ int main(int argc, char **argv) {
     int cca_test  = 0;
     int comp	  = 0;
     int printLog  = 1;
+    uint16_t rnti   = 0;
 
-    while ((opt = getopt(argc, argv, "tcpl")) != -1) {
+    while ((opt = getopt(argc, argv, "tcplr")) != -1) {
         switch (opt) {
         case 't':
             trace_idx = atoi(argv[optind]);
@@ -121,6 +122,9 @@ int main(int argc, char **argv) {
             break;
         case 'l':
             printLog = atoi(argv[optind]);
+            break;
+        case 'R':
+            rnti = atoi(argv[optind]);
             break;
         default:
             printf("no input found\n");
@@ -142,7 +146,7 @@ int main(int argc, char **argv) {
     srslte_UeCell_set_logFlag(&ue_cell_usage, false);
     targetRNTI_const = 0;
     
-  
+    int ret; 
     cca_cfg_t cca_config;
     read_cca_config(&cca_config);
 
@@ -151,16 +155,28 @@ int main(int argc, char **argv) {
     sock_cfg_t sock_config;
     read_sock_config(&sock_config);
    
-    FILE *FD_DCI;
-    FD_DCI  = fopen("./dci_log_iperf", "w+");
 
-    srslte_UeCell_set_file_descriptor(&ue_cell_usage, FD_DCI);
+    if(rnti != 0){
+	targetRNTI_const = rnti;
+	printf("We set the RNTI to %d\n", rnti);
+    }
 
-    srslte_UeCell_set_logFlag(&ue_cell_usage, true);   // start log
+    srslte_UeCell_set_logFlag(&ue_cell_usage, false);   // start log
     srslte_UeCell_set_printFlag(&ue_cell_usage, true); // print  
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
     srslte_UeCell_set_nof_cells(&ue_cell_usage, nof_usrp);
     
+    // set file descriptor
+    FILE *FD_DCI  = fopen("./dci_log", "w+");
+    srslte_UeCell_set_file_descriptor(&ue_cell_usage, FD_DCI);
+    srslte_UeCell_reset(&ue_cell_usage);
+
+    // setup remote
+    srslte_UeCell_set_remote_sock(&ue_cell_usage, client_sock);
+    srslte_UeCell_set_remote_flag(&ue_cell_usage, true);
+    srslte_UeCell_set_logFlag(&ue_cell_usage, false); 
+
+
     for(int i=0;i<nof_usrp;i++){
 	// INIT important structures
 	srslte_init_ue_list(&ue_list[i]);  
@@ -191,48 +207,13 @@ int main(int argc, char **argv) {
 	    count++;
 	}
     }	
-    sleep(2);
+    sleep(10);
 
-    int ret = system("./findRNTI.sh");
-    printf("system command return value:%d\n",ret);
-    srslte_UeCell_set_logFlag(&ue_cell_usage, false); 
-    fclose(FD_DCI);
-    /* End of find RNTI */
-
-
-    /*  Start testing our cca */
-    // Set the RNTI and print
-    targetRNTI_const = ue_list[0].max_dl_freq_ue;
-    srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
-    printf("\n\n\n MAX freq rnti:%d freq:%d \n\n\n", targetRNTI_const, ue_list[0].ue_dl_cnt[targetRNTI_const]);
-    printf("We finished test BBR, waiting for the lteCCA to start\n\n\n"); 
-
-    // start heart beat
-    pthread_t heart_beat_thd;
-    pthread_create( &heart_beat_thd, NULL, heart_beat, NULL);
-
-    // set file descriptor
-    FD_DCI  = fopen("./dci_log", "w+");
-    srslte_UeCell_set_file_descriptor(&ue_cell_usage, FD_DCI);
-    srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
-    srslte_UeCell_reset(&ue_cell_usage);
-
-    // setup remote
-    srslte_UeCell_set_remote_sock(&ue_cell_usage, client_sock);
-    srslte_UeCell_set_remote_flag(&ue_cell_usage, true);
-
-    // we wait for five seconds 
-    sleep(3);
-
-    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
-
-    // we are going to record the DCI detailed log
-    logDL_flag = true;
-    srslte_UeCell_set_logFlag(&ue_cell_usage, false); 
-
+    
     /*****************************************************
     *	We start our congestion control algorithms 
     *****************************************************/
+    logDL_flag = true;
     
     int efd;
     struct epoll_event ev, events[1];
@@ -301,12 +282,10 @@ int main(int argc, char **argv) {
     *	We finished running our congestion control algorithms 
     *************************************************************/
 
-    //logDL_flag = false; // stopping recording dci 
-    //srslte_UeCell_set_logFlag(&ue_cell_usage, false); 
+    logDL_flag = false; // stopping recording dci 
     printf("close fd");
     fclose(FD_DCI);	    // close the dci log file
     close(client_sock);	    // close the socket
-
     srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
 
     char cmd[100];
@@ -318,68 +297,13 @@ int main(int argc, char **argv) {
     logDL_flag = false; // stopping recording dci 
     sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 7);
     ret = system(cmd);
-    logDL_flag = true; // stopping recording dci 
  
-    //printf("system command return value:%d\n",ret);
-    
-    printf("We finished testing our cca, now testing other ccas!\n");
-    sleep(5);
-
-    if(cca_test == 1){
-	for(int i=0;i<7;i++){
-
-	    logDL_flag = false; // stopping recording dci 
-	    sprintf(cmd,"./cca_test.sh %d ",i);
-	    strcat(cmd, main_config.servIP);
-	
-	    ret = system(cmd);
-	    printf("system command return value:%d\n",ret);
-
-	    sprintf(cmd,"./mv_trace_cca_test.sh %d %d", trace_idx, i);
-	    ret = system(cmd);
-	    printf("system command return value:%d\n",ret);	
-	    logDL_flag = false; // stopping recording dci 
-	} 
-    }else if(cca_test == 2){
-	if(printLog == 0){
-	    srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
-	}else if(printLog == 1){
-	    srslte_UeCell_set_printFlag(&ue_cell_usage, true); 
-	}
-	// we are testing BBR
-	//logDL_flag = true; // stopping recording dci 
-
-	if(comp == 1){
-	    ret = system("./start_competing_user_bbr.sh");
-	    printf("system command return value:%d\n",ret);
-	}
-
-	sprintf(cmd,"./cca_test.sh 6 ");
-	strcat(cmd, main_config.servIP);
-	ret = system(cmd);
-	printf("system command return value:%d\n",ret);
-
-	sprintf(cmd,"./mv_trace_cca_test.sh %d %d", trace_idx, 6);
-	ret = system(cmd);
-	printf("system command return value:%d\n",ret);	
-	//logDL_flag = false; // stopping recording dci 
-	//logDL_flag = false; // stopping recording dci 
-	//sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
-	//ret = system(cmd);
-    }
-
-    logDL_flag = false; // stopping recording dci 
-    sprintf(cmd,"./mv_dci_trace.sh %d %d", trace_idx, 6);
-    ret = system(cmd);
 
     // we are going to shut down the usrp
     go_exit = true;
     for(int i=0;i<nof_usrp;i++){
 	pthread_join(usrp_thd[i], NULL);
     }
-    // we are going to shut down the heart beat
-    exit_heartBeat = true;
-    srslte_UeCell_set_logFlag(&ue_cell_usage, true);
 
     printf("\nBye MAIN FUNCTION!\n");
     exit(0);
