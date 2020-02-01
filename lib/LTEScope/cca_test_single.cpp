@@ -161,8 +161,6 @@ int main(int argc, char **argv) {
 	printf("We set the RNTI to %d | %d\n", rnti, targetRNTI_const);
     }
 
-    sleep(10);
-
     srslte_UeCell_set_logFlag(&ue_cell_usage, false);   // start log
     srslte_UeCell_set_printFlag(&ue_cell_usage, true); // print  
     srslte_UeCell_set_targetRNTI(&ue_cell_usage, targetRNTI_const);
