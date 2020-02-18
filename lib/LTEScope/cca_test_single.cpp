@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
     /*****************************************************
     *	We start our congestion control algorithms 
     *****************************************************/
-    logDL_flag = true;
+    logDL_flag = false;
     
     int efd;
     struct epoll_event ev, events[1];
@@ -284,11 +284,11 @@ int main(int argc, char **argv) {
     close(client_sock);	    // close the socket
     srslte_UeCell_set_printFlag(&ue_cell_usage, false); 
 
-    char cmd[100];
-    // move our trace
-    sprintf(cmd,"./mv_lteCCA_trace.sh %d ", trace_idx);
-    strcat(cmd, main_config.servIP);
-    ret = system(cmd);
+    //char cmd[100];
+    //// move our trace
+    //sprintf(cmd,"./mv_lteCCA_trace.sh %d ", trace_idx);
+    //strcat(cmd, main_config.servIP);
+    //ret = system(cmd);
 
     // we are going to shut down the usrp
     go_exit = true;
