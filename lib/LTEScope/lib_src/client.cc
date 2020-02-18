@@ -311,10 +311,14 @@ void Client::recv( void )
 	if(contents->sequence_number >= _max_ack_number){
 	    _max_ack_number = contents->sequence_number;
 	}
+
 	outgoing.sequence_number = contents->sequence_number;
 	outgoing.ack_number	 = _max_ack_number;
 	outgoing.delivered	 = contents->delivered;
 	outgoing.delivered_time  = contents->delivered_time;
+
+	printf("outgoing delivered:%d \n",outgoing.delivered);
+
 	outgoing.int_pkt_t_us    = set_rate;
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 

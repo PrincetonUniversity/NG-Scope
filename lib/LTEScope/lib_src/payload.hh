@@ -7,13 +7,11 @@ class AckPayload
 public:
   uint32_t sequence_number, ack_number; // sequence number 
   uint32_t delivered, delivered_time;
-
   uint64_t sent_timestamp;  // the sent timestampe used to calculate RTT
   int      int_pkt_t_us;    
   uint8_t  flag;
   const std::string str( const size_t len ) const;
 };
-
 
 class Payload
 {
