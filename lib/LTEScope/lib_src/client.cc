@@ -313,6 +313,8 @@ void Client::recv( void )
 	}
 	outgoing.sequence_number = contents->sequence_number;
 	outgoing.ack_number	 = _max_ack_number;
+	outgoing.delivered	 = contents->delivered;
+	outgoing.delivered_time  = contents->delivered_time;
 	outgoing.int_pkt_t_us    = set_rate;
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 
@@ -470,6 +472,53 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
     contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway);
     fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t %d\t",
 	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
+    fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t",
+	oneway_us, windowed_min_delay, _nof_delayed_pkt, _switch2wire, _256QAM); 
+    fprintf( _log_file,"\n");
+    return;
+}
+
+void Client::recv_noRF_fixRate()
+{
+    /* get the data packet */
+    Socket::Packet incoming( _send.recv() );
+    Payload *contents = (Payload *) incoming.payload.data();
+    contents->recv_timestamp = incoming.timestamp;
+    _pkt_received++;
+
+    int     tx_rate_us = contents->tx_rate_us;
+
+    int64_t  oneway_ns	    = contents->recv_timestamp - contents->sent_timestamp;
+    uint32_t oneway_us	    = (uint32_t) (oneway_ns / 1000);
+    uint64_t curr_time	    = Socket::timestamp();
+    uint32_t curr_time_us   = (uint32_t) (curr_time / 1000);
+    minmax_running_min(&win_delay_us, _delay_window_us, curr_time_us, oneway_us);
+
+    uint32_t windowed_min_delay = minmax_get(&win_delay_us);
+    double oneway = oneway_ns / 1.e9;
+
+    int set_rate  = 1000;
+
+    if( (_pkt_received % _blk_ack) == 0){
+	//printf("_Pkt_received:%d blk_ack:%d\n", _pkt_received, _blk_ack);
+	/* send ack */
+	AckPayload outgoing;
+	//printf("ACK: %d\n",contents->sequence_number);
+	if(contents->sequence_number >= _max_ack_number){
+	    _max_ack_number = contents->sequence_number;
+	}
+	outgoing.sequence_number = contents->sequence_number;
+	outgoing.ack_number	 = _max_ack_number;
+	outgoing.delivered	 = contents->delivered;
+	outgoing.delivered_time  = contents->delivered_time;
+	outgoing.int_pkt_t_us    = set_rate;
+	outgoing.sent_timestamp  = contents->sent_timestamp;
+	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
+    }
+    fprintf( _log_file,"%d\t %d\t %ld\t %ld\t %ld\t %.4f\t",
+    contents->sequence_number,_slow_start, contents->sent_timestamp, contents->recv_timestamp, curr_time, oneway);
+    //fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t %d\t",
+//	set_rate, tx_rate_us,lteCCA_rate->probe_rate,lteCCA_rate->probe_rate_hm, lteCCA_rate->ue_rate, lteCCA_rate->ue_rate_hm);
     fprintf( _log_file,"%d\t %d\t %d\t %d\t %d\t",
 	oneway_us, windowed_min_delay, _nof_delayed_pkt, _switch2wire, _256QAM); 
     fprintf( _log_file,"\n");

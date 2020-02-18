@@ -18,6 +18,11 @@ target_link_libraries(test_caTrigger srslte_phy srslte_common srslte_rf pthread 
 add_executable(cca_main_noRF cca_main_noRF.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(cca_main_noRF srslte_phy srslte_common srslte_rf pthread config sockLib)
 
+
+add_executable(cca_main_client cca_main_client.cpp dci_decode_multi_usrp.c read_cfg.c)
+target_link_libraries(cca_main_client srslte_phy srslte_common srslte_rf pthread config sockLib)
+
+
 add_executable(cca_test_single cca_test_single.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(cca_test_single srslte_phy srslte_common srslte_rf pthread config sockLib)
 
@@ -29,6 +34,9 @@ target_link_libraries(cca_main_server srslte_phy srslte_common srslte_rf pthread
 
 add_executable(fix_rate_client  fix_rate_client.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(fix_rate_client srslte_phy srslte_common srslte_rf pthread config sockLib)
+
+add_executable(bbr_rate_test  bbr_rate_test.cpp dci_decode_multi_usrp.c read_cfg.c)
+target_link_libraries(bbr_rate_test srslte_phy srslte_common srslte_rf pthread config sockLib)
 
 add_executable(cca_main cca_main.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(cca_main srslte_phy srslte_common srslte_rf pthread config sockLib)

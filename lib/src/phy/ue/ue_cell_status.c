@@ -305,7 +305,7 @@ int lteCCA_tuning_tbs(int tbs){
     if(rateM <=0){ rateM = 1;}
     if(rateM > 100){ rateM = 100;}
 
-    float overhead  = overhead_ratio_phy[3][rateM-1] + protocol_overhead;
+    float overhead  = overhead_ratio_phy[5][rateM-1] + protocol_overhead;
     //printf("overhead: %f \n", overhead);
     int tuned_tbs = (int) ( (1 - overhead) * tbs);
 
