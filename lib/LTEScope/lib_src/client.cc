@@ -468,6 +468,8 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	}
 	outgoing.sequence_number = contents->sequence_number;
 	outgoing.ack_number	 = _max_ack_number;
+	outgoing.delivered	 = contents->delivered;
+	outgoing.delivered_time  = contents->delivered_time;
 	outgoing.int_pkt_t_us    = set_rate;
 	outgoing.sent_timestamp  = contents->sent_timestamp;
 	_send.send( Socket::Packet( _remote, outgoing.str( sizeof( AckPayload ) ) ) );
