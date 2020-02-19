@@ -458,6 +458,7 @@ void Client::recv_noRF(srslte_lteCCA_rate* lteCCA_rate )
 	    }
 	}	
     }
+    set_rate = 200;
     if( (_pkt_received % _blk_ack) == 0){
 	//printf("_Pkt_received:%d blk_ack:%d\n", _pkt_received, _blk_ack);
 	/* send ack */
