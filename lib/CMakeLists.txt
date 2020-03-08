@@ -23,11 +23,13 @@
 ########################################################################
 add_subdirectory(src)
 #add_subdirectory(lib_src)
+add_subdirectory(lib_dci)
 add_subdirectory(include)
 add_subdirectory(examples)
 add_subdirectory(test)
-add_subdirectory(LTEScope)
-add_subdirectory(dciLog)
+#add_subdirectory(LTEScope)
+add_subdirectory(PBE)
+#add_subdirectory(dciLog)
 
 ########################################################################
 # Install library headers
@@ -35,3 +37,5 @@ add_subdirectory(dciLog)
 INSTALL(  DIRECTORY include/
           DESTINATION "${INCLUDE_DIR}"
           FILES_MATCHING PATTERN "*.h" )
+
+

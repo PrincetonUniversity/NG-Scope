@@ -44,8 +44,8 @@ typedef struct SRSLTE_API{
     uint32_t		    last_active;  // the time (ms) the UE is active 
     uint16_t		    dci_touched;
 
-    int			    last_rate;
-    int			    last_rate_hm;
+    int			    last_rate_tbs1, last_rate_tbs2;
+    int			    last_rate_hm1, last_rate_hm2;
     bool		    dci_token[NOF_LOG_SF];
     srslte_subframe_status  sf_status[NOF_LOG_SF];
 }srslte_cell_status;

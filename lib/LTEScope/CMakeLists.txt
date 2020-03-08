@@ -1,6 +1,9 @@
 add_subdirectory(lib_src)
 include_directories(lib_src)
 
+add_subdirectory(lib_dci)
+include_directories(lib_dci)
+
 add_executable(dci_multi multi_usrp.c dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(dci_multi srslte_phy srslte_common srslte_rf pthread config)
 
@@ -8,6 +11,10 @@ add_executable(startHeartBeat heart_beat.c)
 
 add_executable(findRNTI findRNTI.cpp dci_decode_multi_usrp.c read_cfg.c)
 target_link_libraries(findRNTI srslte_phy srslte_common srslte_rf pthread config sockLib)
+
+
+add_executable(testDCI testDCI.cpp)
+target_link_libraries(testDCI  dciLib srslte_phy srslte_common srslte_rf pthread config sockLib)
 
 add_executable(remote_serv_test remote_serv_test.cpp read_cfg.c)
 target_link_libraries(remote_serv_test srslte_phy srslte_common srslte_rf pthread config sockLib)
