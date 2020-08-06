@@ -36,13 +36,27 @@
 #include <signal.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include "srslte/common/crash_handler.h"
+#include "srslte/common/gen_mch_tables.h"
+#include "srslte/common/crash_handler.h"
 
 extern "C"{
 #include "lteScop_main.h"
 }
+bool go_exit = false;
 
-int main() {
-    lteScope_main();
+int main(int argc, char **argv) {
+    srslte_debug_handle_crash(argc, argv);
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGINT);
+    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+    signal(SIGINT, sig_int_handler);
+
+
+    lteScope_init();
+    lteScope_start();
+    lteScope_wait_to_close();
     printf("hello world!\n");
 }
 

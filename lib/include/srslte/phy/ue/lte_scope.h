@@ -23,6 +23,8 @@
 #include "srslte/phy/utils/vector.h"
 #include "srslte/phy/utils/debug.h"
 
+#include "srslte/phy/ue/LTESCOPE_GLOBAL.h"
+
 #include "srslte/config.h"
 
 #define UE_INACTIVE_TIME_LIMIT 2000 // One UE that has been inactive for 3000-ms/3-s are removed
@@ -130,9 +132,9 @@ typedef struct SRSLTE_API{
 }srslte_dci_msg_paws;
 
 typedef struct SRSLTE_API{
-    srslte_dci_msg_paws downlink_msg[10];  
+    srslte_dci_msg_paws downlink_msg[MAX_NOF_MSG_PER_SF];  
     uint32_t	dl_msg_cnt;
-    srslte_dci_msg_paws uplink_msg[10];  
+    srslte_dci_msg_paws uplink_msg[MAX_NOF_MSG_PER_SF];  
     uint32_t	ul_msg_cnt;
 }srslte_dci_subframe_t;
 

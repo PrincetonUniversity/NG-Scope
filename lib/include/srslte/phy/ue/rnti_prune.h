@@ -20,6 +20,13 @@ SRSLTE_API int dci_msg_location_pruning(srslte_active_ue_list_t* q,
                                     srslte_dci_msg_paws* dci_msg_list,
                                     srslte_dci_msg_paws* dci_decode_ret,
                                     uint32_t tti);
+
+SRSLTE_API int dci_subframe_pruning_index(srslte_active_ue_list_t* q,
+                        srslte_dci_msg_paws*  dci_ret_input,
+                        int* idx_vec_all,
+                        int max_prb,
+                        int msg_cnt_input);
+
 SRSLTE_API int dci_subframe_pruning(srslte_active_ue_list_t* q,
                         srslte_dci_msg_paws*  dci_ret_input,
                         srslte_dci_msg_paws*  dci_ret_output,

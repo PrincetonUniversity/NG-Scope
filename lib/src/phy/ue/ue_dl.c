@@ -73,6 +73,7 @@ int srslte_ue_dl_init(srslte_ue_dl_t *q,
     q->pending_ul_dci_rnti = 0; 
     q->nof_rx_antennas = nof_rx_antennas;
 
+    //printf("DL_INIT: MAX_SFLEN_RE:%d\n", MAX_SFLEN_RE);
     for (int j = 0; j < SRSLTE_MAX_PORTS; j++) {
       q->sf_symbols_m[j] = srslte_vec_malloc(MAX_SFLEN_RE * sizeof(cf_t));
       if (!q->sf_symbols_m[j]) {

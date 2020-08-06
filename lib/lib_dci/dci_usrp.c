@@ -108,7 +108,7 @@ void* dci_start_usrp(void* p)
 
     //  set the prb for cell ue usage status
     pthread_mutex_lock(&mutex_usage);
-    srslte_UeCell_set_prb(&ue_cell_usage, cell[usrp_idx].nof_prb, usrp_idx);
+    cell_status_set_prb(&ue_cell_usage, cell[usrp_idx].nof_prb, usrp_idx);
     pthread_mutex_unlock(&mutex_usage);
 
     /* set sampling frequency */
@@ -186,6 +186,7 @@ void* dci_start_usrp(void* p)
         dci_usrp_id[i].usrp_thd_id = usrp_idx;
         pthread_create( &dci_thd[i], NULL, dci_decoder, (void *)&dci_usrp_id[i]);
     }
+
     for(int i=0;i<prog_args[usrp_idx].nof_thread;i++){
         pthread_join(dci_thd[i], NULL);
     }

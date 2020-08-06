@@ -11,6 +11,7 @@
 #include "srslte/phy/ue/rnti_prune.h"
 #include "srslte/phy/ue/bin_tree.h"
 #include "srslte/phy/ue/lte_scope.h"
+#include "srslte/phy/ue/LTESCOPE_GLOBAL.h"
 
 #include <string.h>
 #include <srslte/srslte.h>
@@ -538,7 +539,16 @@ int srslte_decode_dci_single_location_yx(srslte_ue_dl_t*     q,
     }
     return 0;
 }
-
+int count_UL_DL_msg_cnt(srslte_dci_msg_paws* dci_msg_in, uint32_t nof_msg, bool downlink)
+{
+    int count = 0;
+    for(int i=0; i<nof_msg;i++){
+	if(dci_msg_in[i].downlink == downlink){
+	    count++;
+	}
+    }
+    return count;
+} 
 int extract_UL_DL_dci_msg(srslte_dci_msg_paws* dci_msg_in, srslte_dci_msg_paws* dci_msg_out, uint32_t nof_msg, bool downlink)
 {
     int count = 0;
@@ -579,27 +589,43 @@ int srslte_decode_dci_all_loc_block_yx(srslte_ue_dl_t*     q,
     return output_msg_cnt;
 }
 
+static int copy_dci_to_output(srslte_dci_msg_paws *q,
+			      srslte_dci_msg_paws *out,
+			      int* idx_vec,
+			      int msg_cnt)
+{
+    for(int i=0; i<msg_cnt; i++){
+	memcpy(out+i, q+idx_vec[i], sizeof(srslte_dci_msg_paws));
+    }
+    return 0; 
+
+}
 int srslte_decode_dci_wholeSF_yx(srslte_ue_dl_t*     q,
-                                uint32_t cfi, uint32_t tti,
-                               srslte_active_ue_list_t* active_ue_list,
+                               uint32_t cfi,	uint32_t tti,
+                               srslte_active_ue_list_t*    active_ue_list,
                                srslte_dci_location_paws_t* locations,
-                               srslte_dci_subframe_t* dci_msg_subframe,
+                               srslte_dci_subframe_t*	   dci_msg_subframe,
                                uint32_t nof_locations)
 {
-    srslte_dci_msg_paws dci_msg_vector[10];
-    memset(dci_msg_vector, 0, 10 * sizeof(srslte_dci_msg_paws));
+    srslte_dci_msg_paws dci_msg_vector[20];	// Container for all decoded control messages (both UL and DL)
+    memset(dci_msg_vector, 0, 20 * sizeof(srslte_dci_msg_paws));  // Init
 
-    srslte_dci_msg_paws dci_msg_downlink[10];
-    srslte_dci_msg_paws dci_msg_uplink[10];
+    //srslte_dci_msg_paws dci_msg_downlink[MAX_NOF_MSG_PER_SF];	// Container for donwlink messages
+    //srslte_dci_msg_paws dci_msg_uplink[MAX_NOF_MSG_PER_SF];	// container for uplink messages
+    
+    int *idx_vec_dl; 
+    int *idx_vec_ul; 
 
-    srslte_dci_msg_paws dci_decode_ret;
+    srslte_dci_msg_paws *dci_msg_downlink;	// Container for donwlink messages
+    srslte_dci_msg_paws *dci_msg_uplink;	// container for uplink messages
+
+    srslte_dci_msg_paws dci_decode_ret;		// Temporary container 
 
 
-    int msg_cnt = 0, msg_cnt_ul=0, msg_cnt_dl=0;
+    int msg_cnt = 0, msg_cnt_ul=0, msg_cnt_dl=0;  // nof control messages
     int output_msg_cnt = 0;
     int cnt, nof_prb;
     int CELL_MAX_PRB = q->cell.nof_prb;
-
 
     /* Decode all the possible locations and 
      * store the results in the dci_msg_vector*/
@@ -608,35 +634,62 @@ int srslte_decode_dci_wholeSF_yx(srslte_ue_dl_t*     q,
         cnt = srslte_decode_dci_single_location_yx(q, cfi, tti, active_ue_list, &locations[i], &dci_decode_ret);
         if (cnt > 0){
             dci_msg_vector[msg_cnt] = dci_decode_ret;
-            msg_cnt++;
             check_decoded_locations(locations, nof_locations,i);
+            msg_cnt++;
         }
     }
-    
-    msg_cnt_dl = extract_UL_DL_dci_msg(dci_msg_vector, dci_msg_downlink, msg_cnt, true);
-    msg_cnt_ul = extract_UL_DL_dci_msg(dci_msg_vector, dci_msg_uplink, msg_cnt, false);
+
+    /* Divide the decoded control messages into two categories: unplink and downlink messages */    
+    msg_cnt_dl		= count_UL_DL_msg_cnt(dci_msg_vector, msg_cnt, true);	// count the number of downlink messages
+    dci_msg_downlink	= (srslte_dci_msg_paws *)malloc(msg_cnt_dl * sizeof(srslte_dci_msg_paws));  // allocate the memory
+    msg_cnt_dl		= extract_UL_DL_dci_msg(dci_msg_vector, dci_msg_downlink, msg_cnt, true);   // Extract the dci message
+    idx_vec_dl		= (int *)malloc( msg_cnt_dl * sizeof(int)); 
 
     /* Prune the downlink dci messages */
-    nof_prb = nof_prb_one_subframe(dci_msg_downlink, msg_cnt_dl);
+    nof_prb = nof_prb_one_subframe(dci_msg_downlink, msg_cnt_dl); // count the number PRBs in the downlink
     if(nof_prb > CELL_MAX_PRB){
-        //prune_msg_cnt_dl = dci_subframe_pruning(active_ue_list, dci_msg_downlink, dci_msg_prune_dl, q->cell.nof_prb, msg_cnt_dl);
-        dci_msg_subframe->dl_msg_cnt = dci_subframe_pruning(active_ue_list, 
-			dci_msg_downlink, dci_msg_subframe->downlink_msg, q->cell.nof_prb, msg_cnt_dl);
+	msg_cnt_dl  = dci_subframe_pruning_index(active_ue_list, dci_msg_downlink, idx_vec_dl, q->cell.nof_prb, msg_cnt_dl);
+        //dci_msg_subframe->dl_msg_cnt = dci_subframe_pruning(active_ue_list, 
+	//		dci_msg_downlink, dci_msg_subframe->downlink_msg, q->cell.nof_prb, msg_cnt_dl);
     }else{
-	dci_msg_subframe->dl_msg_cnt = msg_cnt_dl;
-        memcpy(dci_msg_subframe->downlink_msg, dci_msg_downlink, msg_cnt_dl*sizeof(srslte_dci_msg_paws));
+	for(int i=0; i<msg_cnt_dl; i++){
+	    idx_vec_dl[i] = i;
+	}
     }
+    if( msg_cnt_dl > MAX_NOF_MSG_PER_SF){
+	msg_cnt_dl = MAX_NOF_MSG_PER_SF;
+    }
+    dci_msg_subframe->dl_msg_cnt = msg_cnt_dl;     
+    copy_dci_to_output(dci_msg_downlink, dci_msg_subframe->downlink_msg, idx_vec_dl, msg_cnt_dl);
 
+    /* Divide the decoded control messages into two categories: unplink and downlink messages */    
+    msg_cnt_ul		= count_UL_DL_msg_cnt(dci_msg_vector, msg_cnt, false);	// count the number of unplink messages
+    dci_msg_uplink	= (srslte_dci_msg_paws *)malloc(msg_cnt_ul * sizeof(srslte_dci_msg_paws));  // allocate the memory
+    msg_cnt_ul		= extract_UL_DL_dci_msg(dci_msg_vector, dci_msg_uplink, msg_cnt, false);    // Extract the dci 
+    idx_vec_ul		= (int *)malloc( msg_cnt_ul * sizeof(int)); 
+    
     /* Prune the downlink dci messages */
     nof_prb = nof_prb_one_subframe(dci_msg_uplink, msg_cnt_ul);
     if(nof_prb > CELL_MAX_PRB){
-	dci_msg_subframe->ul_msg_cnt = dci_subframe_pruning(active_ue_list, 
-			dci_msg_uplink, dci_msg_subframe->uplink_msg, q->cell.nof_prb, msg_cnt_ul);
+	msg_cnt_ul  = dci_subframe_pruning_index(active_ue_list, dci_msg_uplink, idx_vec_ul, q->cell.nof_prb, msg_cnt_ul);
     }else{
-	dci_msg_subframe->ul_msg_cnt = msg_cnt_ul;
-        memcpy(dci_msg_subframe->uplink_msg, dci_msg_uplink, msg_cnt_ul*sizeof(srslte_dci_msg_paws));
+	for(int i=0; i<msg_cnt_ul; i++){
+	    idx_vec_ul[i] = i;
+	}
     }
+    if( msg_cnt_ul > MAX_NOF_MSG_PER_SF){
+	msg_cnt_ul = MAX_NOF_MSG_PER_SF;
+    }
+    dci_msg_subframe->ul_msg_cnt = msg_cnt_ul;     
+    copy_dci_to_output(dci_msg_uplink, dci_msg_subframe->uplink_msg, idx_vec_ul, msg_cnt_ul);
+
     output_msg_cnt = dci_msg_subframe->dl_msg_cnt + dci_msg_subframe->ul_msg_cnt; 
+
+    free(dci_msg_downlink);
+    free(dci_msg_uplink);
+    free(idx_vec_dl);
+    free(idx_vec_ul);
+
     return output_msg_cnt;
 }
 

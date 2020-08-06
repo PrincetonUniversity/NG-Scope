@@ -14,7 +14,10 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-int lteScope_main();
+int lteScope_init();
+int lteScope_start();
+int lteScope_wait_to_close();
 
+void sig_int_handler(int signo);
 #endif
 

@@ -186,7 +186,6 @@ void display_all_msg(srslte_dci_msg_paws* dci_msg_list){
 }
 
 /* Prune the DCI messages decoded from the same location but with different formats*/
-
 int dci_msg_location_pruning(srslte_active_ue_list_t* q,
                             srslte_dci_msg_paws* dci_msg_list,
                             srslte_dci_msg_paws* dci_decode_ret,
@@ -391,7 +390,6 @@ int calculate_combine_sum(srslte_dci_msg_paws* arr, int data[], int* idx_vec, in
 /* Copy the dci messages in the input message array 
 * to the output message array, according to the index 
 * contained inisde the idx_vec array and the number of messages*/
-
 void copy_to_output_dci(srslte_dci_msg_paws*  dci_ret_input,
 			srslte_dci_msg_paws*  dci_ret_output,
 			int* idx_vec,
@@ -597,6 +595,39 @@ int dci_subframe_pruning(srslte_active_ue_list_t* q,
 //    return 0;
 }
 
+// prune dci but only return the index 
+int dci_subframe_pruning_index(srslte_active_ue_list_t* q,
+			srslte_dci_msg_paws*  dci_ret_input, 
+			int* idx_vec_all,
+			int max_prb,
+			int msg_cnt_input)
+{
+    int dci_num;
+    int CELL_MAX_PRB  = max_prb; 
+
+    dci_num = dci_combination_sum(dci_ret_input, idx_vec_all, msg_cnt_input,  0, CELL_MAX_PRB);
+    if(dci_num > 0){	
+	return dci_num;  
+    }
+
+    dci_num = dci_combination_sum(dci_ret_input, idx_vec_all, msg_cnt_input,  0, CELL_MAX_PRB-4);
+    if(dci_num > 0){	
+	return dci_num;  
+    }
+
+    if(max_prb > 25){
+	dci_num = dci_combination_sum(dci_ret_input, idx_vec_all, msg_cnt_input,  0, CELL_MAX_PRB-8);
+	if(dci_num > 0){	
+	    return dci_num;  
+	}
+    }
+
+    for(int i=0;i<msg_cnt_input;i++){
+	idx_vec_all[i] = i;
+    }
+    return  msg_cnt_input;
+}
+
 
 int prune_extract_UL_DL_dci_msg(srslte_dci_msg_paws* dci_msg_in, srslte_dci_msg_paws* dci_msg_out, uint32_t nof_msg, bool downlink)
 {
@@ -683,6 +714,7 @@ int prune_unreliable(srslte_dci_msg_paws* in, int nof_in,
     memcpy(out, in, nof_in * sizeof(srslte_dci_msg_paws));
     return nof_in;
 }
+
 int prune_reliable(srslte_dci_msg_paws* in,
 		     srslte_dci_msg_paws* out,
 		     int nof_in, int MAX_CELL_PRB,

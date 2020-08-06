@@ -12,6 +12,7 @@
 #include <semaphore.h>
 
 #include "srslte/phy/ue/ue_list.h"
+#include "srslte/phy/ue/LTESCOPE_GLOBAL.h"
 
 // Find the rnti with highest frequency and calculate the number of active UE
 static uint16_t max_freq_rnti_in_list(srslte_ue_list_t* q, int* ue_count, uint16_t* dl_ue, uint16_t* ul_ue){
@@ -91,13 +92,13 @@ void srslte_update_ue_list_every_subframe(srslte_ue_list_t* q, uint32_t tti){
         }
     }
     // update the statistics of active UE
-    int active_ue_count = 0;
-    uint16_t max_dl_freq_ue = 0;
-    uint16_t max_ul_freq_ue = 0;
+    int	     active_ue_count = 0;
+    uint16_t max_dl_freq_ue  = 0;
+    uint16_t max_ul_freq_ue  = 0;
     q->max_freq_ue = max_freq_rnti_in_list(q, &active_ue_count, &max_dl_freq_ue, &max_ul_freq_ue);
     q->max_dl_freq_ue = max_dl_freq_ue;
     q->max_ul_freq_ue = max_ul_freq_ue;
-    q->nof_active_ue = active_ue_count;
+    q->nof_active_ue  = active_ue_count;
 
     return;
 }

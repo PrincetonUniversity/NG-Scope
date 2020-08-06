@@ -3,3 +3,5 @@
  */
 
 #define MAX_NOF_USRP 5
+#define MAX_NOF_MSG_PER_SF 8
+
