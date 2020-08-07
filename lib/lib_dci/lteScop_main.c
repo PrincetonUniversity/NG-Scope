@@ -186,12 +186,12 @@ int lteScope_start() {
     int usrp_idx[MAX_NOF_USRP];
     int count = 0;
     for(int i=0;i<nof_usrp;i++){
-	usrp_idx[i] = i;
-	pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
-	for(int j=0;j<prog_args[i].nof_thread;j++){
-	    free_order[count] = 1;
-	    count++;
-	}
+        usrp_idx[i] = i;
+        pthread_create( &usrp_thd[i], NULL, dci_start_usrp, (void *)&usrp_idx[i]);
+        for(int j=0;j<prog_args[i].nof_thread;j++){
+            free_order[count] = 1;
+            count++;
+        }
     }
     int ue_status_idx = 0;	
     pthread_create(&ue_status_thd, NULL, dci_ue_status_update, (void *)&ue_status_idx);
@@ -206,7 +206,7 @@ int lteScope_wait_to_close() {
 
     // USRP thread
     for(int i=0;i<nof_usrp;i++){
-	pthread_join(usrp_thd[i], NULL);
+	    pthread_join(usrp_thd[i], NULL);
     }
 
     // UE status update thread

@@ -87,10 +87,10 @@ int read_config_master(srslte_config_t* config){
 	if(! config_lookup_bool(cfg, "rawLog_config.repeat_flag", &config->rawLog_config.repeat_flag)){
 		printf("ERROR: reading repeat_flag\n");
     }
-	if(! config_lookup_bool(cfg, "rawLog_config.repeat_log_time_ms", &config->rawLog_config.repeat_log_time_ms)){
+	if(! config_lookup_int(cfg, "rawLog_config.repeat_log_time_ms", &config->rawLog_config.repeat_log_time_ms)){
 		printf("ERROR: reading repeat_log_time_ms\n");
     }
-	if(! config_lookup_bool(cfg, "rawLog_config.total_log_time_ms", &config->rawLog_config.total_log_time_ms)){
+	if(! config_lookup_int(cfg, "rawLog_config.total_log_time_ms", &config->rawLog_config.total_log_time_ms)){
 		printf("ERROR: reading total_log_time_ms\n");
     } 
  

@@ -117,6 +117,11 @@ void* dci_ue_status_update(void* p){
 			}
 		}
 	}
-	lteCCA_status_exit(&ue_status_t);
+    pthread_mutex_lock( &mutex_exit);
+    go_exit = true;
+    pthread_mutex_unlock( &mutex_exit);
+
+
+    lteCCA_status_exit(&ue_status_t);
     pthread_exit(NULL);
 }
