@@ -53,6 +53,8 @@ void* dci_ue_status_update(void* p){
 				break;
 			}
 			pthread_mutex_unlock( &mutex_exit);
+
+	        start_time_ms 	= timestamp_ms();	
 			while(true){
 				// log for repeat_log_time_ms
 				pthread_mutex_lock( &mutex_exit);
