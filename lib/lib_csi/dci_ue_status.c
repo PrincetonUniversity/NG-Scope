@@ -52,57 +52,57 @@ void* dci_ue_status_update(void* p){
     int trace_count = 0;
 
     while(true){
-	pthread_mutex_lock( &mutex_exit);
-	if(go_exit){
-	    pthread_mutex_unlock( &mutex_exit);
-	    break;
-	}
-	pthread_mutex_unlock( &mutex_exit);
-	start_time_ms	= timestamp_ms();
-	trace_count++;
-
-	printf("\n\n We begin to log %d-th csi now .... \n\n", trace_count);
-	while(true){
-	    pthread_mutex_lock( &mutex_exit);
-	    if(go_exit){
-		pthread_mutex_unlock( &mutex_exit);
-		break;
-	    }
-	    pthread_mutex_unlock( &mutex_exit);
-	
-	    pthread_mutex_lock( &mutex_usage);
-	    lteCCA_status_update(&ue_status_t, &ue_cell_usage);
-	    pthread_mutex_unlock( &mutex_usage);
-
-	    /*Check the status every 0.5s*/
-	    if(repeat_flag == 1){	    
-		uint32_t curr_time_ms	= timestamp_ms();
-		uint32_t time_elapse_ms	= curr_time_ms - start_time_ms;
-		if(time_elapse_ms >= repeat_log_intval_s * 1000){
-		    lteCCA_update_fileDescriptor_folder(&ue_status_t, main_config.usrp_config);
-		    //lteCCA_update_fileDescriptor(&ue_status_t, main_config.usrp_config);
-		    break;
-		}
-	    }
-	    usleep(5e2);
-	}
-	if(repeat_flag == 1){
-	    printf("\n\nWe finish logging and are going to pause for %d seconds! \n", repeat_pause_intval_s);
-	    for(int i=0;i<repeat_pause_intval_s;i++){
-
 		pthread_mutex_lock( &mutex_exit);
 		if(go_exit){
-		    pthread_mutex_unlock( &mutex_exit);
-		    break;
+			pthread_mutex_unlock( &mutex_exit);
+			break;
 		}
 		pthread_mutex_unlock( &mutex_exit);
+		start_time_ms	= timestamp_ms();
+		trace_count++;
 
-		if(i%5 == 0){
-		    printf("We have slep for %d seconds!\n", i);
+		printf("\n\n We begin to log %d-th csi now .... \n\n", trace_count);
+		while(true){
+			pthread_mutex_lock( &mutex_exit);
+			if(go_exit){
+				pthread_mutex_unlock( &mutex_exit);
+				break;
+			}
+			pthread_mutex_unlock( &mutex_exit);
+		
+			pthread_mutex_lock( &mutex_usage);
+			lteCCA_status_update(&ue_status_t, &ue_cell_usage);
+			pthread_mutex_unlock( &mutex_usage);
+
+			/*Check the status every 0.5s*/
+			if(repeat_flag == 1){	    
+				uint32_t curr_time_ms	= timestamp_ms();
+				uint32_t time_elapse_ms	= curr_time_ms - start_time_ms;
+				if(time_elapse_ms >= repeat_log_intval_s * 1000){
+					lteCCA_update_fileDescriptor_folder(&ue_status_t, main_config.usrp_config);
+					//lteCCA_update_fileDescriptor(&ue_status_t, main_config.usrp_config);
+					break;
+				}
+			}
+			usleep(5e2);
 		}
-		sleep(1);
-	    }
-	}
+		if(repeat_flag == 1){
+			printf("\n\nWe finish logging and are going to pause for %d seconds! \n", repeat_pause_intval_s);
+			for(int i=0;i<repeat_pause_intval_s;i++){
+
+			pthread_mutex_lock( &mutex_exit);
+			if(go_exit){
+				pthread_mutex_unlock( &mutex_exit);
+				break;
+			}
+			pthread_mutex_unlock( &mutex_exit);
+
+			if(i%5 == 0){
+				printf("We have slep for %d seconds!\n", i);
+			}
+			sleep(1);
+			}
+		}
     }
     lteCCA_status_exit(&ue_status_t);
 

@@ -30,7 +30,10 @@ typedef struct{
 }lteCCA_status_t;
 
 int lteCCA_status_update(lteCCA_status_t* q, srslte_ue_cell_usage* cell_status);
+
 int lteCCA_status_init(lteCCA_status_t* q);
+int lteCCA_status_exit(lteCCA_status_t* q);
+
 int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config);
 int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config);
 

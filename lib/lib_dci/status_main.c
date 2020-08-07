@@ -4,7 +4,7 @@
 
 #include "srslte/phy/ue/lte_scope.h"
 #include "srslte/phy/ue/LTESCOPE_GLOBAL.h"
-#include "srslte/phy/ue/tbs_256QAM_tables.h"
+#include "tbs_256QAM_tables.h"
 #include "status_main.h"
 
 #define TTI_TO_IDX(i) (i%NOF_LOG_SF)
@@ -28,35 +28,38 @@ static void log_subframe_raw_dl_msg(srslte_ue_cell_usage* q, lteCCA_rawLog_setti
     uint16_t	tti;
     FILE*	FD;
     srslte_subframe_status* sf_stat;
-
+    
     for(int cell_idx=0;cell_idx<nof_cell;cell_idx++){
-	sf_stat = &(q->cell_status[cell_idx].sf_status[index]);
-	nof_msg = sf_stat->nof_msg_dl;
-	tti	= sf_stat->tti;
-	if(config->dl_single_file){
-	    FD	= config->log_dl_fd[0];
-	}else{
-	    FD	= config->log_dl_fd[cell_idx];
-	}
-	
-	for(int i=0;i<nof_msg;i++){
-		int mcs_idx;
-		int tbs = 0;
-		if(sf_stat->dl_mcs_tb1[i] != 0){
-			mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb1[i]];
-			tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
+		sf_stat = &(q->cell_status[cell_idx].sf_status[index]);
+		nof_msg = sf_stat->nof_msg_dl;
+		tti	= sf_stat->tti;
+		if(config->dl_single_file){
+			FD	= config->log_dl_fd[0];
+		}else{
+			FD	= config->log_dl_fd[cell_idx];
 		}
-		if(sf_stat->dl_mcs_tb2[i] != 0){
-			mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb2[i]];
-			tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
-		}
+		
+		for(int i=0;i<nof_msg;i++){
+			int mcs_idx;
+			int tbs = 0;
+			if(sf_stat->dl_mcs_tb1[i] > 0){
+				mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb1[i]];
+				tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
+			}
+			if(sf_stat->dl_mcs_tb2[i] > 0){
+				mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb2[i]];
+				tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
+			}
 
-	    fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->dl_rnti_list[i],cell_idx);
-	    fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
-	    fprintf(FD, "%d\t%d\t",sf_stat->dl_mcs_tb1[i], sf_stat->dl_mcs_tb2[i]);
-	    fprintf(FD, "%d\t%d\t",sf_stat->dl_tbs_tb1[i], sf_stat->dl_tbs_tb2[i]);
-	    fprintf(FD, "%d\t%d\n",sf_stat->dl_tbs_hm_tb1[i], sf_stat->dl_tbs_hm_tb2[i]);
-	}
+			fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->dl_rnti_list[i],cell_idx);
+			fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
+			fprintf(FD, "%d\n", tbs);
+
+		//	fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
+		//	fprintf(FD, "%d\t%d\t",sf_stat->dl_mcs_tb1[i], sf_stat->dl_mcs_tb2[i]);
+		//	fprintf(FD, "%d\t%d\t",sf_stat->dl_tbs_tb1[i], sf_stat->dl_tbs_tb2[i]);
+		//	fprintf(FD, "%d\t%d\n",sf_stat->dl_tbs_hm_tb1[i], sf_stat->dl_tbs_hm_tb2[i]);
+		}
     }
     return;
 }
@@ -69,22 +72,29 @@ static void log_subframe_raw_ul_msg(srslte_ue_cell_usage* q, lteCCA_rawLog_setti
     srslte_subframe_status* sf_stat;
 
     for(int cell_idx=0;cell_idx<nof_cell;cell_idx++){
-	sf_stat = &(q->cell_status[cell_idx].sf_status[index]);
+		sf_stat = &(q->cell_status[cell_idx].sf_status[index]);
 
-	nof_msg = sf_stat->nof_msg_ul;
-	tti	= sf_stat->tti;
+		nof_msg = sf_stat->nof_msg_ul;
+		tti	= sf_stat->tti;
 
-	if(config->dl_single_file){
-	    FD	= config->log_ul_fd[0];
-	}else{
-	    FD	= config->log_ul_fd[cell_idx];
-	}
+		if(config->dl_single_file){
+			FD	= config->log_ul_fd[0];
+		}else{
+			FD	= config->log_ul_fd[cell_idx];
+		}
 
-	for(int i=0;i<nof_msg;i++){
-	    fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->ul_rnti_list[i],cell_idx);
-	    fprintf(FD, "%d\t%d\t",sf_stat->cell_ul_prb, sf_stat->ul_nof_prb[i]);
-	    fprintf(FD, "%d\t%d\t%d\t\n",sf_stat->ul_mcs[i], sf_stat->ul_tbs[i], sf_stat->ul_tbs_hm[i]);
-	}
+		for(int i=0;i<nof_msg;i++){
+			int mcs_idx;
+			int tbs = 0;
+			if(sf_stat->ul_mcs[i] > 0){
+				mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->ul_mcs[i]];
+				tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->ul_nof_prb[i]];	
+			}
+			fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->ul_rnti_list[i],cell_idx);
+			fprintf(FD, "%d\t%d\t",sf_stat->cell_ul_prb, sf_stat->ul_nof_prb[i]);
+			fprintf(FD, "%d\n", tbs);
+			//fprintf(FD, "%d\t%d\t%d\t\n",sf_stat->ul_mcs[i], sf_stat->ul_tbs[i], sf_stat->ul_tbs_hm[i]);
+		}
     }
     return;
 }
@@ -209,6 +219,26 @@ int lteCCA_status_init(lteCCA_status_t* q){
     init_rawLog_setting(&(q->rawLog_setting));
     return 0;
 }
+int lteCCA_status_exit(lteCCA_status_t* q){
+    lteCCA_rawLog_setting_t* config = &(q->rawLog_setting);
+
+    FILE* FD;
+    int nof_cell    = config->nof_cell;
+	for(int i=0;i<nof_cell;i++){
+		if(config->log_dl_flag){
+			FD = config->log_dl_fd[i];
+			if( FD != NULL){
+				fclose(FD);
+			}
+		}
+    	if(config->log_ul_flag){
+			FD = config->log_ul_fd[i];
+			if( FD != NULL){
+				fclose(FD);
+			}
+		}
+	}
+}
 void lteCCA_setRawLog_all(lteCCA_status_t* q, rawLog_config_t* log_config){
     lteCCA_rawLog_setting_t* config; 
     config  = &(q->rawLog_setting);
@@ -251,15 +281,15 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
 
     FILE* FD;
     int nof_cell    = config->nof_cell;
-
+	system("mkdir ./dci_log");
     /*  Downlink dci messages file handling*/
     if(config->log_dl_flag){ 
 	if(config->dl_single_file){
 	    if(config->nameFile_time){
-		strftime(fileName, 128, "./dci_raw_log_dl_all_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		strftime(fileName, 128, "./dci_log/dci_raw_log_dl_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = fopen(fileName,"w+");
 	    }else{
-		FD = fopen("./dci_raw_log_dl_all.dciLog","w+");
+		FD = fopen("./dci_log/dci_raw_log_dl_all.dciLog","w+");
 	    }
 	    if(FD == NULL){
 		printf("ERROR: fail to open log file!\n");
@@ -268,10 +298,10 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
 	    config->log_dl_fd[0]    = FD;
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
-		sprintf(fileName, "./dci_raw_log_dl_cell_rf_%lld_N_%d",
+		sprintf(fileName, "./dci_log/dci_raw_log_dl_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
-		    strftime(fileName1, 128, "_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		    strftime(fileName1, 128, "_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		}else{	
 		    strcpy(fileName1, ".dciLog");
 		}
@@ -290,7 +320,7 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
     if(config->log_ul_flag){ 
 	if(config->ul_single_file){
 	    if(config->nameFile_time){
-		strftime(fileName, 128, "./dci_raw_log_ul_all_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		strftime(fileName, 128, "./dci_log/dci_raw_log_ul_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = fopen(fileName,"w+");
 	    }else{	
 		FD = fopen("./dci_raw_log_ul_all.dciLog","w+");
@@ -302,10 +332,10 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
 	    config->log_dl_fd[0]    = FD;
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
-	        sprintf(fileName, "./dci_raw_log_ul_cell_rf_%lld_N_%d",
+	        sprintf(fileName, "./dci_log/dci_raw_log_ul_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
-		    strftime(fileName1, 128, "_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		    strftime(fileName1, 128, "_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		}else{	
 		    strcpy(fileName1, ".dciLog");
 		}
@@ -341,7 +371,7 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
     if(config->log_dl_flag){ 
 	if(config->dl_single_file){
 	    if(config->nameFile_time){
-		strftime(fileName, 128, "./dci_raw_log_dl_all_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		strftime(fileName, 128, "./dci_log/dci_raw_log_dl_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = config->log_dl_fd[0];
 		fclose(FD);
 		FD = fopen(fileName,"w+");
@@ -353,10 +383,10 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
 	    }
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
-		sprintf(fileName, "./dci_raw_log_dl_cell_rf_%lld_N_%d",
+		sprintf(fileName, "./dci_log/dci_raw_log_dl_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
-		    strftime(fileName1, 128, "_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		    strftime(fileName1, 128, "_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		    strcat(fileName, fileName1);
 		    FD = config->log_dl_fd[i];
 		    fclose(FD);
@@ -375,7 +405,7 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
     if(config->log_ul_flag){ 
 	if(config->ul_single_file){
 	    if(config->nameFile_time){
-		strftime(fileName, 128, "./dci_raw_log_ul_all_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		strftime(fileName, 128, "./dci_log/dci_raw_log_ul_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = config->log_dl_fd[0];
 		fclose(FD);
 		FD = fopen(fileName,"w+");
@@ -387,10 +417,10 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
 	    }
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
-	        sprintf(fileName, "./dci_raw_log_ul_cell_rf_%lld_N_%d",
+	        sprintf(fileName, "./dci_log/dci_raw_log_ul_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
-		    strftime(fileName1, 128, "_%Y_%m_%d_%H:%M:%S.dciLog",newtime);
+		    strftime(fileName1, 128, "_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		    strcat(fileName, fileName1);
 		    FD = config->log_dl_fd[i];
 		    fclose(FD);
