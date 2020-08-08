@@ -30,46 +30,46 @@ static void log_subframe_raw_dl_msg(srslte_ue_cell_usage* q, lteCCA_rawLog_setti
     srslte_subframe_status* sf_stat;
     
     for(int cell_idx=0;cell_idx<nof_cell;cell_idx++){
-		sf_stat = &(q->cell_status[cell_idx].sf_status[index]);
-		nof_msg = sf_stat->nof_msg_dl;
-		tti	= sf_stat->tti;
-		if(config->dl_single_file){
-			FD	= config->log_dl_fd[0];
+	sf_stat = &(q->cell_status[cell_idx].sf_status[index]);
+	nof_msg = sf_stat->nof_msg_dl;
+	tti	= sf_stat->tti;
+	if(config->dl_single_file){
+	    FD	= config->log_dl_fd[0];
+	}else{
+	    FD	= config->log_dl_fd[cell_idx];
+	}
+
+	for(int i=0;i<nof_msg;i++){
+	    int mcs_idx;
+	    int tbs = 0;
+	    if(sf_stat->dl_mcs_tb1[i] > 0){
+		if(sf_stat->dl_mcs_tb1[i] > 27){
+		    mcs_idx = dl_mcs_tbs_idx_table2[27];
 		}else{
-			FD	= config->log_dl_fd[cell_idx];
+		    mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb1[i]];
 		}
-	    	
-		for(int i=0;i<nof_msg;i++){
-			int mcs_idx;
-			int tbs = 0;
-			if(sf_stat->dl_mcs_tb1[i] > 0){
-                if(sf_stat->dl_mcs_tb1[i] > 27){
-				    mcs_idx = dl_mcs_tbs_idx_table2[27];
-                }else{
-				    mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb1[i]];
-                }
-                //printf("mcs:%d mcs_idx:%d prb:%d",sf_stat->dl_mcs_tb1[i], mcs_idx,sf_stat->dl_nof_prb[i]);
-				tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
-			}
-			if(sf_stat->dl_mcs_tb2[i] > 0){
-                if(sf_stat->dl_mcs_tb1[i] > 27){
-				    mcs_idx = dl_mcs_tbs_idx_table2[27];
-                }else{
-				    mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb1[i]];
-                }
-				mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb2[i]];
-				tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
-			}
-
-			fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->dl_rnti_list[i],cell_idx);
-			fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
-			fprintf(FD, "%d\n", tbs);
-
-		//	fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
-		//	fprintf(FD, "%d\t%d\t",sf_stat->dl_mcs_tb1[i], sf_stat->dl_mcs_tb2[i]);
-		//	fprintf(FD, "%d\t%d\t",sf_stat->dl_tbs_tb1[i], sf_stat->dl_tbs_tb2[i]);
-		//	fprintf(FD, "%d\t%d\n",sf_stat->dl_tbs_hm_tb1[i], sf_stat->dl_tbs_hm_tb2[i]);
+		//printf("mcs:%d mcs_idx:%d prb:%d\n",sf_stat->dl_mcs_tb1[i], mcs_idx,sf_stat->dl_nof_prb[i]);
+		tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
+	    }
+	    if(sf_stat->dl_mcs_tb2[i] > 0){
+		if(sf_stat->dl_mcs_tb2[i] > 27){
+		    mcs_idx = dl_mcs_tbs_idx_table2[27];
+		}else{
+		    mcs_idx = dl_mcs_tbs_idx_table2[sf_stat->dl_mcs_tb2[i]];
 		}
+		//printf("mcs:%d mcs_idx:%d prb:%d\n",sf_stat->dl_mcs_tb2[i], mcs_idx,sf_stat->dl_nof_prb[i]);
+		tbs 	+= tbs_table_256QAM[mcs_idx][sf_stat->dl_nof_prb[i]];	
+	    }
+
+	    fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->dl_rnti_list[i],cell_idx);
+	    fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
+	    fprintf(FD, "%d\n", tbs);
+
+	    //	fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
+	    //	fprintf(FD, "%d\t%d\t",sf_stat->dl_mcs_tb1[i], sf_stat->dl_mcs_tb2[i]);
+	    //	fprintf(FD, "%d\t%d\t",sf_stat->dl_tbs_tb1[i], sf_stat->dl_tbs_tb2[i]);
+	    //	fprintf(FD, "%d\t%d\n",sf_stat->dl_tbs_hm_tb1[i], sf_stat->dl_tbs_hm_tb2[i]);
+	}
         
     }
     return;
@@ -121,9 +121,12 @@ static void log_subframe_raw_dci_msg(lteCCA_rawLog_setting_t* q, srslte_ue_cell_
 }
 
 int single_subframe_status_update(lteCCA_status_t* q, srslte_ue_cell_usage* cell_usage, uint16_t index){
+
     if(q->display_flag){
+	printf("dis\n");
 	    display_subframe_dci_msg(cell_usage, index);
     }
+    printf("log\n");
     log_subframe_raw_dci_msg(&(q->rawLog_setting), cell_usage, index);
 
     return 0; 
