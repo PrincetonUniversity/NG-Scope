@@ -123,7 +123,7 @@ void* dci_decoder(void* p){
     for (int i = 0; i < SRSLTE_MAX_LAYERS; i++) {
         bzero(sinr[i], sizeof(float)*SRSLTE_MAX_CODEBOOKS);
     }
-
+    srslte_subframe_rf_status rf_status;
     struct timeval t[3];
     srslte_active_ue_list_t active_ue_list;
     srslte_dci_subframe_t dci_msg_subframe;
@@ -146,6 +146,12 @@ void* dci_decoder(void* p){
         dci_msg_subframe.dl_msg_cnt = 0;
         dci_msg_subframe.ul_msg_cnt = 0;
 
+	// init the rf_status
+	rf_status.rsrq	= 0;
+	rf_status.rsrp0 = 0;
+	rf_status.rsrp1 = 0;
+	rf_status.noise = 0;
+	
         bzero(&sf_bw_usage, sizeof(srslte_subframe_bw_usage));
         bzero(&ue_dci, sizeof(srslte_dci_msg_paws));
 
@@ -235,7 +241,12 @@ void* dci_decoder(void* p){
                         rsrp0 = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 0), rsrp0, 0.05f);
                         rsrp1 = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 1), rsrp1, 0.05f);
                         noise = SRSLTE_VEC_EMA(srslte_chest_dl_get_noise_estimate(&ue_dl.chest), noise, 0.05f);
-                        
+
+			rf_status.rsrq	    = srslte_chest_dl_get_rsrq(&ue_dl.chest);
+			rf_status.rsrp0	    = srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 0);
+			rf_status.rsrp1	    = srslte_chest_dl_get_rsrp_port(&ue_dl.chest, 1);
+			rf_status.noise	    = srslte_chest_dl_get_noise_estimate(&ue_dl.chest);
+
                         nframes++;
                         if (isnan(rsrq)) { rsrq = 0; }
                         if (isnan(noise)) { noise = 0; }
@@ -267,7 +278,7 @@ void* dci_decoder(void* p){
             pthread_mutex_unlock( &mutex_ue_sync[usrp_idx]);
         }
         pthread_mutex_lock( &mutex_usage );
-        cell_status_return_dci_token(&ue_cell_usage, usrp_idx, tti, &dci_msg_subframe);
+        cell_status_return_dci_token(&ue_cell_usage, usrp_idx, tti, &dci_msg_subframe, &rf_status);
         pthread_mutex_unlock( &mutex_usage );
 
         sf_cnt++;

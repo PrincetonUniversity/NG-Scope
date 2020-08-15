@@ -19,6 +19,13 @@
 #define CA_DEACTIVE_TIME 80
 
 typedef struct SRSLTE_API{
+    float   rsrq;	// per-subframe
+    float   rsrp0;
+    float   rsrp1;
+    float   noise;
+}srslte_subframe_rf_status;
+
+typedef struct SRSLTE_API{
     // Cell status information
     uint32_t tti;	    // the current tti
     uint16_t cell_dl_prb;   // the amount of utilized dl PRB
@@ -26,6 +33,10 @@ typedef struct SRSLTE_API{
     uint8_t  nof_msg_dl;    // number of downlink messages stored
     uint8_t  nof_msg_ul;    // number of uplink messages stored
 
+    float   rsrq;	// per-subframe
+    float   rsrp0;
+    float   rsrp1;
+    float   noise;
     /*	    UE status information	*/
 
     // -->  Donwlink control information 
@@ -105,7 +116,8 @@ int cell_status_reset(srslte_ue_cell_usage* q);
 
 int cell_status_ask_for_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_t tti);
 int cell_status_return_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_t tti,
-                                 srslte_dci_subframe_t* dci_list);
+                                 srslte_dci_subframe_t* dci_list,
+				   srslte_subframe_rf_status* rf_status);
 
 int cell_status_set_nof_cells(srslte_ue_cell_usage* q, uint16_t nof_cells);
 int cell_status_set_prb(srslte_ue_cell_usage* q, uint16_t nof_prb, int ca_idx);

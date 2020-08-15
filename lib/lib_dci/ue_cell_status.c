@@ -126,6 +126,17 @@ static int enqueue_dci_per_subframe(srslte_cell_status* q, srslte_dci_subframe_t
     return 0;
 }
 
+static int enqueue_rf_status_per_subframe(srslte_cell_status* q, srslte_subframe_rf_status* rf_status,
+				    uint16_t index, uint32_t tti)
+{
+
+    q->sf_status[index].rsrq  = rf_status->rsrq;
+    q->sf_status[index].rsrp0 = rf_status->rsrp0;
+    q->sf_status[index].rsrp1 = rf_status->rsrp1;
+    q->sf_status[index].noise = rf_status->noise;
+
+    return 0;
+}
 /********************************************************
 * Update the cell header of a single cell 
 ********************************************************/
@@ -366,7 +377,8 @@ int cell_status_ask_for_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_t 
 * MAIN: dci decoder returns the dci token it has taken
 *********************************************************/
 int cell_status_return_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_t tti,
-                                    srslte_dci_subframe_t* dci_list)
+                                    srslte_dci_subframe_t* dci_list,
+				    srslte_subframe_rf_status* rf_status )
 {
     //printf("Return token -- TTI:%d\n", tti);
     uint16_t index = TTI_TO_IDX(tti);
@@ -377,6 +389,9 @@ int cell_status_return_dci_token(srslte_ue_cell_usage* q, int ca_idx, uint32_t t
 
     // Enqueue the dci messages
     enqueue_dci_per_subframe(&q->cell_status[ca_idx], dci_list, index, tti);
+
+    // Enqueue the RF status
+    enqueue_rf_status_per_subframe(&q->cell_status[ca_idx], rf_status, index, tti);
 
     // update the header of a single cell        
     update_single_cell_header(&q->cell_status[ca_idx]);

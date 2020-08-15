@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "srslte/phy/ue/lte_scope.h"
 #include "srslte/phy/ue/LTESCOPE_GLOBAL.h"
@@ -63,7 +64,8 @@ static void log_subframe_raw_dl_msg(srslte_ue_cell_usage* q, lteCCA_rawLog_setti
 
 	    fprintf(FD, "%d\t%d\t%d\t",tti, sf_stat->dl_rnti_list[i],cell_idx);
 	    fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
-	    fprintf(FD, "%d\n", tbs);
+	    //fprintf(FD, "%d\n", tbs);
+	    fprintf(FD, "%d\t%.3f\n", tbs, sf_stat->rsrq);
 
 	    //	fprintf(FD, "%d\t%d\t",sf_stat->cell_dl_prb, sf_stat->dl_nof_prb[i]);
 	    //	fprintf(FD, "%d\t%d\t",sf_stat->dl_mcs_tb1[i], sf_stat->dl_mcs_tb2[i]);
@@ -123,10 +125,8 @@ static void log_subframe_raw_dci_msg(lteCCA_rawLog_setting_t* q, srslte_ue_cell_
 int single_subframe_status_update(lteCCA_status_t* q, srslte_ue_cell_usage* cell_usage, uint16_t index){
 
     if(q->display_flag){
-	printf("dis\n");
 	    display_subframe_dci_msg(cell_usage, index);
     }
-    printf("log\n");
     log_subframe_raw_dci_msg(&(q->rawLog_setting), cell_usage, index);
 
     return 0; 
@@ -237,20 +237,21 @@ int lteCCA_status_exit(lteCCA_status_t* q){
 
     FILE* FD;
     int nof_cell    = config->nof_cell;
-	for(int i=0;i<nof_cell;i++){
-		if(config->log_dl_flag){
-			FD = config->log_dl_fd[i];
-			if( FD != NULL){
-				fclose(FD);
-			}
-		}
-    	if(config->log_ul_flag){
-			FD = config->log_ul_fd[i];
-			if( FD != NULL){
-				fclose(FD);
-			}
-		}
+    for(int i=0;i<nof_cell;i++){
+	if(config->log_dl_flag){
+	    FD = config->log_dl_fd[i];
+	    if( FD != NULL){
+		fclose(FD);
+	    }
 	}
+	if(config->log_ul_flag){
+	    FD = config->log_ul_fd[i];
+	    if( FD != NULL){
+		fclose(FD);
+	    }
+	}
+    }
+    return 0;
 }
 void lteCCA_setRawLog_all(lteCCA_status_t* q, rawLog_config_t* log_config){
     lteCCA_rawLog_setting_t* config; 
@@ -284,9 +285,6 @@ void lteCCA_setRawLog_nof_cell(lteCCA_status_t* q, uint16_t nof_cell){
 int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
     struct tm *newtime;
     time_t  t1;
-    t1	= time(NULL);
-    newtime = localtime(&t1);
- 
     lteCCA_rawLog_setting_t* config = &(q->rawLog_setting);
 
     char fileName[128];
@@ -294,11 +292,14 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
 
     FILE* FD;
     int nof_cell    = config->nof_cell;
-	system("mkdir ./dci_log");
+    system("mkdir ./dci_log");
     /*  Downlink dci messages file handling*/
     if(config->log_dl_flag){ 
 	if(config->dl_single_file){
 	    if(config->nameFile_time){
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 		strftime(fileName, 128, "./dci_log/dci_raw_log_dl_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = fopen(fileName,"w+");
 	    }else{
@@ -311,6 +312,9 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
 	    config->log_dl_fd[0]    = FD;
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 		sprintf(fileName, "./dci_log/dci_raw_log_dl_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
@@ -333,6 +337,9 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
     if(config->log_ul_flag){ 
 	if(config->ul_single_file){
 	    if(config->nameFile_time){
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 		strftime(fileName, 128, "./dci_log/dci_raw_log_ul_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = fopen(fileName,"w+");
 	    }else{	
@@ -345,6 +352,9 @@ int lteCCA_fill_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config){
 	    config->log_dl_fd[0]    = FD;
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 	        sprintf(fileName, "./dci_log/dci_raw_log_ul_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
@@ -384,6 +394,9 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
     if(config->log_dl_flag){ 
 	if(config->dl_single_file){
 	    if(config->nameFile_time){
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 		strftime(fileName, 128, "./dci_log/dci_raw_log_dl_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = config->log_dl_fd[0];
 		fclose(FD);
@@ -396,6 +409,9 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
 	    }
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 		sprintf(fileName, "./dci_log/dci_raw_log_dl_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
@@ -418,6 +434,9 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
     if(config->log_ul_flag){ 
 	if(config->ul_single_file){
 	    if(config->nameFile_time){
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 		strftime(fileName, 128, "./dci_log/dci_raw_log_ul_all_%Y_%m_%d_%H_%M_%S.dciLog",newtime);
 		FD = config->log_dl_fd[0];
 		fclose(FD);
@@ -430,6 +449,9 @@ int lteCCA_update_fileDescriptor(lteCCA_status_t* q, usrp_config_t* usrp_config)
 	    }
 	}else{ 
 	    for(int i=0;i<nof_cell;i++){	
+		sleep(1);
+		t1	= time(NULL);
+		newtime = localtime(&t1);
 	        sprintf(fileName, "./dci_log/dci_raw_log_ul_cell_rf_%lld_N_%d",
 					      usrp_config[i].rf_freq, usrp_config[i].N_id_2);
 		if(config->nameFile_time){
