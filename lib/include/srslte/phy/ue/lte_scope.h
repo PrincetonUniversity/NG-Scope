@@ -28,13 +28,13 @@
 #include "srslte/config.h"
 
 #define UE_INACTIVE_TIME_LIMIT 2000 // One UE that has been inactive for 3000-ms/3-s are removed
-#define UE_REAPPEAR_TIME_LIMIT 50   // The same rnti must appear within 30-ms to be an active UE
+#define UE_REAPPEAR_TIME_LIMIT 30   // The same rnti must appear within 30-ms to be an active UE
 #define UE_REAPPEAR_NO_LIMIT 2      // The rnti must appear for 2 times
-#define HIGH_PROB_THR 97	    // The higher threshold for decoding probability (strict for entering)
+#define HIGH_PROB_THR 90	    // The higher threshold for decoding probability (strict for entering)
 #define DECODE_PROB_THR 75	    // The lower threshold of probability for letting in the message of active UE
 #define MAX_CANDIDATES_ALL 180
 // Threshold for LLR -- filtering out those locations with low decoding confidence
-#define LLR_THR 0.3
+#define LLR_THR 0.7
 #define NOF_UE_ALL_FORMATS 6
 const static srslte_dci_format_t ue_all_formats[] = {
     SRSLTE_DCI_FORMAT0,

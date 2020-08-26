@@ -1,9 +1,11 @@
 LTScope
 ========
 
-LTScope is a free and open-source LTE control channel decoder developed by PAWS group at Princeton University. LTScope is built atop of srsLTE.  
+LTScope is a free and open-source LTE control channel decoder developed by [PAWS group](https://paws.cs.princeton.edu/) at Princeton University. 
 
-Common Features of srsLTE
+LTScope is built atop of srsLTE.
+
+srsLTE -- Common Features 
 ---------------
 
  * LTE Release 8 compliant (with selected features of Release 9)
@@ -19,10 +21,11 @@ Common Features of srsLTE
  * Command-line trace metrics
  * Detailed input configuration files
 
-Hardware
+srsLTE -- Hardware
 --------
 
-The library currently supports the Ettus Universal Hardware Driver (UHD) and the bladeRF driver. Thus, any hardware supported by UHD or bladeRF can be used. There is no sampling rate conversion, therefore the hardware should support 30.72 MHz clock in order to work correctly with LTE sampling frequencies and decode signals from live LTE base stations. 
+srsLTE currently supports the Ettus Universal Hardware Driver (UHD) and the bladeRF driver. 
+Thus, any hardware supported by UHD or bladeRF can be used. There is no sampling rate conversion, therefore the hardware should support 30.72 MHz clock in order to work correctly with LTE sampling frequencies and decode signals from live LTE base stations. 
 
 We have tested the following hardware: 
  * USRP B210
@@ -31,7 +34,7 @@ We have tested the following hardware:
  * limeSDR
  * bladeRF
 
-Build Instructions
+srsLTE -- Build Instructions
 ------------------
 
 * Mandatory requirements: 
