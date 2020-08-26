@@ -1,19 +1,9 @@
-srsLTE
+LTScope
 ========
 
-[![Build Status](https://travis-ci.org/srsLTE/srsLTE.svg?branch=master)](https://travis-ci.org/srsLTE/srsLTE)
+LTScope is a free and open-source LTE control channel decoder developed by PAWS group at Princeton University. LTScope is built atop of srsLTE.  
 
-srsLTE is a free and open-source LTE software suite developed by SRS (www.softwareradiosystems.com). 
-
-It includes:
-  * srsUE - a complete SDR LTE UE application featuring all layers from PHY to IP
-  * srsENB - a complete SDR LTE eNodeB application 
-  * srsEPC - a light-weight LTE core network implementation with MME, HSS and S/P-GW
-  * a highly modular set of common libraries for PHY, MAC, RLC, PDCP, RRC, NAS, S1AP and GW layers. 
-
-srsLTE is released under the AGPLv3 license and uses software from the OpenLTE project (http://sourceforge.net/projects/openlte) for some security functions and for NAS message parsing.
-
-Common Features
+Common Features of srsLTE
 ---------------
 
  * LTE Release 8 compliant (with selected features of Release 9)
@@ -28,48 +18,6 @@ Common Features
  * MAC layer wireshark packet capture
  * Command-line trace metrics
  * Detailed input configuration files
-
-srsUE Features
---------------
- 
- * Cell search and synchronization procedure for the UE
- * Soft USIM supporting Milenage and XOR authentication
- * Hard USIM support using PCSC framework
- * Virtual network interface *tun_srsue* created upon network attach
- * 150 Mbps DL in 20 MHz MIMO TM3/TM4 configuration in i7 Quad-Core CPU.
- * 75 Mbps DL in 20 MHz SISO configuration in i7 Quad-Core CPU.
- * 36 Mbps DL in 10 MHz SISO configuration in i5 Dual-Core CPU.
-
-srsUE has been fully tested and validated with the following network equipment: 
- * Amarisoft LTE100 eNodeB and EPC
- * Nokia FlexiRadio family FSMF system module with 1800MHz FHED radio module and TravelHawk EPC simulator
- * Huawei DBS3900 
- * Octasic Flexicell LTE-FDD NIB
-
-srsENB Features
----------------
-
- * Round Robin MAC scheduler with FAPI-like C++ API
- * SR support
- * Periodic and Aperiodic CQI feedback support
- * Standard S1AP and GTP-U interfaces to the Core Network
- * 150 Mbps DL in 20 MHz MIMO TM3/TM4 with commercial UEs
- * 75 Mbps DL in SISO configuration with commercial UEs
- * 50 Mbps UL in 20 MHz with commercial UEs
-
-srsENB has been tested and validated with the following handsets:
- * LG Nexus 5 and 4
- * Motorola Moto G4 plus and G5
- * Huawei P9/P9lite, P10/P10lite, P20/P20lite
- * Huawei dongles: E3276 and E398
-
-srsEPC Features
----------------
-
- * Single binary, light-weight LTE EPC implementation with:
-   * MME (Mobility Management Entity) with standard S1AP and GTP-U interface to eNB
-   * S/P-GW with standard SGi exposed as virtual network interface (TUN device)
-   * HSS (Home Subscriber Server) with configurable user database in CSV format
 
 Hardware
 --------
