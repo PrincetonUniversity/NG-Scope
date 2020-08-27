@@ -43,46 +43,57 @@ LTScope -- Build Instructions
 
 ### System requirement
 We have tested LTScope on Ubuntu 16.04. 
-To guarantee the performance, we strongly recommend to install LTScope on this version of Ubuntu.
+To guarantee the performance, we strongly recommend installing LTScope on this version of Ubuntu.
+If you have tested on other versions of Ubuntu, please let us know. 
 
-First of all, we need to install the required libraries.
+### Essential libraries required 
+
+On Ubuntu 16.04, we can install the required libraries via the following command:
 ```
 sudo apt-get install cmake libfftw3-dev libmbedtls-dev libboost-program-options-dev libconfig++-dev libsctp-dev
 ```
-or on Fedora:
+
+We also need to install the [srsgui](https://github.com/srslte/srsgui), a GUI tool for showing realtime results. 
+On Ubuntu 16.04, you can install srsgui via the following commands:
 ```
-dnf install cmake fftw3-devel polarssl-devel lksctp-tools-devel libconfig-devel boost-devel
+git clone https://github.com/srsLTE/srsGUI.git
+cd srsGUI
+mkdir build
+cd build
+cmake ../
+make
+sudo make install
 ```
 
-Note that depending on your flavor and version of Linux, the actual package names may be different.
-
-* Optional requirements: 
-  * srsgui:              https://github.com/srslte/srsgui - for real-time plotting.
-  * libpcsclite-dev:     https://pcsclite.apdu.fr/ - for accessing smart card readers
-
-* RF front-end driver:
-  * UHD:                 https://github.com/EttusResearch/uhd
-  * SoapySDR:            https://github.com/pothosware/SoapySDR
-  * BladeRF:             https://github.com/Nuand/bladeRF
-
-Download and build srsLTE: 
+We also recommend to install [gnuradio](https://github.com/gnuradio/gnuradio) for the required [VOLK](https://github.com/gnuradio/volk). 
+On Ubuntu, you can install gnuradio via the following commands:
 ```
-git clone https://github.com/srsLTE/srsLTE.git
+sudo apt install gnuradio
+sudo apt-get update
+sudo apt install gnuradio
+```
+
+### RF front-end driver:
+Except the necessary libraries, we also need to install the RF front-end driver. 
+The required RF front-end depends on which kind of software-define-radio you use. 
+We only tested LTScope on USRP and the required driver for USRP is [UHD](https://github.com/EttusResearch/uhd).
+We recommend installing UHD using the binaries provided by Ettus Research, via the following commands:
+```
+sudo add-apt-repository ppa:ettusresearch/uhd
+sudo apt-get update
+sudo apt-get install libuhd-dev libuhd003 uhd-host
+``` 
+
+### Compile and install LTScope
+Download and build LTScope: 
+```
+git clone git@github.com:YaxiongXiePrinceton/LTScope.git
 cd srsLTE
 mkdir build
 cd build
 cmake ../
 make
 make test
-```
-
-Install srsLTE:
-
-```
 sudo make install
 sudo srslte_install_configs.sh
 ```
-
-This installs srsLTE and also copies the default srsLTE config files to
-the user's home directory (~/.srs).
-
