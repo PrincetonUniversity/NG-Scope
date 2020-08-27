@@ -36,6 +36,7 @@ According to the srsLTE website, srsLTE can support the following hardware:
  * USRP X300
  * limeSDR
  * bladeRF
+
 We, however, only tested LTScope on USRP B210 and USRP X310.
 
 LTScope -- Build Instructions
