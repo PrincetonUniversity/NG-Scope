@@ -54,7 +54,7 @@ On Ubuntu 16.04, we can install the required libraries via the following command
 sudo apt-get install cmake libfftw3-dev libmbedtls-dev libboost-program-options-dev libconfig++-dev libsctp-dev
 ```
 
-We also need to install the [srsgui](https://github.com/srslte/srsgui), a GUI tool for showing realtime results. 
+We need to install the [srsgui](https://github.com/srslte/srsgui), a GUI tool for showing realtime results. 
 On Ubuntu 16.04, you can install srsgui via the following commands:
 ```
 git clone https://github.com/srsLTE/srsGUI.git
@@ -75,9 +75,9 @@ sudo apt install gnuradio
 ```
 
 ### RF front-end driver:
-Except the necessary libraries, we also need to install the RF front-end driver. 
+We need to install the RF front-end driver. 
 The required RF front-end depends on which kind of software-define-radio you use. 
-We only tested LTScope on USRP and the required driver for USRP is [UHD](https://github.com/EttusResearch/uhd).
+We only tested LTScope on USRP, which requires [UHD](https://github.com/EttusResearch/uhd).
 We recommend installing UHD using the binaries provided by Ettus Research, via the following commands:
 ```
 sudo add-apt-repository ppa:ettusresearch/uhd
