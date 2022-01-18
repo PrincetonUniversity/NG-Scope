@@ -1,9 +1,9 @@
-LTScope
+NG-Scope
 ========
 
-LTScope is a free and open-source LTE control channel decoder developed by [PAWS group](https://paws.cs.princeton.edu/) at Princeton University. 
+NG-Scope is a free and open-source LTE control channel decoder developed by [PAWS group](https://paws.cs.princeton.edu/) at Princeton University. 
 
-LTScope is built atop of srsLTE, so we introduce basic information about srsLTE.
+NG-Scope is built atop of srsLTE, so we introduce basic information about srsLTE.
 
 srsLTE -- Common Features 
 ---------------
@@ -37,14 +37,14 @@ According to the srsLTE website, srsLTE can support the following hardware:
  * limeSDR
  * bladeRF
 
-We, however, only tested LTScope on USRP B210 and USRP X310.
+We, however, only tested NG-Scope on USRP B210 and USRP X310.
 
-LTScope -- Build Instructions
+NG-Scope -- Build Instructions
 ------------------
 
 ### System requirement
-We have tested LTScope on Ubuntu 16.04. 
-To guarantee the performance, we strongly recommend installing LTScope on this version of Ubuntu.
+We have tested NG-Scope on Ubuntu 16.04. 
+To guarantee the performance, we strongly recommend installing NG-Scope on this version of Ubuntu.
 If you have tested on other versions of Ubuntu, please let us know. 
 
 ### Essential libraries required 
@@ -77,7 +77,7 @@ sudo apt install gnuradio
 ### RF front-end driver:
 We need to install the RF front-end driver. 
 The required RF front-end depends on which kind of software-define-radio you use. 
-We only tested LTScope on USRP, which requires [UHD](https://github.com/EttusResearch/uhd).
+We only tested NG-Scope on USRP, which requires [UHD](https://github.com/EttusResearch/uhd).
 We recommend installing UHD using the binaries provided by Ettus Research, via the following commands:
 ```
 sudo add-apt-repository ppa:ettusresearch/uhd
@@ -85,10 +85,10 @@ sudo apt-get update
 sudo apt-get install libuhd-dev libuhd003 uhd-host
 ``` 
 
-### Compile and install LTScope
-Download and build LTScope: 
+### Compile and install NG-Scope
+Download and build NG-Scope: 
 ```
-git clone git@github.com:YaxiongXiePrinceton/LTScope.git
+git clone git@github.com:YaxiongXiePrinceton/NG-Scope.git
 cd srsLTE
 mkdir build
 cd build
