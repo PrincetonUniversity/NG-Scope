@@ -1,0 +1,332 @@
+#include "srsran/srsran.h"
+#include <string.h>
+
+#include "srsran/phy/ue/ngscope_st.h"
+
+int ngscope_tree_block_left_child_idx(int par_idx){
+    return 2*par_idx + 1;
+}
+
+int ngscope_tree_block_right_child_idx(int par_idx){
+    return 2*par_idx + 2;
+}
+
+
+int ngscope_tree_subBlock_right_child_idx(int par_idx){
+    return 2*par_idx + 2;
+}
+int srsran_pdcch_get_nof_location_yx(srsran_pdcch_t* q, uint32_t cfi){
+    return ((cfi>0&&cfi<4)?q->nof_cce[cfi-1]:0);
+}
+
+/* Generate all the possible search space that the control channel has
+ * The q is necessary since we need the NOF_CCE
+ */
+uint32_t srsran_ngscope_search_space_all_yx(srsran_pdcch_t* q, uint32_t cfi, srsran_dci_location_t* c)
+{
+    int nof_location = srsran_pdcch_get_nof_location_yx(q, cfi);
+    //printf("nof cce:%d ->| ", NOF_CCE(cfi));
+    uint32_t i, L, k;
+    int l;
+    k = 0;
+    for (l = 3; l >= 0; l--) {
+        L = (1 << l);
+        for (i = 0; i < nof_location / (L); i++) {
+            int ncce = (L) * (i % (nof_location / (L)));
+            c[k].L = l;
+            c[k].ncce = ncce;
+            k++;
+        }
+    }
+    return k;
+}
+
+/*****************************************************************************************
+ * Each block is a combination of 8 CCEs.
+ * Depending on the aggregation level L, we have 8 L=0, 4 L=1, 2 L=2, 1 L=8
+ * Therefore, each block contains 15 possible locations
+*****************************************************************************************/
+uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t* q, uint32_t cfi, srsran_dci_location_t* c)
+{
+    uint32_t nof_location = srsran_pdcch_get_nof_location_yx(q, cfi);
+
+
+    // nof full blocks
+    int nof_L3 = nof_location / 8;          
+
+    // nof total blocks include blocks that are not full
+    int nof_blk = (int)ceil((double)nof_location / 8); 
+
+    // handle the full blocks
+    for(int i=0; i < nof_blk; i++){
+        c[i*15].L = 3;
+        c[i*15].ncce = 8 * i;
+        for(int j=0; j<2; j++){
+            c[i*15+j+1].L       = 2;
+            c[i*15+j+1].ncce    = 8 * i + 4 * j;
+        }
+        for(int j=0; j<4; j++){
+            c[i*15+j+3].L       = 1;
+            c[i*15+j+3].ncce    = 8 * i + 2 * j;
+        }
+        for(int j=0; j<8; j++){
+            c[i*15+j+7].L       = 0;
+            c[i*15+j+7].ncce    = 8 * i + j;
+        }
+    }
+
+    for(int i=0;i<nof_blk*15;i++){
+        c[i].checked = false;
+    }
+    
+    /* now mark those invalide location */
+      
+    int rem = nof_location % 8;
+    int loc_idx = nof_L3 * 15;
+    //int cce_idx = 8 * nof_L3;
+    //printf("nof_cce:%d nof_L3:%d nof_blk:%d total:%d rem:%d\n", nof_location, nof_L3, nof_blk, nof_blk * 15, rem); 
+
+    if(rem != 0){
+       // set locations with L =3 this will always be true
+       c[loc_idx].checked = true;
+           
+       // set L = 0
+       for(int i=0; i<8; i++){
+           if(c[loc_idx + 7 + i].ncce >= nof_location){
+               c[loc_idx + 7 + i].checked = true;
+           }
+       }
+       // set locations with L = 1
+       for(int i=0; i<4; i++){
+           int idx = 3 + i;
+
+           if( (c[loc_idx + 2*idx +1]. checked == false) && (c[loc_idx + 2*idx +2]. checked == false)){
+               c[loc_idx + idx].checked = false; 
+           }else{
+               c[loc_idx + idx].checked = true; 
+           }
+       }
+       // set locations with L = 2
+       for(int i=0; i<2; i++){
+           int idx = 1 + i;
+           if( (c[loc_idx + 2*idx +1]. checked == false) && (c[loc_idx + 2*idx +2]. checked == false)){
+               c[loc_idx + idx].checked = false; 
+           }else{
+               c[loc_idx + idx].checked = true; 
+           }
+       }
+    }
+    return nof_blk * 15; 
+}
+
+//uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t* q, uint32_t cfi, srsran_dci_location_t* c)
+//{
+//    uint32_t nof_location = srsran_pdcch_get_nof_location_yx(q, cfi);
+//
+//    int nof_L3 = nof_location / 8;
+//
+//    // handle the full blocks
+//    for(int i=0; i < nof_L3; i++){
+//        c[i*15].L = 3;
+//        c[i*15].ncce = 8 * i;
+//        for(int j=0; j<2; j++){
+//            c[i*15+j+1].L       = 2;
+//            c[i*15+j+1].ncce    = 8 * i + 4 * j;
+//        }
+//        for(int j=0; j<4; j++){
+//            c[i*15+j+3].L       = 1;
+//            c[i*15+j+3].ncce    = 8 * i + 2 * j;
+//        }
+//        for(int j=0; j<8; j++){
+//            c[i*15+j+7].L       = 0;
+//            c[i*15+j+7].ncce    = 8 * i + j;
+//        }
+//    }
+//
+//
+//    // handle the rest of the blocks
+//    int rem = nof_location % 8;
+//    int loc_idx = nof_L3 * 15;
+//    int cce_idx = 8 * nof_L3;
+//
+//    if(rem != 0){
+//        // we do have some remaining CCEs
+//        if( rem >= 4){
+//            c[loc_idx].L       = 2;
+//            c[loc_idx].ncce    = cce_idx;
+//            loc_idx += 1;
+//
+//            for(int i=0;i<2;i++){
+//                c[loc_idx].L       = 1;
+//                c[loc_idx].ncce    = cce_idx + 2 * i;
+//                loc_idx += 1;
+//            }
+//
+//            for(int i=0;i<4;i++){
+//                c[loc_idx].L       = 0;
+//                c[loc_idx].ncce    = cce_idx + i;
+//                loc_idx += 1;
+//            }
+//            rem     -= 4;
+//            cce_idx += 4;
+//        }
+//
+//        if( rem >= 2){
+//            c[loc_idx].L       = 1;
+//            c[loc_idx].ncce    = cce_idx;
+//            loc_idx += 1;
+//
+//            for(int i=0;i<2;i++){
+//                c[loc_idx].L       = 0;
+//                c[loc_idx].ncce    = cce_idx + i;
+//                loc_idx += 1;
+//            }
+//            rem     -= 2;
+//            cce_idx += 2;
+//        }
+//
+//        if( rem == 1){
+//            c[loc_idx].L       = 0;
+//            c[loc_idx].ncce    = cce_idx;
+//            loc_idx += 1;
+//        }
+//    }
+//    for(int i=0;i<=loc_idx;i++){
+//        c[i].checked = false;
+//    }
+//
+//
+//    return loc_idx;
+//}
+//
+
+static int match_two_dci_vec(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], int root, int child){
+    for(int i=0;i<MAX_NOF_FORMAT+1;i++){
+        //printf("ROOT-RNTI:%d Child-RNTI:%d ",dci_array[i][root].rnti, dci_array[i][child].rnti);
+        if( (dci_array[i][root].rnti > 0) && (dci_array[i][child].rnti > 0)){
+            if(dci_array[i][root].rnti == dci_array[i][child].rnti){
+                return i; 
+            }
+        }
+    }
+    //printf("\n");
+    return -1; 
+}
+/* Child-parent matching process -->
+ * If the RNTI (acutally dci will be more accurate) of the child and parent matches
+ * the decoding is correct !
+ * return the matched index of the index and aggregation level of the parent node
+ */
+int srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], 
+                                        int nof_location, 
+                                        int blk_idx, 
+                                        int loc_idx, 
+                                        int* format_idx)
+{
+    int start_idx   = blk_idx * 15; 
+    //int end_idx     = blk_idx * 15 + 14; 
+    //printf("nof_location:%d blk_idx:%d loc_id:%d\n",nof_location, blk_idx, loc_idx);
+    // if we are dealing with a full bloack
+    for(int i=0;i<6;i++){
+        int root       = start_idx + i;
+        int left_child = start_idx + 2*i + 1;
+        //printf("root:%d child:%d\n", root, left_child);
+
+        // we haven't decoded the root or child yet
+        if( (root >loc_idx) || (left_child > loc_idx)){
+            break;
+        }
+        int matched_ret = match_two_dci_vec(dci_array, root, left_child);
+        if(matched_ret >= 0){
+            //printf("FIND MATACH!\n");
+            *format_idx = matched_ret; 
+            return root;
+        }
+    }
+    return -1;
+}
+
+bool is_leaf_node(int index_in_tree){
+    if( (index_in_tree >= 7) && (index_in_tree <= 14)){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+bool check_node(srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL],
+                    int start_idx,
+                    int idx_in_tree);
+
+bool check_node(srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL],
+                    int start_idx,
+                    int idx_in_tree)
+{
+    dci_location[start_idx + idx_in_tree].checked = true; 
+    if(is_leaf_node(idx_in_tree)){
+        // if current node is the leaf node return true
+        return true;
+    }else{
+        // check left child
+        check_node(dci_location, start_idx, 2 * idx_in_tree +1);
+        // check right child
+        check_node(dci_location, start_idx, 2 * idx_in_tree +2);
+    }
+    return true; 
+}
+
+int srsran_ngscope_tree_check_nodes(srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL],
+                                    int index)
+{
+    int start_idx   = (index / 15) * 15;
+    int idx_in_tree = index % 15;
+    check_node(dci_location, start_idx, idx_in_tree); 
+    return SRSRAN_SUCCESS;
+}
+                                   
+
+bool clear_dciArray_node(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                    int start_idx,
+                    int idx_in_tree);
+
+bool clear_dciArray_node(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                    int start_idx,
+                    int idx_in_tree)
+{
+    for(int i=0; i<MAX_NOF_FORMAT+1;i++){
+        ZERO_OBJECT(dci_array[i][start_idx + idx_in_tree]); 
+    }
+    if(is_leaf_node(idx_in_tree)){
+        // if current node is the leaf node return true
+        return true;
+    }else{
+        // clear left child
+        clear_dciArray_node(dci_array, start_idx, 2 * idx_in_tree +1);
+        // clear right child
+        clear_dciArray_node(dci_array, start_idx, 2 * idx_in_tree +2);
+    }
+    return true; 
+}
+
+int srsran_ngscope_tree_clear_dciArray_nodes(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                                                int index)
+{
+    int start_idx   = (index / 15) * 15;
+    int idx_in_tree = index % 15;
+    clear_dciArray_node(dci_array, start_idx, idx_in_tree); 
+    return SRSRAN_SUCCESS;
+}
+ 
+int srsran_ngscope_tree_non_empty_nodes(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], int nof_locations){
+    int nof_node = 0;
+    for(int i=0; i<nof_locations; i++){
+        for(int j=0; j< MAX_NOF_FORMAT+1; j++){
+            if(dci_array[j][i].rnti != 0){
+                nof_node ++;
+                break;
+            } 
+        }
+    }
+    return nof_node;
+}
+ 

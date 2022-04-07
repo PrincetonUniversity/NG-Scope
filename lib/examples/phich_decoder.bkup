@@ -1,0 +1,135 @@
+#include <sstream>
+#include <string.h>
+
+#include "phich_decoder.h"
+
+phich_decoder::phich_decoder(){
+
+}
+
+phich_decoder::~phich_decoder() = default;
+phich_decoder::reset(){
+
+    // Note: Using memset to reset these members is forbidden because they are real objects, not plain arrays.
+    { 
+        std::lock_guard<std::mutex> lock(pending_ul_ack_mutex);
+        for (auto& i : pending_ul_ack) {
+          for (auto& j : i) {
+            j = {};
+          }
+        }
+    }
+
+}
+
+// Table 8-2
+const static uint32_t k_pusch[7][10] = {
+    {4, 6, 0, 0, 0, 4, 6, 0, 0, 0},
+    {0, 6, 0, 0, 4, 0, 6, 0, 0, 4},
+    {0, 0, 0, 4, 0, 0, 0, 0, 4, 0},
+    {4, 0, 0, 0, 0, 0, 0, 0, 4, 4},
+    {0, 0, 0, 0, 0, 0, 0, 0, 4, 4},
+    {0, 0, 0, 0, 0, 0, 0, 0, 4, 0},
+    {7, 7, 0, 0, 0, 7, 7, 0, 0, 5},
+};
+
+const static uint32_t k_phich[7][10] = {{0, 0, 4, 7, 6, 0, 0, 4, 7, 6},
+                                        {0, 0, 4, 6, 0, 0, 0, 4, 6, 0},
+                                        {0, 0, 6, 0, 0, 0, 0, 6, 0, 0},
+                                        {0, 0, 6, 6, 6, 0, 0, 0, 0, 0},
+                                        {0, 0, 6, 6, 0, 0, 0, 0, 0, 0},
+                                        {0, 0, 6, 0, 0, 0, 0, 0, 0, 0},
+                                        {0, 0, 4, 6, 6, 0, 0, 4, 7, 0}};
+
+
+// Computes SF->TTI at which PHICH will be received according to 9.1.2 of 36.213
+#define tti_phich(sf)                                                                                                  \
+  (sf->tti + (cell.frame_type == SRSRAN_FDD ? FDD_HARQ_DELAY_UL_MS : k_phich[sf->tdd_config.sf_config][sf->tti % 10]))
+
+// Here SF->TTI is when PUSCH is transmitted
+void phich_decoder::set_ul_pending_ack(srsran_ul_sf_cfg_t*  sf,
+                                    uint32_t             cc_idx,
+                                    srsran_phich_grant_t phich_grant,
+                                    srsran_dci_ul_t*     dci_ul)
+{
+  // Use a lock here because subframe 4 and 9 of TDD config 0 accept multiple PHICH from multiple frames
+  std::lock_guard<std::mutex> lock(pending_ul_ack_mutex);
+
+  pending_ul_ack_t& pending_ack = pending_ul_ack[cc_idx][phich_grant.I_phich][tti_phich(sf)];
+
+  if (!pending_ack.enable) {
+    pending_ack.dci_ul      = *dci_ul;
+    pending_ack.phich_grant = phich_grant;
+    pending_ack.enable      = true;
+    Debug("Set pending ACK for sf->tti=%d n_dmrs=%d, I_phich=%d, cc_idx=%d",
+          sf->tti,
+          phich_grant.n_dmrs,
+          phich_grant.I_phich,
+          cc_idx);
+  } else {
+    Warning("set_ul_pending_ack: sf->tti=%d, cc=%d already in use", sf->tti, cc_idx);
+  }
+}
+
+// Here SF->TTI is when PHICH is being transmitted so that's DL subframe
+bool phich_decoder::get_ul_pending_ack(srsran_dl_sf_cfg_t*   sf,
+                                    uint32_t              cc_idx,
+                                    srsran_phich_grant_t* phich_grant,
+                                    srsran_dci_ul_t*      dci_ul)
+{
+  std::lock_guard<std::mutex> lock(pending_ul_ack_mutex);
+  bool                        ret         = false;
+  pending_ul_ack_t&           pending_ack = pending_ul_ack[cc_idx][phich_grant->I_phich][sf->tti];
+  if (pending_ack.enable) {
+    *phich_grant       = pending_ack.phich_grant;
+    *dci_ul            = pending_ack.dci_ul;
+    ret                = true;
+    pending_ack.enable = false;
+    Debug("Get pending ACK for sf->tti=%d n_dmrs=%d, I_phich=%d", sf->tti, phich_grant->n_dmrs, phich_grant->I_phich);
+  }
+  return ret;
+}
+
+bool phich_decoder::is_any_ul_pending_ack()
+{
+  std::lock_guard<std::mutex> lock(pending_ul_ack_mutex);
+
+  for (const auto& i : pending_ul_ack) {
+    for (const auto& j : i) {
+      if (std::any_of(j.begin(), j.end(), [](const pending_ul_ack_t& ack) { return ack.enable; })) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+void phich_decoder::decode_phich(srsran_dl_sf_cfg_t* sf_cfg_dl, 
+                                 srsran_ue_dl_t* ue_dl,
+                                 srsran_ue_dl_cfg_t* ue_dl_cfg,
+                                 srsran_ue_dl_cfg_t* phich_res)
+{
+  srsran_dci_ul_t      dci_ul      = {};
+  srsran_phich_grant_t phich_grant = {};
+  //srsran_phich_res_t   phich_res   = {};
+
+  // Receive PHICH, in TDD might be more than one
+  for (uint32_t I_phich = 0; I_phich < 2; I_phich++) {
+    phich_grant.I_phich = I_phich;
+    if (get_ul_pending_ack(sf_cfg_dl, cc_idx, &phich_grant, &dci_ul)) {
+      if (srsran_ue_dl_decode_phich(ue_dl, sf_cfg_dl, ue_dl_cfg, &phich_grant, phich_res)) {
+        Error("Decoding PHICH");
+      }
+      //phy->set_ul_received_ack(&sf_cfg_dl, cc_idx, phich_res.ack_value, I_phich, &dci_ul);
+      Info("PHICH: hi=%d, corr=%.1f, I_lowest=%d, n_dmrs=%d, I_phich=%d",
+           phich_res->ack_value,
+           phich_res->distance,
+           phich_grant.n_prb_lowest,
+           phich_grant.n_dmrs,
+           I_phich);
+    }
+  }
+}
+
