@@ -772,9 +772,9 @@ int main(int argc, char** argv)
               decode_pdsch = false;
             }
           }
-          //if((sf_idx % 2) == 1){
-          //  decode_pdsch = true;
-          //} 
+          if((sf_idx % 2) == 1){
+            decode_pdsch = true;
+          } 
           //decode_pdsch = true;
 
           if(sf_idx != 2 && sf_idx != 7){

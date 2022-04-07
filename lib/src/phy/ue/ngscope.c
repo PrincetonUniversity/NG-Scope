@@ -207,24 +207,24 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 //  // Plot the decoded results!
 //  // The plot is block based --> we plot each block in one row
 
-  loc_idx = 0;
-  while(loc_idx < nof_location){
-    for(int i=0;i<15;i++){
-        printf("|%d %d %.2f| ", dci_location[loc_idx].L, dci_location[loc_idx].ncce, dci_location[loc_idx].mean_llr);        
-        for(int j=0;j<MAX_NOF_FORMAT+1;j++){
-            printf("{%d %d %1.2f %1.2f}-", dci_array[j][loc_idx].rnti, dci_array[j][loc_idx].prb, dci_array[j][loc_idx].decode_prob, dci_array[j][loc_idx].corr);
-        }
-        //if( (i==0) || (i==2) || (i==6)) printf("\n");
-        if( (i%2 == 0) ) printf("\n");
+  //loc_idx = 0;
+  //while(loc_idx < nof_location){
+  //  for(int i=0;i<15;i++){
+  //      printf("|%d %d %.2f| ", dci_location[loc_idx].L, dci_location[loc_idx].ncce, dci_location[loc_idx].mean_llr);        
+  //      for(int j=0;j<MAX_NOF_FORMAT+1;j++){
+  //          printf("{%d %d %1.2f %1.2f}-", dci_array[j][loc_idx].rnti, dci_array[j][loc_idx].prb, dci_array[j][loc_idx].decode_prob, dci_array[j][loc_idx].corr);
+  //      }
+  //      //if( (i==0) || (i==2) || (i==6)) printf("\n");
+  //      if( (i%2 == 0) ) printf("\n");
 
-        loc_idx++;
-        if(loc_idx>= nof_location){
-            break;
-        }
-    }
-    printf("\n\n");
-  }
-  printf("\n");
+  //      loc_idx++;
+  //      if(loc_idx>= nof_location){
+  //          break;
+  //      }
+  //  }
+  //  printf("\n\n");
+  //}
+  //printf("\n");
 
   //usleep(800);
   return ret;
