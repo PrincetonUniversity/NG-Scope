@@ -3,9 +3,9 @@ NG-Scope
 
 NG-Scope is a free and open-source LTE control channel decoder developed by [PAWS group](https://paws.cs.princeton.edu/) at Princeton University.
 
-NG-Scope is built atop of srsLTE, so we introduce basic information about srsLTE.
+NG-Scope is built atop of srsRAN, so we introduce basic information about srsRAN.
 
-srsLTE -- Common Features
+srsRAN -- Common Features
 ---------------
 
  * LTE Release 8 compliant (with selected features of Release 9)
@@ -21,16 +21,16 @@ srsLTE -- Common Features
  * Command-line trace metrics
  * Detailed input configuration files
 
-srsLTE -- Hardware
+srsRAN -- Hardware
 --------
 
-srsLTE currently supports the Ettus Universal Hardware Driver (UHD) and the bladeRF driver.
+srsRAN currently supports the Ettus Universal Hardware Driver (UHD) and the bladeRF driver.
 Thus, any hardware supported by UHD or bladeRF can be used.
 There is no sampling rate conversion,
 therefore the hardware should support 30.72 MHz clock in order
 to work correctly with LTE sampling frequencies and decode signals from live LTE base stations.
 
-According to the srsLTE website, srsLTE can support the following hardware:
+According to the srsRAN website, srsRAN can support the following hardware:
  * USRP B210
  * USRP B205mini
  * USRP X300
@@ -57,7 +57,7 @@ sudo apt-get install cmake libfftw3-dev libmbedtls-dev libboost-program-options-
 We need to install the [srsgui](https://github.com/srslte/srsgui), a GUI tool for showing realtime results.
 On Ubuntu 16.04, you can install srsgui via the following commands:
 ```
-git clone https://github.com/srsLTE/srsGUI.git
+git clone https://github.com/srsRAN/srsGUI.git
 cd srsGUI
 mkdir build
 cd build
@@ -89,7 +89,7 @@ sudo apt-get install libuhd-dev libuhd003 uhd-host
 Download and build NG-Scope:
 ```
 git clone git@github.com:YaxiongXiePrinceton/NG-Scope.git
-cd srsLTE
+cd NG-Scope
 mkdir build
 cd build
 cmake ../
