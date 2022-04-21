@@ -27,6 +27,7 @@ extern "C" {
 #define MAX_MSG_PER_SUBF 10
 #define MAX_DCI_BUFFER 10
 
+#define PLOT_SF 10
 typedef struct{
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
@@ -36,6 +37,7 @@ typedef struct{
 
 typedef struct {
     ngscope_dci_per_sub_t   dci_per_sub;
+    float                   csi_amp[100 * 12];
     uint32_t                tti;
     uint16_t                cell_idx;
 }ngscope_status_buffer_t;

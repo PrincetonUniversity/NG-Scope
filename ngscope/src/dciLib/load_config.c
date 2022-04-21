@@ -27,7 +27,8 @@ int ngscope_read_config(ngscope_config_t* config){
         printf("ERROR: reading nof_rf_dev\n");
     }
     printf("read nof rf_dev:%d\n", config->nof_rf_dev);
-
+    
+    
 //    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){
 //        printf("ERROR: reading con_time_s\n");
 //    }
@@ -66,6 +67,11 @@ int ngscope_read_config(ngscope_config_t* config){
             printf("rf_args:%s ",config->rf_config[i].rf_args);
         }
         printf("\n");
+        if(! config_lookup_bool(cfg, "disable_plot", &config->rf_config[i].disable_plot)){
+            printf("ERROR: reading disable_plot\n");
+        }else{
+            printf("disable plot: %d\n", config->rf_config[i].disable_plot);
+        }
     }
 
     // DCI log config

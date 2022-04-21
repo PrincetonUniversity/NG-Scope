@@ -8,6 +8,7 @@ typedef struct{
     int         N_id_2;
     char        rf_args[100];
     int         nof_thread;
+    int         disable_plot;
 }rf_dev_config_t;
 
 typedef struct{

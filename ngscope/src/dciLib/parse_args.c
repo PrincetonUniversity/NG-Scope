@@ -43,6 +43,7 @@ void args_default(prog_args_t* args)
   args->net_port_signal                    = -1;
   args->net_address_signal                 = (char*)"127.0.0.1";
   args->nof_decoder                        = 2;
+  args->nof_rf_dev                         = 1;
   args->decimate                           = 0;
   args->cpu_affinity                       = -1;
   args->mbsfn_area_id                      = -1;

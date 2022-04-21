@@ -236,7 +236,10 @@ void* dci_decoder_thread(void* p){
         dci_ret.dci_per_sub  = dci_per_sub;
         dci_ret.tti          = sfn *10 + sf_idx;
         dci_ret.cell_idx     = rf_idx;
-
+   
+        for(int i=0; i< 12 * dci_decoder->cell.nof_prb; i++){
+            dci_ret.csi_amp[i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i])); 
+        }
        // // put the dci into the dci buffer
         pthread_mutex_lock(&dci_ready.mutex);
         dci_buffer[dci_ready.header] = dci_ret;

@@ -42,6 +42,7 @@ typedef struct {
   int      net_port_signal;
   char*    net_address_signal;
   int      nof_decoder;
+  int      nof_rf_dev;
   int      decimate;
   int32_t  mbsfn_area_id;
   uint8_t  non_mbsfn_region;

@@ -12,6 +12,10 @@
 #include <stdint.h>
 
 #include "ngscope/hdr/dciLib/status_tracker.h"
+#include "ngscope/hdr/dciLib/status_plot.h"
+#include "ngscope/hdr/dciLib/ngscope_def.h"
+#include "ngscope/hdr/dciLib/parse_args.h"
+
 #define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
 
 extern bool go_exit;
@@ -20,6 +24,23 @@ extern srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
 
 extern dci_ready_t         dci_ready;
 extern ngscope_status_buffer_t    dci_buffer[MAX_DCI_BUFFER];
+
+pthread_cond_t      plot_cond  = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t     plot_mutex = PTHREAD_MUTEX_INITIALIZER;
+ngscope_plot_t      plot_data;
+
+void init_plot_data(int nof_dev){
+    pthread_mutex_lock(&plot_mutex);
+    plot_data.nof_cell = nof_dev;
+
+    pthread_mutex_lock(&cell_mutex);
+    for(int i=0; i<nof_dev; i++){
+        plot_data.cell_prb[i] = cell_vec[i].nof_prb;
+    }
+    pthread_mutex_unlock(&cell_mutex);
+
+    pthread_mutex_unlock(&plot_mutex);
+}
 
 void wait_for_radio(ngscope_status_tracker_t* q, int nof_dev){
     bool radio_ready = true;
@@ -71,7 +92,8 @@ uint16_t most_recent_untouched_sub(ngscope_cell_status_t* q){
     for(int i=start+1;i<=end;i++){
         uint16_t index = TTI_TO_IDX(i);
         untouched_idx = i;
-        if(q->token[index] == true){
+        //if(q->token[index] == true){
+        if(q->token[index] == 0){
             // return when we encounter a token that has been taken
             untouched_idx -= 1;
             return  TTI_TO_IDX(untouched_idx);
@@ -256,6 +278,61 @@ int status_tracker_print_ue_freq(ngscope_status_tracker_t* q){
     return 0;
 }
 
+int sum_per_sf_prb_dl(ngscope_dci_per_sub_t* q){
+    int nof_dl_prb = 0;
+    if(q->nof_dl_dci > 0){
+        for(int i=0; i< q->nof_dl_dci; i++){
+            nof_dl_prb += q->dl_msg[i].prb; 
+        }
+    }
+    return nof_dl_prb;
+}
+
+int sum_per_sf_prb_ul(ngscope_dci_per_sub_t* q){
+    int nof_ul_prb = 0;
+    if(q->nof_ul_dci > 0){
+        for(int i=0; i< q->nof_ul_dci; i++){
+            nof_ul_prb += q->ul_msg[i].prb; 
+        }
+    }
+    return nof_ul_prb;
+}
+
+int status_tracker_handle_plot(ngscope_status_buffer_t* dci_buffer){
+    int      idx, max_prb;
+    uint32_t tti = dci_buffer->tti;
+    int cell_idx = dci_buffer->cell_idx;
+
+    idx = tti % PLOT_SF;
+    pthread_mutex_lock(&plot_mutex);
+    max_prb = plot_data.cell_prb[cell_idx];
+        
+    /* Enqueue CSI */
+    for(int i=0; i< max_prb * 12; i++){
+        plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].csi_amp[i] = 
+            dci_buffer->csi_amp[i];
+    }
+
+    /* Enqueue TTI */
+    plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].tti = tti;
+
+    /* Enqueue Cell downlink PRB */
+    plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].cell_dl_prb = 
+        sum_per_sf_prb_dl(&dci_buffer->dci_per_sub);
+
+    /* Enqueue Cell uplink PRB */
+    plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].cell_ul_prb = 
+        sum_per_sf_prb_ul(&dci_buffer->dci_per_sub);
+
+    /* touch the buffer and set the token */ 
+    plot_data.plot_data_cell[cell_idx].dci_touched = idx;
+    plot_data.plot_data_cell[cell_idx].token[idx]  = 1;
+
+    pthread_cond_signal(&plot_cond);
+    pthread_mutex_unlock(&plot_mutex);
+
+    return 0;
+}
 
 int status_tracker_handle_dci_buffer(ngscope_status_tracker_t* q, 
                                         ngscope_status_buffer_t* dci_buffer){
@@ -267,14 +344,22 @@ int status_tracker_handle_dci_buffer(ngscope_status_tracker_t* q,
     /* Update ue list ***/
     ngscope_ue_list_t* ue_list = &(q->ue_list);
     status_tracker_update_ue_list(ue_list, dci_buffer);
- 
+
+    /* Handle the plotting */ 
+    status_tracker_handle_plot(dci_buffer);
     return 0;
 }
 
 void* status_tracker_thread(void* p){
+    /* TODO input handle the targetRNTI */
+    prog_args_t* prog_args = (prog_args_t*)p; 
+
     // Number of RF devices
-    int nof_dev = *(int *)p;
+    int nof_dev = prog_args->nof_rf_dev;
     int nof_dci = 0;
+    int nof_prb = 0;
+    int dis_plot = prog_args->disable_plots;
+    printf("DIS_PLOT:%d nof_RF_DEV:%d \n", dis_plot, nof_dev);
 
     printf("\n\nstart status tracker nof_dev :%d\n\n", nof_dev);
     /* Init the status tracker */
@@ -286,7 +371,17 @@ void* status_tracker_thread(void* p){
 
     /* Wait the Radio to be ready */
     wait_for_radio(&status_tracker, nof_dev);
-   
+
+    
+    /*start plot thread assuming only 1 cell*/ 
+    pthread_t plot_thread;
+    if(dis_plot == 0){
+        nof_prb = status_tracker.ngscope_CA_status.cell_prb[0];
+        init_plot_data(nof_dev);
+        plot_init(&plot_thread);
+    }else{
+        printf("displot:%d\n", dis_plot);
+    }
     printf("\n\n\n Radio is ready! \n\n"); 
 
     while(true){
@@ -316,7 +411,14 @@ void* status_tracker_thread(void* p){
             //printf("CELL header:%d prb:%d %d \n", header, dl_prb, ul_prb); 
         }
     }
+    printf("Close Status Tracker!\n");
     
+    if(dis_plot == 0){
+        if (!pthread_kill(plot_thread, 0)) {
+          pthread_kill(plot_thread, SIGHUP);
+          pthread_join(plot_thread, NULL);
+        }
+    }
     status_tracker_print_ue_freq(&status_tracker);
     return NULL;
 }
