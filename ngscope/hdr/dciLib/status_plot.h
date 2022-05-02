@@ -46,7 +46,7 @@ typedef struct{
 }ngscope_plot_t;
 
 void* plot_thread_run(void* arg);
-void  plot_init(pthread_t* plot_thread);
+void  plot_init_thread(pthread_t* plot_thread);
 #ifdef __cplusplus
 }
 #endif

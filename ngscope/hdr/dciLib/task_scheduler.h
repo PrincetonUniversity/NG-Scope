@@ -21,12 +21,22 @@ extern "C" {
 #include "ngscope_def.h"
 #include "radio.h"
 
+#define MAX_TMP_BUFFER 10
+
 typedef struct{
     uint32_t        sf_idx; // subframe index 0-9
     uint32_t        sfn;    // system frame index 0-1020
     cf_t*           IQ_buffer[SRSRAN_MAX_PORTS]; //IQ buffer that stores the IQ sample
-    pthread_mutex_t sf_mutex;
-    pthread_cond_t  sf_cond;
+}task_tmp_sf_buffer_t;
+
+
+typedef struct{
+    uint32_t        sf_idx; // subframe index 0-9
+    uint32_t        sfn;    // system frame index 0-1020
+    cf_t*           IQ_buffer[SRSRAN_MAX_PORTS]; //IQ buffer that stores the IQ sample
+
+    pthread_mutex_t         sf_mutex;
+    pthread_cond_t          sf_cond;
 }ngscope_sf_buffer_t;
 
 typedef struct{
@@ -35,6 +45,12 @@ typedef struct{
     srsran_ue_sync_t    ue_sync;
     prog_args_t         prog_args;
 }ngscope_task_scheduler_t;
+
+typedef struct{
+    task_tmp_sf_buffer_t           sf_buf[MAX_TMP_BUFFER];
+    int             header;
+    int             tail;
+}task_tmp_buffer_t;
 
 int task_scheduler_init(ngscope_task_scheduler_t* task_scheduler,
                             prog_args_t prog_args);

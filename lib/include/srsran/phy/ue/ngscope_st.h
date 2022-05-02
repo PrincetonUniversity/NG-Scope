@@ -44,5 +44,9 @@ typedef struct SRSRAN_API {
     uint32_t           nof_ul_dci;
 } ngscope_dci_per_sub_t;
 
+int ngscope_format_to_index(srsran_dci_format_t format);
+
+srsran_dci_format_t ngscope_index_to_format(int index);
+
 
 #endif

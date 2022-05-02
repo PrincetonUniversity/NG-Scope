@@ -6,54 +6,6 @@
 #include "srsran/phy/ue/ngscope_tree.h"
 #include "srsran/phy/ue/ngscope_dci.h"
 
-int format_to_index(srsran_dci_format_t format){
-    switch(format){
-        case SRSRAN_DCI_FORMAT0:
-            return 0;
-            break;
-        case SRSRAN_DCI_FORMAT1:
-            return 1;
-            break;
-        case SRSRAN_DCI_FORMAT1A:
-            return 2;
-            break;
-        case SRSRAN_DCI_FORMAT1C:
-            return 3;
-            break;
-        case SRSRAN_DCI_FORMAT2:
-            return 4;
-            break;
-        default:
-            printf("Format not recegnized!\n");
-            break;
-    }
-    return -1;
-}
-
-///* Copy the DCI message from the dci array to the dci per subframe struct
-// * After copying, the DCI message inside the dci array will be deleted!
-// */
-//static void copy_dci_fromArray2PerSub(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
-//                                        ngscope_dci_per_sub_t* dci_per_sub,
-//                                        int format, 
-//                                        int idx)
-//{
-//    if( (format  < 0) || (idx<0) || (idx >= MAX_CANDIDATES_ALL)){
-//        ERROR("Format or IDX is invalid!\n");
-//        return;
-//    }
-//    if(format == 0){
-//        // Format 0 uplink
-//        dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci] = dci_array[format][idx];
-//        dci_per_sub->nof_ul_dci++;
-//    }else{
-//        // Downlink dci messages
-//        dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci] = dci_array[format][idx];
-//        ZERO_OBJECT(dci_array[format][idx]);
-//    }
-//    return;
-//}
-                                 
 /* Yaxiong's dci search function */
 int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                                              srsran_dl_sf_cfg_t*    sf,
@@ -117,7 +69,6 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   }
 
   nof_location = srsran_ngscope_search_space_block_yx(&q->pdcch, sf->cfi, dci_location);
-  //int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
 
   //printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
   // Test purpose
@@ -148,11 +99,11 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
         // Search all the formats in this location
         int nof_dci = srsran_ngscope_search_in_space_yx(q, sf, &search_space, &dci_cfg, dci_msg);
-       
         nof_ul_dci = 0;
         nof_dl_dci = 0;
      
         if(nof_dci > 0){
+            //printf("loc:%d\n", loc_idx);
             for(int j=0;j<nof_dci;j++){
                 if(dci_msg[j].format == SRSRAN_DCI_FORMAT0){
                     //Upack the uplink dci to uplink grant
@@ -162,16 +113,18 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                                         dci_msg[j].decode_prob, dci_msg[j].corr, &dci_ul[nof_ul_dci], &dci_ul_grant[nof_ul_dci]);
                         //dci_array[0][loc_idx].decode_prob      = dci_msg[j].decode_prob;
                         //dci_array[0][loc_idx].corr             = dci_msg[j].corr;
+                        //printf("Corr UL:%f | %f \n",dci_msg[j].corr, dci_array[0][loc_idx].corr);
                     }
                 }else{
                     // Upack the downlink dci to downlink grant
                     if(srsran_ngscope_unpack_dl_dci_2grant(q, sf, cfg, pdsch_cfg, &dci_msg[j], 
                                     &dci_dl[nof_dl_dci], &dci_dl_grant[nof_dl_dci]) == SRSRAN_SUCCESS){
-                        int format_idx = format_to_index(dci_msg[j].format);
+                        int format_idx = ngscope_format_to_index(dci_msg[j].format);
                         srsran_ngscope_dci_into_array_dl(dci_array, format_idx, loc_idx, 
                                 dci_msg[j].decode_prob, dci_msg[j].corr, &dci_dl[nof_dl_dci], &dci_dl_grant[nof_dl_dci]);
                         //dci_array[format_idx][loc_idx].decode_prob      = dci_msg[j].decode_prob;
                         //dci_array[format_idx][loc_idx].corr             = dci_msg[j].corr;
+                        //printf("Corr DL:%f | %f |format_idx:%d \n", dci_msg[j].corr, dci_array[format_idx][loc_idx].corr, format_idx);
                     }
                 } 
             }
@@ -181,9 +134,10 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
         srsran_ngscope_tree_CP_match(dci_array, nof_location, blk_idx, loc_idx, &matched_root, &matched_format);
 
         if( matched_root >= 0){
-            printf("Matched root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d\n", 
-                matched_root, matched_format, dci_location[matched_root].L, dci_location[matched_root].ncce,
-                dci_array[matched_format][matched_root].rnti, dci_array[matched_format][matched_root].prb); 
+            //printf("Matched root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", 
+            //    matched_root, matched_format, dci_location[matched_root].L, dci_location[matched_root].ncce,
+            //    dci_array[matched_format][matched_root].rnti, dci_array[matched_format][matched_root].prb, 
+            //       dci_array[matched_format][matched_root].decode_prob, dci_array[matched_format][matched_root].corr); 
 
             // copy the matched dci message to the results
             srsran_ngscope_tree_copy_dci_fromArray2PerSub(dci_array, dci_per_sub, matched_format, matched_root);
@@ -200,32 +154,24 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
       blk_idx++;
   } 
 
-  int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
-  printf("after matching, there are %d non-empty nodes!\n\n", nof_node);
-  srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
+  //int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
+  //printf("after matching, there are %d non-empty nodes!\n", nof_node);
+
+  ////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
+  //if(nof_node > 0){
+  //  srsran_ngscope_tree_plot_multi(dci_array, dci_location, nof_location);
+  //}
+  //uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+  //srsran_ngscope_dci_prune(dci_array, dci_location, nof_location, nof_cce, sf->tti % 10, dci_per_sub);
+  //nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
+  //printf("after pruning, there are %d non-empty nodes!\n\n", nof_node);
+  //if(nof_node > 0){
+  //  srsran_ngscope_tree_plot_multi(dci_array, dci_location, nof_location);
+  //}
 
 //  // Plot the decoded results!
 //  // The plot is block based --> we plot each block in one row
-
-  loc_idx = 0;
-  while(loc_idx < nof_location){
-    for(int i=0;i<15;i++){
-        printf("|%d %d %.2f| ", dci_location[loc_idx].L, dci_location[loc_idx].ncce, dci_location[loc_idx].mean_llr);        
-        for(int j=0;j<MAX_NOF_FORMAT+1;j++){
-            printf("{%d %d %1.2f %1.2f}-", dci_array[j][loc_idx].rnti, dci_array[j][loc_idx].prb, dci_array[j][loc_idx].decode_prob, dci_array[j][loc_idx].corr);
-        }
-        //if( (i==0) || (i==2) || (i==6)) printf("\n");
-        if( (i%2 == 0) ) printf("\n");
-
-        loc_idx++;
-        if(loc_idx>= nof_location){
-            break;
-        }
-    }
-    printf("\n\n");
-  }
-  printf("\n");
-
+  //srsran_ngscope_tree_plot_multi(dci_array, dci_location, nof_location);
   //usleep(800);
   return ret;
 }

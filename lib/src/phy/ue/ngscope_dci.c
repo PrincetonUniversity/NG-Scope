@@ -35,7 +35,7 @@ void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].dl      = true;
  
     dci_array[i][j].decode_prob      = decode_prob;
-    dci_array[j][j].corr             = corr;
+    dci_array[i][j].corr             = corr;
 
    
     // transport block 1
@@ -106,7 +106,43 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].phich.n_prb_tilde   = dci_ul_grant->n_prb_tilde[0];
 
     dci_array[i][j].decode_prob      = decode_prob;
-    dci_array[j][j].corr             = corr;
+    dci_array[i][j].corr             = corr;
 
     return;
+}
+
+int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                                srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
+                                uint32_t nof_location, uint32_t nof_cce, uint32_t sf_idx,
+                                ngscope_dci_per_sub_t* dci_per_sub)
+{
+    //printf("nof_location:%d nof_cce:%d sf_idx:%d \n", nof_location, nof_cce, sf_idx);
+    uint32_t ncce = 0;
+    for(int i=0; i<nof_location; i++){
+        ncce = dci_location[i].ncce;
+        //printf("ncce:%d \n", ncce);
+        for(int j=0; j<MAX_NOF_FORMAT+1; j++){
+            uint16_t rnti = dci_array[j][i].rnti;
+            if(rnti > 0){// not empty
+                // Rule 1: corr based cuting:
+                if (!isnormal(dci_array[j][i].corr) || dci_array[j][i].corr < 0.5f) {
+                    ZERO_OBJECT(dci_array[j][i]);
+                }
+
+                // Rule 2: RNTI and its location should match
+                bool loc_match = srsran_ngscope_space_match_yx(rnti,
+                                    nof_cce, sf_idx, ncce, ngscope_index_to_format(j));
+                //uint32_t ncce = 0;
+                //printf("ncce:%d \n", ncce);
+                if(loc_match == false){
+                    ZERO_OBJECT(dci_array[j][i]);
+                }
+            }
+        }
+    }
+    //printf("ncce:%d \n", ncce);
+    //int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
+    //printf("after pruning, there are %d non-empty nodes!\n\n", nof_node);
+
+    return SRSRAN_SUCCESS;
 }

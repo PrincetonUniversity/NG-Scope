@@ -15,29 +15,46 @@
 #include "ngscope/hdr/dciLib/status_plot.h"
 #include "ngscope/hdr/dciLib/ngscope_def.h"
 #include "ngscope/hdr/dciLib/parse_args.h"
+#include "ngscope/hdr/dciLib/dci_log.h"
+#include "ngscope/hdr/dciLib/time_stamp.h"
 
-#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
+//#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
 
 extern bool go_exit;
 extern pthread_mutex_t     cell_mutex;
 extern srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
 
-extern dci_ready_t         dci_ready;
-extern ngscope_status_buffer_t    dci_buffer[MAX_DCI_BUFFER];
+extern dci_ready_t                  dci_ready;
+extern ngscope_status_buffer_t      dci_buffer[MAX_DCI_BUFFER];
 
 pthread_cond_t      plot_cond  = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t     plot_mutex = PTHREAD_MUTEX_INITIALIZER;
 ngscope_plot_t      plot_data;
 
-void init_plot_data(int nof_dev){
+/* Operator */
+
+bool a_le_than_b(int a, int b){
+    if( (a-b) >= 0){
+       return true;
+    }else{
+        /* b --> 320 --> a 
+           b 310   a 1 (a is larger then b in this case) */
+        if( (abs(NOF_LOG_SUBF - b) < NOF_LOG_SUBF/8) && 
+            (a < NOF_LOG_SUBF/8)){
+            return true;
+        }
+    } 
+    return false;
+}
+void init_plot_data(ngscope_CA_status_t* q, int nof_dev){
     pthread_mutex_lock(&plot_mutex);
     plot_data.nof_cell = nof_dev;
 
-    pthread_mutex_lock(&cell_mutex);
+    //pthread_mutex_lock(&cell_mutex);
     for(int i=0; i<nof_dev; i++){
-        plot_data.cell_prb[i] = cell_vec[i].nof_prb;
+        plot_data.cell_prb[i] = q->cell_prb[i];
     }
-    pthread_mutex_unlock(&cell_mutex);
+    //pthread_mutex_unlock(&cell_mutex);
 
     pthread_mutex_unlock(&plot_mutex);
 }
@@ -82,16 +99,20 @@ uint16_t most_recent_untouched_sub(ngscope_cell_status_t* q){
     // init the untouched index
     untouched_idx = start;
 
+        
+    //printf("most untouched sub end:%d start:%d\n",end, start);
     // No change return
-    if( end == start)
+    if( end == start){
+        printf("most untouched sub end:%d start:%d\n",end, start);
         return start;
-
+    }
     // unwrapping
     if( end < start){ end += NOF_LOG_SUBF;}
 
     for(int i=start+1;i<=end;i++){
         uint16_t index = TTI_TO_IDX(i);
         untouched_idx = i;
+        //printf("idx:%d token:%d\n", index, q->token[index]);
         //if(q->token[index] == true){
         if(q->token[index] == 0){
             // return when we encounter a token that has been taken
@@ -101,9 +122,20 @@ uint16_t most_recent_untouched_sub(ngscope_cell_status_t* q){
     }
     return  TTI_TO_IDX(untouched_idx);
 }
+
 int update_cell_header(ngscope_cell_status_t* q){
     uint16_t new_header     = most_recent_untouched_sub(q);
     uint16_t last_header    = q->header; 
+    //printf("update_cell_header: last header:%d new header:%d touched:%d", 
+    //        last_header, new_header, q->dci_touched);
+
+    /* If we are the first time logging it */
+    if(q->ready == false){
+        printf("First time Logging\n");
+        q->ready = true;
+        q->header = q->dci_touched;
+        return 0;
+    }
     if( new_header != last_header){
         q->header = new_header; 
         if(new_header < last_header){ new_header += NOF_LOG_SUBF;}
@@ -112,7 +144,16 @@ int update_cell_header(ngscope_cell_status_t* q){
             uint16_t index = TTI_TO_IDX(i);
             q->token[index] = 0;
         }
+        //for(int i = last_header; i<= new_header+4; i++){
+        //    uint16_t index = TTI_TO_IDX(i);
+        //    printf("idx:%d token:%d \n", index, q->token[index]);
+        //}
+        //for(int i = 0; i< 320; i++){
+        //    printf("%d | ", q->token[i]);
+        //}
+        //printf("\n");
     } 
+    //printf("\n");
     return 0;
 }
 
@@ -141,6 +182,7 @@ int reset_message(ngscope_cell_status_t* q, int buf_idx){
     return 0;
 }
 
+/* Update the cell status */
 int status_tracker_update_cell_status(ngscope_CA_status_t* q, 
                                         ngscope_status_buffer_t* dci_buffer){
     int cell_idx = dci_buffer->cell_idx;
@@ -158,9 +200,15 @@ int status_tracker_update_cell_status(ngscope_CA_status_t* q,
     // reset all the dci messages to zeros
     reset_message(cell_status, buf_idx);
 
+    // Set the logging timestamp
+    cell_status->timestamp_us[buf_idx] = timestamp_us();
+
     // fill in the tti
     cell_status->tti[buf_idx] = tti;
-    cell_status->dci_touched = buf_idx;
+
+    if(a_le_than_b(buf_idx, cell_status->dci_touched)){
+        cell_status->dci_touched = buf_idx;
+    }
 
     // show that we have fill this buffer
     cell_status->token[buf_idx] = 1;
@@ -169,6 +217,7 @@ int status_tracker_update_cell_status(ngscope_CA_status_t* q,
     cell_status->nof_dl_msg[buf_idx] = nof_dl_dci;
     cell_status->nof_ul_msg[buf_idx] = nof_ul_dci;
 
+    //printf("nof_dl_msg:%d ul_msg:%d buf_idx:%d\n",cell_status->nof_dl_msg[buf_idx], cell_status->nof_ul_msg[buf_idx], buf_idx);
     // handle the uplink messages
     if(nof_dl_dci > 0){
         int cell_prb =0;
@@ -203,6 +252,117 @@ int status_tracker_update_cell_status(ngscope_CA_status_t* q,
 
     return 0;
 }
+
+// --> find the max tti in the array
+static int min_tti_list(int* array, int num){
+    int value = MAX_TTI;
+    for(int i=0;i<num;i++){
+        if(array[i] < value){
+            value = array[i];
+        }
+    }
+    return value;
+}
+
+// --> find the min tti in the array
+static int max_tti_list(int* array, int num){
+    int value = 0;
+    for(int i=0;i<num;i++){
+        if(array[i] > value){
+            value = array[i];
+        }
+    }
+    return value;
+}
+// --> unwrapping tti
+static int unwrapping_tti(int* tti_array, int num){
+    int max_tti = max_tti_list(tti_array, num);
+    for(int i=0;i<num;i++){
+        if(tti_array[i] == max_tti){continue;}
+        if(max_tti > tti_array[i] + MAX_TTI/2){
+            tti_array[i] += MAX_TTI;
+        }
+    }
+    return 0;
+}
+
+/* All the cells are synchronized if the header TTI are the same and are not zero*/
+static bool check_synchronization(ngscope_CA_status_t* q){
+    uint16_t nof_cell = q->nof_cell;
+
+    /* the first array is always not empty, we use it as the anchor
+     * if the tti of other cells (the same sf) are different from the anchor
+     * we know the cells are not synchronized */
+    uint32_t anchor_TTI = q->cell_status[0].tti[q->header];
+    uint32_t target_TTI;
+
+    if(anchor_TTI == 0){
+    return false;   // TTI cannot be zero
+    }
+
+    if(nof_cell == 1){
+        if(anchor_TTI <= 0){
+            return false;   // If there is only one cell and the anchor_TTI is zero
+        }
+    }else if(nof_cell > 1){
+        for(int i=1;i<nof_cell;i++){
+            target_TTI = q->cell_status[i].tti[q->header];
+            if(target_TTI != anchor_TTI){
+                return false;
+            }
+        }
+    }else{
+        printf("\n\n\n ERROR: nof_cell must be a postive integer! \n\n\n");
+        return false;
+    }
+    return true;
+}
+
+/* Update the header of the whole status structure */
+void update_status_header(ngscope_CA_status_t* q){
+    int nof_cell = q->nof_cell;
+    int tti_array[nof_cell];
+    
+    bool all_cell_ready = true;  
+     
+    /* find the minimum TTI we have in all the cells*/
+    for(int i=0; i<nof_cell; i++){
+        tti_array[i] = q->cell_status[i].tti[q->cell_status[i].header];
+        if(q->cell_status[i].ready == false){
+            all_cell_ready = false;
+        } 
+    }
+    if(all_cell_ready == false){
+        //printf("cell not ready! nof_cell:%d\n", nof_cell);
+        return;
+    }
+    unwrapping_tti(tti_array, nof_cell); // unwrapping tti index
+    uint16_t targetTTI      = min_tti_list(tti_array, nof_cell); // find the smallest tti
+    uint16_t targetIndex    = TTI_TO_IDX(targetTTI);         // translate the TTI
+
+    /* set the header to the minimum */
+    // If the index equals the header, we should not move the header of the structure
+    if( targetIndex == q->header){
+        return;
+    }
+
+    // Warning user if we move too fast  
+    if( targetIndex < q->header){
+        targetIndex += NOF_LOG_SUBF;
+    }
+    if( targetIndex - q->header > 100){
+        printf("WARNNING: the header is moved for interval of %d subframes!\n", (targetIndex - q->header));
+    }
+
+    // update the header
+    q->header = TTI_TO_IDX(targetIndex);
+
+    if(q->all_cell_synced == false){
+        q->all_cell_synced = check_synchronization(q);
+    }
+    return;
+}
+
 void enqueue_rnti(ngscope_ue_list_t* q, uint32_t tti, uint16_t rnti, bool dl){
     if(q->ue_cnt[rnti] == 0){
         q->ue_enter_time[rnti] = tti;
@@ -334,9 +494,10 @@ int status_tracker_handle_plot(ngscope_status_buffer_t* dci_buffer){
     return 0;
 }
 
+
+/* Handle each task */
 int status_tracker_handle_dci_buffer(ngscope_status_tracker_t* q, 
                                         ngscope_status_buffer_t* dci_buffer){
-
     /* Update the cell status */
     ngscope_CA_status_t* cell_status = &(q->ngscope_CA_status);
     status_tracker_update_cell_status(cell_status, dci_buffer);
@@ -350,8 +511,9 @@ int status_tracker_handle_dci_buffer(ngscope_status_tracker_t* q,
     return 0;
 }
 
+
 void* status_tracker_thread(void* p){
-    /* TODO input handle the targetRNTI */
+    /* TODO log target status */
     prog_args_t* prog_args = (prog_args_t*)p; 
 
     // Number of RF devices
@@ -359,26 +521,42 @@ void* status_tracker_thread(void* p){
     int nof_dci = 0;
     int nof_prb = 0;
     int dis_plot = prog_args->disable_plots;
+    uint16_t targetRNTI = prog_args->rnti;
+
+    FILE* fd_dl[MAX_NOF_RF_DEV];
+    FILE* fd_ul[MAX_NOF_RF_DEV];
+
+    int last_header[MAX_NOF_RF_DEV] = {0};
+    int curr_header[MAX_NOF_RF_DEV] = {0};
+    bool cell_ready[MAX_NOF_RF_DEV] = {0};
+
     printf("DIS_PLOT:%d nof_RF_DEV:%d \n", dis_plot, nof_dev);
 
-    printf("\n\nstart status tracker nof_dev :%d\n\n", nof_dev);
     /* Init the status tracker */
     ngscope_status_tracker_t status_tracker;
     memset(&status_tracker, 0, sizeof(ngscope_status_tracker_t));
-   
+
+    /* INIT status_tracker */
+    status_tracker.ngscope_CA_status.targetRNTI = targetRNTI;
+    status_tracker.ngscope_CA_status.nof_cell   = nof_dev;
+
+    printf("\n\nstart status tracker nof_dev :%d %d \n\n", nof_dev, status_tracker.ngscope_CA_status.cell_status[0].ready);
+    // Logging reated 
+    fill_file_descirptor(fd_dl, fd_ul, prog_args->log_dl, prog_args->log_ul, nof_dev, prog_args->rf_freq_vec);
+    
     // Container for store obtained csi  
     ngscope_status_buffer_t    dci_queue[MAX_DCI_BUFFER];
 
     /* Wait the Radio to be ready */
     wait_for_radio(&status_tracker, nof_dev);
-
     
     /*start plot thread assuming only 1 cell*/ 
     pthread_t plot_thread;
     if(dis_plot == 0){
         nof_prb = status_tracker.ngscope_CA_status.cell_prb[0];
-        init_plot_data(nof_dev);
-        plot_init(&plot_thread);
+        // Init the plot data structure
+        init_plot_data(&status_tracker.ngscope_CA_status, nof_dev);
+        plot_init_thread(&plot_thread);
     }else{
         printf("displot:%d\n", dis_plot);
     }
@@ -395,21 +573,45 @@ void* status_tracker_thread(void* p){
             pthread_cond_wait(&dci_ready.cond, &dci_ready.mutex);
         }
         // copy data from the dci buffer
-        memcpy(dci_queue, dci_buffer, MAX_DCI_BUFFER * sizeof(ngscope_status_buffer_t));
         nof_dci     = dci_ready.nof_dci;
+        memcpy(dci_queue, dci_buffer, nof_dci * sizeof(ngscope_status_buffer_t));
+
+        // clean the dci buffer 
+        memset(dci_buffer, 0, nof_dci * sizeof(ngscope_status_buffer_t));
+
         // reset the dci buffer
         dci_ready.header    = 0;
         dci_ready.nof_dci   = 0;
         pthread_mutex_unlock(&dci_ready.mutex);
-        printf("Copy %d dci tti:%d ul dci:%d dl_dci:%d\n\n", nof_dci, dci_queue[0].tti, 
-            dci_queue[0].dci_per_sub.nof_ul_dci, dci_queue[0].dci_per_sub.nof_dl_dci);
+        
+        //printf("Copy %d dci->", nof_dci); 
+        //for(int i=0; i<nof_dci; i++){
+        //    printf(" %d-th dci: ul dci:%d dl_dci:%d  tti:%d IDX:%d\n", i, dci_queue[i].dci_per_sub.nof_ul_dci, 
+        //    dci_queue[i].dci_per_sub.nof_dl_dci, dci_queue[i].tti, TTI_TO_IDX(dci_queue[i].tti));
+        //}printf("\n");
+
         for(int i=0; i<nof_dci; i++){
             status_tracker_handle_dci_buffer(&status_tracker, &dci_queue[i]);
+            //printf("status header:%d cell header:%d\n", status_tracker.ngscope_CA_status.header, 
+            //        status_tracker.ngscope_CA_status.cell_status[0].header);
             //int header = status_tracker.ngscope_CA_status.cell_status[0].header;
             //int dl_prb = status_tracker.ngscope_CA_status.cell_status[0].cell_dl_prb[header];
             //int ul_prb = status_tracker.ngscope_CA_status.cell_status[0].cell_ul_prb[header];
             //printf("CELL header:%d prb:%d %d \n", header, dl_prb, ul_prb); 
         }
+            
+        /*   Logging the DCI */
+        // Update the current header
+        for(int i=0;i<nof_dev;i++){
+            curr_header[i] = status_tracker.ngscope_CA_status.cell_status[i].header;
+        }
+        auto_dci_logging(&status_tracker.ngscope_CA_status, fd_dl, fd_ul, cell_ready, curr_header, last_header, nof_dev); 
+        for(int i=0;i<nof_dev;i++){
+            last_header[i] = curr_header[i];
+        }
+        //printf("end status\n"); 
+        update_status_header(&status_tracker.ngscope_CA_status);
+        //printf("status header:%d\n", status_tracker.ngscope_CA_status.header);
     }
     printf("Close Status Tracker!\n");
     

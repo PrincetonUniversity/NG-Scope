@@ -14,12 +14,16 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#include "ngscope_def.h"
+
 typedef struct {
   int      nof_subframes;
   int      cpu_affinity;
   bool     disable_plots;
   bool     disable_plots_except_constellation;
   bool     disable_cfo;
+  bool     log_dl;
+  bool     log_ul;
   uint32_t time_offset;
   int      force_N_id_2;
   uint16_t rnti;
@@ -36,6 +40,10 @@ typedef struct {
   int      rf_index;
   uint32_t rf_nof_rx_ant;
   double   rf_freq;
+
+  long long  rf_freq_vec[MAX_NOF_RF_DEV];
+  uint32_t rx_nof_rx_ant_vec[MAX_NOF_RF_DEV];
+
   float    rf_gain;
   int      net_port;
   char*    net_address;

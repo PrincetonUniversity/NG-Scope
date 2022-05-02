@@ -43,4 +43,12 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
                                         float decode_prob, float corr,
                                         srsran_dci_ul_t* dci_ul,
                                         srsran_pusch_grant_t* dci_ul_grant);
+
+
+SRSRAN_API int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                                        srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL],
+                                        uint32_t nof_location, uint32_t nof_cce, uint32_t sf_idx,
+                                        ngscope_dci_per_sub_t* dci_per_sub);
+
+
 #endif

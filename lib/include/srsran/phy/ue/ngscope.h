@@ -21,37 +21,6 @@
 #include "srsran/phy/ue/ngscope_tree.h"
 #include "srsran/phy/ue/ngscope_st.h"
 
-//#define MAX_CANDIDATES_ALL 180
-//#define MAX_NOF_FORMAT 4
-//
-//typedef struct{
-//    uint32_t mcs;
-//    uint32_t tbs;
-//    uint32_t rv;
-//    //bool     ndi;
-//}ngscope_dci_tb_t;
-//
-//
-///* only used for decoding phich*/
-//typedef struct{
-//    uint32_t n_dmrs; 
-//    uint32_t n_prb_tilde; 
-//}ngscope_dci_phich_t;
-//
-//
-//typedef struct{
-//    uint16_t rnti;
-//    uint32_t prb;
-//    uint32_t harq;
-//    int      nof_tb;
-//    bool     dl; 
-//    // information of the transport block
-//    ngscope_dci_tb_t    tb[2];
-//
-//    // parameters stored for decoding phich     
-//    ngscope_dci_phich_t phich;  
-//}ngscope_dci_msg_t;
-//
 /* Yaxiong's dci search function */
 SRSRAN_API int srsran_ngscope_search_all_space_yx(srsran_ue_dl_t*     q,
                                  srsran_dl_sf_cfg_t* sf,

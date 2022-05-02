@@ -20,14 +20,19 @@ extern "C" {
 
 #include "srsran/srsran.h"
 
-#define MAX_NOF_DCI_DECODER 4
+#define MAX_NOF_DCI_DECODER 6
 #define MAX_NOF_RF_DEV 4
 #define NOF_LOG_SF 32
-#define NOF_LOG_SUBF NOF_LOG_SF * 10
+#define NOF_LOG_SUBF (NOF_LOG_SF * 10)
 #define MAX_MSG_PER_SUBF 10
 #define MAX_DCI_BUFFER 10
 
 #define PLOT_SF 10
+
+#define MAX_TTI 10240
+
+#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
+
 typedef struct{
     pthread_mutex_t mutex;
     pthread_cond_t  cond;

@@ -147,7 +147,7 @@ void* plot_thread_run(void* arg)
     return NULL;
 }
 
-void  plot_init(pthread_t* plot_thread){
+void  plot_init_thread(pthread_t* plot_thread){
     pthread_attr_t     attr;
     struct sched_param param;
     param.sched_priority = 0;

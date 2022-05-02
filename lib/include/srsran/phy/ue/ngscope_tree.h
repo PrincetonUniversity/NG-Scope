@@ -51,4 +51,8 @@ int srsran_ngscope_tree_solo_nodes(ngscope_dci_msg_t        dci_array[][MAX_CAND
                                     srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                                     ngscope_dci_per_sub_t*  dci_per_sub,
                                     int                     nof_location);
+
+void srsran_ngscope_tree_plot_multi(ngscope_dci_msg_t      dci_array[][MAX_CANDIDATES_ALL],
+                                    srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
+                                    uint32_t nof_location);
 #endif

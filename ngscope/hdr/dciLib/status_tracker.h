@@ -43,6 +43,7 @@ typedef struct SRSLTE_API {
 typedef struct{
     uint16_t    header;
 
+    bool        ready;
     //handle multi-thread synchronization
     uint16_t    dci_touched;
     uint16_t    token[NOF_LOG_SUBF];
@@ -58,6 +59,8 @@ typedef struct{
     uint8_t     nof_dl_msg[NOF_LOG_SUBF];
     uint8_t     nof_ul_msg[NOF_LOG_SUBF];
 
+    uint64_t    timestamp_us[NOF_LOG_SUBF];
+
     ngscope_dci_msg_t dl_msg[MAX_DCI_PER_SUB][NOF_LOG_SUBF];
     ngscope_dci_msg_t ul_msg[MAX_DCI_PER_SUB][NOF_LOG_SUBF];
 
@@ -68,7 +71,7 @@ typedef struct{
     int         nof_cell;
     int         header;
     int         cell_prb[MAX_NOF_RF_DEV];
-
+    bool        all_cell_synced;
     ngscope_cell_status_t cell_status[MAX_NOF_RF_DEV];
 }ngscope_CA_status_t;
 

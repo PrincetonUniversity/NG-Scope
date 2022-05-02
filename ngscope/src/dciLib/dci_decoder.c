@@ -16,6 +16,7 @@
 #include "ngscope/hdr/dciLib/task_scheduler.h"
 #include "ngscope/hdr/dciLib/dci_decoder.h"
 #include "ngscope/hdr/dciLib/phich_decoder.h"
+#include "ngscope/hdr/dciLib/time_stamp.h"
 
 extern bool                 go_exit;
 extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_DCI_DECODER];
@@ -98,7 +99,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     uint32_t tti = sfn * 10 + sf_idx;
 
     bool decode_pdsch = false;
-
+      
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
         decode_pdsch = true;
@@ -128,7 +129,6 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     int n = 0;
     // Now decode the PDSCH
     if(decode_pdsch){
-
         uint32_t tm = 3;
         dci_decoder->dl_sf.tti                             = tti;
         dci_decoder->dl_sf.sf_type                         = SRSRAN_SF_NORM; //Ingore the MBSFN
@@ -137,9 +137,18 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
         //n = srsran_ngscope_search_all_space_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, 
         //                                    &dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg);
-        
+
+        //uint64_t t1 = timestamp_us();        
         n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, 
                                             &dci_decoder->pdsch_cfg, dci_array, dci_location, dci_per_sub);
+        //uint64_t t2 = timestamp_us();        
+        //printf("decoder:%d finish decoding. time_spend:%ld (us)\n", dci_decoder->decoder_idx, t2-t1);
+
+        //int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+        /* prune the CSI according to a set of rules */
+        //uint32_t sf_idx = tti % 10;
+        //srsran_ngscope_dci_prune(dci_array, dci_location, nof_location, nof_cce, sf_idx, dci_per_sub);
+
     } 
     return SRSRAN_SUCCESS;
 }
@@ -179,8 +188,8 @@ void empty_dci_array(ngscope_dci_msg_t   dci_array[][MAX_CANDIDATES_ALL],
                         srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                         ngscope_dci_per_sub_t*  dci_per_sub){
     for(int i=0; i<MAX_NOF_FORMAT+1; i++){
-        ZERO_OBJECT(dci_location[i]);
         for(int j=0; j<MAX_CANDIDATES_ALL; j++){
+            ZERO_OBJECT(dci_location[j]);
             ZERO_OBJECT(dci_array[i][j]);
         }
     }
@@ -211,7 +220,9 @@ void* dci_decoder_thread(void* p){
     
         // We release the token in the last minute just before the waiting of the condition signal 
         pthread_mutex_lock(&token_mutex);
-        sf_token[dci_decoder->decoder_idx] = false;
+        if(sf_token[dci_decoder->decoder_idx] == true){
+            sf_token[dci_decoder->decoder_idx] = false;
+        }
         pthread_mutex_unlock(&token_mutex);
 
 //--->  Wait the signal 
@@ -224,13 +235,17 @@ void* dci_decoder_thread(void* p){
         uint32_t sfn    = sf_buffer[dci_decoder->decoder_idx].sfn;
         uint32_t sf_idx = sf_buffer[dci_decoder->decoder_idx].sf_idx;
         uint32_t tti    = sfn * 10 + sf_idx;
-        //printf(" Get the signal! decoder_idx:%d sfn:%d sf_idx:%d\n", 
-        //                    dci_decoder->decoder_idx, sfn, sf_idx);
+
+        //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", 
+        //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
+
         //dci_decoder_decode(dci_decoder, sf_idx, sfn);
         dci_decoder_decode(dci_decoder, sf_idx, sfn, dci_array, dci_location, &dci_per_sub);
-    
 //--->  Unlock the buffer
+        //usleep(2000);
         pthread_mutex_unlock(&sf_buffer[dci_decoder->decoder_idx].sf_mutex);
+        //printf("End of decoding decoder_idx:%d sfn:%d sf_idx:%d tti:%d\n", 
+        //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
 
         dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub);
         dci_ret.dci_per_sub  = dci_per_sub;
@@ -247,8 +262,8 @@ void* dci_decoder_thread(void* p){
         if(dci_ready.nof_dci < MAX_DCI_BUFFER){
             dci_ready.nof_dci++;
         }
-        printf("TTI :%d ul_dci: %d dl_dci:%d nof_dci:%d\n", dci_ret.tti, dci_per_sub.nof_ul_dci, 
-                                                dci_per_sub.nof_dl_dci, dci_ready.nof_dci);
+        //printf("TTI :%d ul_dci: %d dl_dci:%d nof_dci:%d\n", dci_ret.tti, dci_per_sub.nof_ul_dci, 
+        //                                        dci_per_sub.nof_dl_dci, dci_ready.nof_dci);
         pthread_cond_signal(&dci_ready.cond);
         pthread_mutex_unlock(&dci_ready.mutex);
     }

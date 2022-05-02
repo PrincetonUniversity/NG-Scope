@@ -23,6 +23,8 @@ void args_default(prog_args_t* args)
   args->sf_config                          = -1;
   args->input_file_name                    = NULL;
   args->disable_cfo                        = false;
+  args->log_dl                             = false;
+  args->log_ul                             = false;
   args->time_offset                        = 0;
   args->file_nof_prb                       = 25;
   args->file_nof_ports                     = 1;

@@ -257,11 +257,17 @@ SRSRAN_API int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
                                             uint8_t*            data[SRSRAN_MAX_CODEWORDS],
                                             bool                acks[SRSRAN_MAX_CODEWORDS]);
 
-int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
+SRSRAN_API int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
                             srsran_dl_sf_cfg_t* sf,
                             dci_blind_search_t* search_space,
                             srsran_dci_cfg_t*   dci_cfg,
                             srsran_dci_msg_t    dci_msg[SRSRAN_MAX_DCI_MSG]);
+
+SRSRAN_API bool srsran_ngscope_space_match_yx(uint16_t rnti,
+                                    uint32_t nof_cce,
+                                    uint32_t sf_idx,
+                                    uint32_t ncce,
+                                    srsran_dci_format_t format);
 
 /* Functions used for testing purposes */
 SRSRAN_API int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,

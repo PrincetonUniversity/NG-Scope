@@ -456,3 +456,28 @@ int srsran_ngscope_tree_solo_nodes(ngscope_dci_msg_t        dci_array[][MAX_CAND
     }
     return SRSRAN_SUCCESS;
 }
+
+void srsran_ngscope_tree_plot_multi(ngscope_dci_msg_t      dci_array[][MAX_CANDIDATES_ALL],
+                                    srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
+                                    uint32_t nof_location)
+{
+  int loc_idx = 0;
+  while(loc_idx < nof_location){
+    for(int i=0;i<15;i++){
+        printf("|%d %d %.2f| ", dci_location[loc_idx].L, dci_location[loc_idx].ncce, dci_location[loc_idx].mean_llr);
+        for(int j=0;j<MAX_NOF_FORMAT+1;j++){
+            printf("{%d %d %1.2f %1.2f}-", dci_array[j][loc_idx].rnti, dci_array[j][loc_idx].prb,
+                        dci_array[j][loc_idx].decode_prob, dci_array[j][loc_idx].corr);
+        }
+        //if( (i==0) || (i==2) || (i==6)) printf("\n");
+        if( (i%2 == 0) ) printf("\n");
+
+        loc_idx++;
+        if(loc_idx>= nof_location){
+            break;
+        }
+    }
+    printf("\n\n");
+  }
+  //printf("\n");
+}

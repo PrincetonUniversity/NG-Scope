@@ -22,6 +22,8 @@ extern bool go_exit;
 extern pthread_mutex_t     cell_mutex; 
 extern srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
 
+extern dci_ready_t              dci_ready;
+extern ngscope_status_buffer_t  dci_buffer[MAX_DCI_BUFFER];
 
 /******************* Global buffer for passing subframe IQ  ******************/ 
 ngscope_sf_buffer_t sf_buffer[MAX_NOF_DCI_DECODER] = 
@@ -209,6 +211,38 @@ void copy_sf_sync_buffer(cf_t* source[SRSRAN_MAX_PORTS],
     }
     return;
 }
+void assign_task_to_decoder(ngscope_task_scheduler_t* task_scheduler,
+                                int idle_idx, uint32_t sf_idx, uint32_t sfn,
+                                uint32_t max_num_samples,
+                                cf_t* IQ_buffer[SRSRAN_MAX_PORTS])
+{
+    //--> Lock sf buffer
+    pthread_mutex_lock(&sf_buffer[idle_idx].sf_mutex);
+
+    // Tell the scheduler that we now busy
+    pthread_mutex_lock(&token_mutex);
+    sf_token[idle_idx] = true;
+    pthread_mutex_unlock(&token_mutex);
+
+    //printf("TTI:%d --> sfn:%d sf_idx:%d\n", sf_idx + sfn * 10, sfn, sf_idx);
+    sf_buffer[idle_idx].sf_idx  = sf_idx;
+    sf_buffer[idle_idx].sfn     = sfn;
+
+    // copy the buffer source:sync_buffer dest: IQ_buffer
+    //copy_sf_sync_buffer(sync_buffer, sf_buffer[idle_idx].IQ_buffer, max_num_samples);
+    for(int p=0; p<task_scheduler->prog_args.rf_nof_rx_ant; p++){
+        memcpy(sf_buffer[idle_idx].IQ_buffer[p], IQ_buffer[p], max_num_samples*sizeof(cf_t));
+    }
+
+    // Tell the corresponding idle thread to process the signal
+    //printf("Send the conditional signal to the %d-th decoder!\n", idle_idx);
+    pthread_cond_signal(&sf_buffer[idle_idx].sf_cond);
+
+    //--> Unlock sf buffer
+    pthread_mutex_unlock(&sf_buffer[idle_idx].sf_mutex);
+
+    return;
+}
 
 int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                             //prog_args_t prog_args){ 
@@ -216,6 +250,13 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                             //srsran_ue_sync_t* ue_sync){
     int ret;
     int nof_decoder = task_scheduler->prog_args.nof_decoder;
+    //int rf_idx      = task_scheduler->prog_args.rf_index;
+
+    ngscope_dci_per_sub_t       dci_per_sub; // empty place hoder for skipped frames 
+    ngscope_status_buffer_t     dci_ret;
+
+    memset(&dci_per_sub, 0, sizeof(ngscope_dci_per_sub_t));
+    memset(&dci_ret, 0, sizeof(ngscope_status_buffer_t));
 
     uint32_t max_num_samples = 3 * SRSRAN_SF_LEN_PRB(task_scheduler->cell.nof_prb); /// Length in complex samples
     printf("nof_prb:%d max_sample:%d\n", task_scheduler->cell.nof_prb, max_num_samples);
@@ -241,6 +282,20 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
     srsran_ue_mib_t         ue_mib;    
     mib_init_imp(&ue_mib, sync_buffer, &task_scheduler->cell);
 
+    /********************** Set up the tmp buffer **********************/
+    task_tmp_buffer_t   task_tmp_buffer;
+    task_tmp_buffer.header   = 0;
+    task_tmp_buffer.tail     = 0;
+    //task_tmp_buffer.nof_buf  = 0;
+    // init the buffer
+    for(int i=0; i<MAX_TMP_BUFFER; i++){
+        for (int j = 0; j < task_scheduler->prog_args.rf_nof_rx_ant; j++) {
+            task_tmp_buffer.sf_buf[i].IQ_buffer[j] = srsran_vec_cf_malloc(max_num_samples);
+        }
+    }
+    
+    /********** End of setting up the tmp buffer **********************/
+    
     for(int i=0;i<nof_decoder;i++){
         // init the subframe buffer
         for (int j = 0; j < task_scheduler->prog_args.rf_nof_rx_ant; j++) {
@@ -283,6 +338,9 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                 ue_mib_decode_sfn(&ue_mib, &task_scheduler->cell, &sfn_tmp, decode_pdcch);
 
                 //printf("Current sfn:%d ",sfn);
+                if(sfn != sfn_tmp){
+                    printf("current sfn:%d decoded sfn:%d\n",sfn, sfn_tmp);
+                }
                 if(sfn_tmp > 0){
                     //printf("decoded sfn from:%d\n",sfn_tmp);
                     sfn = sfn_tmp;
@@ -290,52 +348,73 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                 }
                 //printf("\n");
             }
-            if ( (sf_idx == 9)) {
-                sfn++;  // we increase the sfn incase MIB decoding failed
-                if(sfn == 1024){ sfn = 0; }
-            }
             /******************* END OF SFN handling *******************/
            
             /***************** Tell the decoder to decode the PDCCH *********/          
             if(decode_pdcch){  // We only decode when we got the SFN
 
                 /** Now we need to know where shall we put the IQ data of each subframe*/
-                int idle_idx =  find_idle_decoder(nof_decoder);
+                int idle_idx  = -1;
+
+                idle_idx  =  find_idle_decoder(nof_decoder);
                 if(idle_idx < 0){
-                    //printf("We skip one subframe since we don't have idle decoder!\n");
-                    //usleep(100); // sleep for a while so that we don't query that frequent
+                    printf("Skiping %d subframe since Decoder Blocked! \
+                            We suggest increasing the number deocder per cell.\n", sfn*10 + sf_idx);
+
+                    /* Store the data into a tmp buffer. Later, when we have idle decoder, we will decode it*/ 
+                    task_tmp_buffer.header++;
+                    task_tmp_buffer.header = task_tmp_buffer.header % MAX_TMP_BUFFER; // advace the header first
+                    //printf("Nof buffer:%d %d\n", task_tmp_buffer.header, task_tmp_buffer.nof_buf);
+
+                    task_tmp_buffer.sf_buf[task_tmp_buffer.header].sf_idx   = sf_idx;
+                    task_tmp_buffer.sf_buf[task_tmp_buffer.header].sfn      = sfn;
+                    for(int p=0; p<task_scheduler->prog_args.rf_nof_rx_ant; p++){
+                        memcpy(task_tmp_buffer.sf_buf[task_tmp_buffer.header].IQ_buffer[p], 
+                                                sync_buffer[p], max_num_samples*sizeof(cf_t));
+                    }   
+                    
+                    if((sf_idx == 9)) {
+                        sfn++;  // we increase the sfn incase MIB decoding failed
+                        if(sfn == 1024){ sfn = 0; }
+                    }
                     continue;
                 }
 
-//--> Lock sf buffer
-                pthread_mutex_lock(&sf_buffer[idle_idx].sf_mutex);
-                
-                //printf("1\n"); 
-                // Tell the scheduler that we now busy
-                pthread_mutex_lock(&token_mutex);
-                sf_token[idle_idx] = true;
-                pthread_mutex_unlock(&token_mutex);
+                // Assign the Task to the corresponding decoder 
+                assign_task_to_decoder(task_scheduler, idle_idx, sf_idx, sfn, max_num_samples, sync_buffer);
 
-                //printf("TTI:%d -->\n", sf_idx + sfn * 10);
-                sf_buffer[idle_idx].sf_idx  = sf_idx;
-                sf_buffer[idle_idx].sfn     = sfn;
+                /* Getting here means we have idle decoder, so we check if we have sf in tmp buffer*/ 
+                if(task_tmp_buffer.header !=  task_tmp_buffer.tail){
+                    printf("We have something in the tmp buffer!\n"); 
+                    while(true){
+                        idle_idx  =  find_idle_decoder(nof_decoder);
+                        if(idle_idx < 0){ 
+                            break;  
+                        }else{
+                            // Assign the Task to the corresponding decoder
+                            task_tmp_buffer.tail++; 
+                            task_tmp_buffer.tail = task_tmp_buffer.tail % MAX_TMP_BUFFER;
+                            int tmp_buf_idx = task_tmp_buffer.tail;
+                            int tmp_sf_idx  = task_tmp_buffer.sf_buf[tmp_buf_idx].sf_idx;
+                            int tmp_sfn     = task_tmp_buffer.sf_buf[tmp_buf_idx].sfn;
 
-                //printf("2\n"); 
-                // copy the buffer source:sync_buffer dest: IQ_buffer
-                //copy_sf_sync_buffer(sync_buffer, sf_buffer[idle_idx].IQ_buffer, max_num_samples);
-                for(int p=0; p<task_scheduler->prog_args.rf_nof_rx_ant; p++){
-                    //printf("p:%d\n",p); 
-                    memcpy(sf_buffer[idle_idx].IQ_buffer[p], sync_buffer[p], max_num_samples*sizeof(cf_t));
+                            printf("Assigning tti:%d to the %d-th decoder since it is idle!\n", 
+                                                            tmp_sfn * 10 + tmp_sf_idx, idle_idx); 
+
+                            assign_task_to_decoder(task_scheduler, idle_idx, tmp_sf_idx, tmp_sfn, max_num_samples,
+                                     task_tmp_buffer.sf_buf[tmp_buf_idx].IQ_buffer);
+                            if(task_tmp_buffer.header == task_tmp_buffer.tail){
+                                break;
+                            }
+                        }
+                    }
                 }
-
-                // Tell the corresponding idle thread to process the signal
-                //printf("Send the conditional signal to the %d-th decoder!\n", idle_idx);
-                pthread_cond_signal(&sf_buffer[idle_idx].sf_cond);
-
-//--> Unlock sf buffer
-                pthread_mutex_unlock(&sf_buffer[idle_idx].sf_mutex);
             }
-        }
+            if((sf_idx == 9)) {
+                sfn++;  // we increase the sfn incase MIB decoding failed
+                if(sfn == 1024){ sfn = 0; }
+            }
+        }// endof if(decode_pdcch)
     }// end of while
 
 

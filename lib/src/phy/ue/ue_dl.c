@@ -653,6 +653,7 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
           // Compute decoded message correlation to drastically reduce false alarm probability
           float corr = srsran_pdcch_msg_corr(&q->pdcch, &dci_msg[nof_dci]);
           dci_msg[nof_dci].corr = corr;
+          //printf("corr:%f\n", corr);
           // Skip candidate if the threshold is not reached
           // 0.5 is set from pdcch_test
           if (!isnormal(corr) || corr < 0.5f) {
@@ -704,6 +705,45 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
 }
 
 
+bool srsran_ngscope_space_match_yx(uint16_t rnti, 
+                                    uint32_t nof_cce, 
+                                    uint32_t sf_idx, 
+                                    uint32_t ncce, 
+                                    srsran_dci_format_t format)
+{ 
+    int ue_specific = srsran_ngscope_ue_locations_ncce_check_ue_specific(nof_cce, 
+                                sf_idx, rnti, ncce); 
+    int common_space = srsran_ngscope_ue_locations_ncce_check_common(nof_cce, 
+                                sf_idx, rnti, ncce); 
+
+    //  // Skip if the message location doesn't match with its search space
+    uint32_t is_common = srsran_ngscope_is_common_space(format);
+
+    if(is_common == 0){
+      if( (ue_specific == 0) && (common_space == 0)) {
+        //printf("UE specific and common doesn't match!\n");
+        //continue;
+        return false;
+      }
+    }
+    if(is_common == 1){
+      if( (ue_specific == 1) && (common_space == 0)){
+        //printf("Location Matched!\n");
+      }else{
+        //continue;
+        return false;
+      }
+    }
+    if(is_common == 2){
+      if( (ue_specific == 0) && (common_space == 1)){
+        //printf("Location Matched!\n");
+      }else{
+        //continue;
+        return false;
+      }
+    }
+    return true;
+}
 static int find_dci_ss(srsran_ue_dl_t*            q,
                        srsran_dl_sf_cfg_t*        sf,
                        srsran_ue_dl_cfg_t*        cfg,

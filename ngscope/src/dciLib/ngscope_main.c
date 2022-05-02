@@ -35,16 +35,20 @@ int ngscope_main(ngscope_config_t* config, prog_args_t* prog_args){
 
     nof_rf_dev = config->nof_rf_dev;
     prog_args->nof_rf_dev       = nof_rf_dev;
+    prog_args->log_dl           = config->dci_log_config.log_dl;
+    prog_args->log_ul           = config->dci_log_config.log_ul;
 
     /* Task scheduler thread */
     pthread_t task_thd[MAX_NOF_RF_DEV];
     for(int i=0; i<nof_rf_dev; i++){
         prog_args->rf_index      = i;
         prog_args->rf_freq       = config->rf_config[i].rf_freq;
+        prog_args->rf_freq_vec[i]= config->rf_config[i].rf_freq;
+
         prog_args->force_N_id_2  = config->rf_config[i].N_id_2;
         prog_args->nof_decoder   = config->rf_config[i].nof_thread;
         prog_args->disable_plots = config->rf_config[i].disable_plot;
-
+        
         prog_args->rf_args    = (char*) malloc(100 * sizeof(char));
         strcpy(prog_args->rf_args, config->rf_config[i].rf_args);
         pthread_create(&task_thd[i], NULL, task_scheduler_thread, (void*)(prog_args));
