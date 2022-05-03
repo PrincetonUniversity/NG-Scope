@@ -28,6 +28,8 @@ typedef struct{
     bool     dl;
     float    decode_prob;
     float    corr; 
+
+    srsran_dci_format_t format;
     // information of the transport block
     ngscope_dci_tb_t    tb[2];
 

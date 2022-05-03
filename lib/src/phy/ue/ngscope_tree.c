@@ -20,10 +20,12 @@ void srsran_ngscope_tree_copy_dci_fromArray2PerSub(ngscope_dci_msg_t dci_array[]
     if(format == 0){
         // Format 0 uplink
         dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci] = dci_array[format][idx];
+        dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci].format = SRSRAN_DCI_FORMAT0;
         dci_per_sub->nof_ul_dci++;
     }else{
         // Downlink dci messages
         dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci] = dci_array[format][idx];
+        dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci].format = ngscope_index_to_format(format);
         dci_per_sub->nof_dl_dci++;
     }
     ZERO_OBJECT(dci_array[format][idx]);
@@ -207,17 +209,20 @@ uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t* q, uint32_t cfi, s
     return nof_blk * 15; 
 }
 
-static int match_two_dci_vec(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], int root, int child){
+static int match_two_dci_vec(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], int root, int child, int*  matched_format){
+    int nof_matched = 0;
     for(int i=0;i<MAX_NOF_FORMAT+1;i++){
         //printf("ROOT-RNTI:%d Child-RNTI:%d ",dci_array[i][root].rnti, dci_array[i][child].rnti);
         if( (dci_array[i][root].rnti > 0) && (dci_array[i][child].rnti > 0)){
             if(dci_array[i][root].rnti == dci_array[i][child].rnti){
-                return i; 
+                matched_format[nof_matched] = i;
+                nof_matched++;
+                //return i; 
             }
         }
     }
     //printf("\n");
-    return -1; 
+    return nof_matched; 
 }
 /* Child-parent matching process -->
  * If the RNTI (acutally dci will be more accurate) of the child and parent matches
@@ -228,11 +233,12 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_A
                                         int nof_location, 
                                         int blk_idx, 
                                         int loc_idx,
+                                        int* nof_matched_dci,
                                         int* root_idx, 
                                         int* format_idx)
 {
     int start_idx   = blk_idx * 15; 
-    int matched_ret; 
+    int nof_matched = 0; 
     int root;
     int left_child;
     // In a tree, only the node with idx 0-6 can be parent node
@@ -245,19 +251,65 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_A
         if( (root >loc_idx) || (left_child > loc_idx)){
             break;
         }
-        matched_ret = match_two_dci_vec(dci_array, root, left_child);
-        if(matched_ret >= 0){
+        //int matched_format[MAX_NOF_FORMAT+1] = {0};
+        nof_matched = match_two_dci_vec(dci_array, root, left_child, format_idx);
+        if(nof_matched > 0){
             //printf("FIND MATACH!\n");
             break;
         }
     }
-    if(matched_ret >= 0){
+    if(nof_matched > 0){
         //printf("FIND MATACH!\n");
-        *format_idx = matched_ret; 
-        *root_idx   = root;
+        //*format_idx = matched_ret; 
+        *nof_matched_dci    = nof_matched;
+        *root_idx           = root;
    }
 
     return;
+}
+
+int  srsran_ngscope_tree_prune_node(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], 
+                                        int nof_matched,
+                                        int root, 
+                                        int* format_vec,
+                                        int* format_idx)
+{
+    int nof_format = nof_matched;
+    // count number of format 0 and 4 
+    int cnt = 0;
+    int idx[2] = {0};
+    for(int i=0; i<nof_format; i++){
+        if( (format_vec[i] == 0) || (format_vec[i] == 4)){
+            //idx[cnt] = i; 
+            idx[cnt] = format_vec[i]; 
+            cnt++;
+        }
+    } 
+    if(cnt == 1){
+        /* If there is only one dci with format 0 or 4, return it */
+        *format_idx = idx[0];
+        return 1;
+    }else if(cnt == 2){
+        /* If there are two dcis with format 0 or 4, pick the high corr*/
+        *format_idx = dci_array[idx[0]][root].corr > dci_array[idx[1]][root].corr ? idx[0]:idx[1];
+        return 1; 
+    }else if(cnt == 0){
+        /* if there are multiple non format 0/4 dcis, pick the one with the highest corr */
+        int tmp_idx = 0;
+        float tmp_corr = 0;
+        for(int i=0; i<nof_format; i++){
+            if( dci_array[format_vec[i]][root].corr >= tmp_corr){
+                tmp_corr = dci_array[format_vec[i]][root].corr;
+                tmp_idx  = format_vec[i];
+            }
+        } 
+        *format_idx = tmp_idx;
+        return 1;
+    }else{
+        printf("ERROR: The number format 0/4 must be in the range of [0, 2]!\n");
+        return 0;
+    }
+    return 0;        
 }
 
 bool is_leaf_node(int index_in_tree){

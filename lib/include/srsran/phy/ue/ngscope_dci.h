@@ -50,5 +50,6 @@ SRSRAN_API int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDID
                                         uint32_t nof_location, uint32_t nof_cce, uint32_t sf_idx,
                                         ngscope_dci_per_sub_t* dci_per_sub);
 
+int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q);
 
 #endif

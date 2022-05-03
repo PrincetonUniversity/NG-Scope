@@ -70,7 +70,8 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
   nof_location = srsran_ngscope_search_space_block_yx(&q->pdcch, sf->cfi, dci_location);
 
-  //printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
+  uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+  printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
   // Test purpose
   //srsran_ngscope_tree_check_nodes(dci_location, 5);
   //int nof_loc = 0;
@@ -129,39 +130,87 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                 } 
             }
         }
-        int matched_format = -1;
-        int matched_root = -1;
-        srsran_ngscope_tree_CP_match(dci_array, nof_location, blk_idx, loc_idx, &matched_root, &matched_format);
+        int matched_format_vec[MAX_NOF_FORMAT+1] = {0};
+        int matched_root    = -1;
+        int nof_matched     = 0;
+        srsran_ngscope_tree_CP_match(dci_array, nof_location, blk_idx, loc_idx, &nof_matched, &matched_root, matched_format_vec);
+          
+        /********************* Prune the single node *************************/
+        if( nof_matched > 0){
+            int format_idx      = matched_format_vec[0]; 
+            int pruned_nof_dci  = 1;
 
-        if( matched_root >= 0){
-            //printf("Matched root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", 
-            //    matched_root, matched_format, dci_location[matched_root].L, dci_location[matched_root].ncce,
-            //    dci_array[matched_format][matched_root].rnti, dci_array[matched_format][matched_root].prb, 
-            //       dci_array[matched_format][matched_root].decode_prob, dci_array[matched_format][matched_root].corr); 
+            // Prune the dci messages, if we have more than 1 matched RNTI found 
+            if(nof_matched > 1){
+                pruned_nof_dci = srsran_ngscope_tree_prune_node(dci_array, nof_matched, matched_root, matched_format_vec, &format_idx);
+            }
+            
+            //for(int i=0; i< nof_matched; i++){
+            //    printf("TTI:%d Matched num:%d root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", \
+            //        sf->tti, nof_matched, matched_root, matched_format_vec[i], dci_location[matched_root].L, dci_location[matched_root].ncce, \
+            //        dci_array[matched_format_vec[i]][matched_root].rnti, dci_array[matched_format_vec[i]][matched_root].prb, \
+            //           dci_array[matched_format_vec[i]][matched_root].decode_prob, dci_array[matched_format_vec[i]][matched_root].corr); 
 
-            // copy the matched dci message to the results
-            srsran_ngscope_tree_copy_dci_fromArray2PerSub(dci_array, dci_per_sub, matched_format, matched_root);
+            //    bool space_match_specific = srsran_ngscope_ue_locations_ncce_check_ue_specific(nof_cce, sf->tti % 10,\
+            //                                 dci_array[matched_format_vec[i]][matched_root].rnti, \
+            //                                 dci_location[matched_root].ncce); 
+ 
+            //    bool space_match_common  = srsran_ngscope_ue_locations_ncce_check_common(nof_cce, sf->tti % 10, \
+            //                                 dci_array[matched_format_vec[i]][matched_root].rnti, \
+            //                                 dci_location[matched_root].ncce); 
+            //   
+            //    printf(" space Matched? ue_specific:%d commom:%d\n", space_match_specific, space_match_common);
+            //}    
 
-            // check the locations 
-            srsran_ngscope_tree_check_nodes(dci_location, matched_root);
+            printf("TTI:%d Matched num:%d root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", \
+                    sf->tti, nof_matched, matched_root, format_idx, dci_location[matched_root].L, dci_location[matched_root].ncce, \
+                    dci_array[format_idx][matched_root].rnti, dci_array[format_idx][matched_root].prb, \
+                       dci_array[format_idx][matched_root].decode_prob, dci_array[format_idx][matched_root].corr); 
 
-            // delete the messages in the dci array 
-            srsran_ngscope_tree_clear_dciArray_nodes(dci_array, matched_root);
+            bool space_match_specific = srsran_ngscope_ue_locations_ncce_check_ue_specific(nof_cce, sf->tti % 10,\
+                                         dci_array[format_idx][matched_root].rnti, \
+                                         dci_location[matched_root].ncce); 
+
+            bool space_match_common  = srsran_ngscope_ue_locations_ncce_check_common(nof_cce, sf->tti % 10, \
+                                         dci_array[format_idx][matched_root].rnti, \
+                                         dci_location[matched_root].ncce); 
+           
+            printf(" space Matched? ue_specific:%d commom:%d\n", space_match_specific, space_match_common);
+
+            if(pruned_nof_dci == 1){
+                bool space_match = true;
+                if( (format_idx != 0) && (format_idx != 4)){
+                    //TODO Do we need to use space match for other formats?
+                    //space_match = srsran_ngscope_space_match_yx(dci_array[format_idx][matched_root].rnti, \
+                    //                nof_cce, sf->tti % 10, dci_location[matched_root].ncce, ngscope_index_to_format(format_idx));
+                }
+                if(space_match){
+                    // copy the matched dci message to the results
+                    srsran_ngscope_tree_copy_dci_fromArray2PerSub(dci_array, dci_per_sub, format_idx, matched_root);
+
+                    // check the locations 
+                    srsran_ngscope_tree_check_nodes(dci_location, matched_root);
+
+                    // delete the messages in the dci array 
+                    srsran_ngscope_tree_clear_dciArray_nodes(dci_array, matched_root);
+                }
+            } 
         }
         dci_location[loc_idx].checked = true;
         loc_idx++;
       }
       blk_idx++;
   } 
-
+  srsran_ngscope_dci_prune_ret(dci_per_sub); 
   //int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
   //printf("after matching, there are %d non-empty nodes!\n", nof_node);
 
-  ////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
+  //////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
   //if(nof_node > 0){
   //  srsran_ngscope_tree_plot_multi(dci_array, dci_location, nof_location);
   //}
-  //uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+  ////uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+
   //srsran_ngscope_dci_prune(dci_array, dci_location, nof_location, nof_cce, sf->tti % 10, dci_per_sub);
   //nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
   //printf("after pruning, there are %d non-empty nodes!\n\n", nof_node);
@@ -173,6 +222,8 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 //  // The plot is block based --> we plot each block in one row
   //srsran_ngscope_tree_plot_multi(dci_array, dci_location, nof_location);
   //usleep(800);
+  printf("\n");
+
   return ret;
 }
 
@@ -241,8 +292,8 @@ int srsran_ngscope_search_all_space_yx(srsran_ue_dl_t*     q,
   }
 
   nof_location = srsran_ngscope_search_space_block_yx(&q->pdcch, sf->cfi, dci_location);
-  int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
 
+  int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
   printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
 
   for(int i=0;i<nof_location;i++){

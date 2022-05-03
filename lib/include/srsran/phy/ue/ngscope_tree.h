@@ -35,9 +35,15 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t  dci_array[][MAX_CANDIDATES_
                                     int             nof_location, 
                                     int             blk_idx, 
                                     int             loc_idx, 
+                                    int*            nof_matched,
                                     int*            root_idx,
                                     int*            format_idx);
 
+int  srsran_ngscope_tree_prune_node(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                                        int nof_matched,
+                                        int root,
+                                        int* format_vec,
+                                        int* format_idx);
 int srsran_ngscope_tree_check_nodes(srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                                         int                 index);
 

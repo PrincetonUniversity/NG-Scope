@@ -534,7 +534,9 @@ static int dci_blind_search(srsran_ue_dl_t*     q,
  */
 
 // Check the UE-specific search space 
-static uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, uint32_t this_ncce) {
+uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, 
+                                                                    uint32_t this_ncce) 
+{
     int l; // this must be int because of the for(;;--) loop
     uint32_t i, L, m;
     uint32_t Yk, ncce;
@@ -567,7 +569,9 @@ static uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_
 }
 
 // Check the common search space 
-static uint32_t srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, uint32_t this_ncce) {
+uint32_t srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, 
+                                                                    uint32_t this_ncce) 
+{
     int l; // this must be int because of the for(;;--) loop
     uint32_t i, L;
     uint32_t ncce;

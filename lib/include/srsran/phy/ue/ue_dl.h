@@ -269,6 +269,11 @@ SRSRAN_API bool srsran_ngscope_space_match_yx(uint16_t rnti,
                                     uint32_t ncce,
                                     srsran_dci_format_t format);
 
+SRSRAN_API uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti,
+                                                                    uint32_t this_ncce);
+
+SRSRAN_API uint32_t srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti,
+                                                                    uint32_t this_ncce);
 /* Functions used for testing purposes */
 SRSRAN_API int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,
                                  srsran_dl_sf_cfg_t* sf,

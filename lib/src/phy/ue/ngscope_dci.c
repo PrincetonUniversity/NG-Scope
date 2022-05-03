@@ -111,6 +111,47 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     return;
 }
 
+   
+int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q)
+{
+    int nof_dl_msg  = q->nof_dl_dci;
+    ngscope_dci_msg_t  dl_msg[MAX_DCI_PER_SUB];
+    int cnt = 0;
+    for(int i=0; i<nof_dl_msg; i++){
+        switch (q->dl_msg[i].format){
+            case SRSRAN_DCI_FORMAT2:
+                if(q->dl_msg[i].corr > 0.3){
+                    memcpy(&dl_msg[cnt], &q->dl_msg[i], sizeof(ngscope_dci_msg_t));
+                    cnt++;
+                }
+                break;
+            case SRSRAN_DCI_FORMAT1C:
+                // SI-RNTI Paging-RNTI RA-RNTI
+                if( (q->dl_msg[i].rnti >= 0xFFF4) || (q->dl_msg[i].rnti <= 0x0A)){
+                    memcpy(&dl_msg[cnt], &q->dl_msg[i], sizeof(ngscope_dci_msg_t));
+                    cnt++;
+                }
+                break;
+            case SRSRAN_DCI_FORMAT1:
+            case SRSRAN_DCI_FORMAT1A:
+            case SRSRAN_DCI_FORMAT1B:
+                if( (q->dl_msg[i].corr > 0.5) && (q->dl_msg[i].decode_prob > 75)){
+                    memcpy(&dl_msg[cnt], &q->dl_msg[i], sizeof(ngscope_dci_msg_t));
+                    cnt++;
+                }
+                break;
+            default:
+                printf("Non-recongized DCI format:%d!\n", q->dl_msg[i].format);
+                break;
+        }
+    } 
+    memset(q->dl_msg, 0, nof_dl_msg * sizeof(ngscope_dci_msg_t));
+    memcpy(q->dl_msg, dl_msg, cnt * sizeof(ngscope_dci_msg_t));
+    
+    q->nof_dl_dci = cnt;
+    return 0;
+}
+
 int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                 srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
                                 uint32_t nof_location, uint32_t nof_cce, uint32_t sf_idx,
@@ -135,7 +176,7 @@ int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                 //uint32_t ncce = 0;
                 //printf("ncce:%d \n", ncce);
                 if(loc_match == false){
-                    ZERO_OBJECT(dci_array[j][i]);
+                    //ZERO_OBJECT(dci_array[j][i]);
                 }
             }
         }

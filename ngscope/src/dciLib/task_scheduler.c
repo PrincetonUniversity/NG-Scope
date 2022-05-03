@@ -358,7 +358,7 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
 
                 idle_idx  =  find_idle_decoder(nof_decoder);
                 if(idle_idx < 0){
-                    printf("Skiping %d subframe since Decoder Blocked! \
+                    //printf("Skiping %d subframe since Decoder Blocked! \
                             We suggest increasing the number deocder per cell.\n", sfn*10 + sf_idx);
 
                     /* Store the data into a tmp buffer. Later, when we have idle decoder, we will decode it*/ 
@@ -385,7 +385,7 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
 
                 /* Getting here means we have idle decoder, so we check if we have sf in tmp buffer*/ 
                 if(task_tmp_buffer.header !=  task_tmp_buffer.tail){
-                    printf("We have something in the tmp buffer!\n"); 
+                    //printf("We have something in the tmp buffer!\n"); 
                     while(true){
                         idle_idx  =  find_idle_decoder(nof_decoder);
                         if(idle_idx < 0){ 
@@ -398,8 +398,8 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                             int tmp_sf_idx  = task_tmp_buffer.sf_buf[tmp_buf_idx].sf_idx;
                             int tmp_sfn     = task_tmp_buffer.sf_buf[tmp_buf_idx].sfn;
 
-                            printf("Assigning tti:%d to the %d-th decoder since it is idle!\n", 
-                                                            tmp_sfn * 10 + tmp_sf_idx, idle_idx); 
+                            //printf("Assigning tti:%d to the %d-th decoder since it is idle!\n", 
+                            //                                tmp_sfn * 10 + tmp_sf_idx, idle_idx); 
 
                             assign_task_to_decoder(task_scheduler, idle_idx, tmp_sf_idx, tmp_sfn, max_num_samples,
                                      task_tmp_buffer.sf_buf[tmp_buf_idx].IQ_buffer);
