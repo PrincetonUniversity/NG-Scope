@@ -79,6 +79,7 @@ typedef struct{
 typedef struct{
     ngscope_CA_status_t ngscope_CA_status;
     ngscope_ue_list_t   ue_list;
+    int                 remote_sock;
 }ngscope_status_tracker_t;
 
 void* status_tracker_thread(void* p);

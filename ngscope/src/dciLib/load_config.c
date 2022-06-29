@@ -28,7 +28,17 @@ int ngscope_read_config(ngscope_config_t* config){
     }
     printf("read nof rf_dev:%d\n", config->nof_rf_dev);
     
+    if(! config_lookup_int(cfg, "rnti", &config->rnti)){
+        printf("ERROR: reading rnti\n");
+    }
+    printf("read nof rf_dev:%d\n", config->rnti);
+     
+    if(! config_lookup_bool(cfg, "remote_enable", &config->remote_enable)){
+        printf("ERROR: reading remote_enable\n");
+    }
+    printf("read remote_enable:%d\n", config->remote_enable);
     
+
 //    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){
 //        printf("ERROR: reading con_time_s\n");
 //    }

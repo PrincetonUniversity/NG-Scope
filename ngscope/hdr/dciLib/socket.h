@@ -1,5 +1,5 @@
-#ifndef NGSCOPE_TIME_S_H
-#define NGSCOPE_TIME_S_H
+#ifndef NGSCOPE_SOCKET_H
+#define NGSCOPE_SOCKET_H
 
 #include <assert.h>
 #include <math.h>
@@ -15,16 +15,13 @@
 #include <stdint.h>
 #include <sys/socket.h>
 
+#include "srsran/srsran.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "srsran/srsran.h"
-
-/* Timestamp related function */
-int64_t timestamp_ns();
-int64_t timestamp_us();
-int64_t timestamp_ms();
-
+int accept_slave_connect(int* server_fd, int* client_fd_vec, int portNum);
+int connectServer();
+void ngscope_update_dci(int sock, uint64_t time_stamp, uint16_t tti, ngscope_dci_msg_t dci);
 #endif

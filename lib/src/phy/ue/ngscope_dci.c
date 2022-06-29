@@ -116,6 +116,10 @@ int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q)
 {
     int nof_dl_msg  = q->nof_dl_dci;
     ngscope_dci_msg_t  dl_msg[MAX_DCI_PER_SUB];
+    if(nof_dl_msg > MAX_DCI_PER_SUB){
+        printf("\n\n\n\n nof_dl_msg:%d cannot be larger than MAX DCI_PER SUB \n\n\n\n", nof_dl_msg);
+        return 0; 
+    }
     int cnt = 0;
     for(int i=0; i<nof_dl_msg; i++){
         switch (q->dl_msg[i].format){
@@ -133,6 +137,11 @@ int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q)
                 }
                 break;
             case SRSRAN_DCI_FORMAT1:
+                if( q->dl_msg[i].decode_prob > 75){
+                    memcpy(&dl_msg[cnt], &q->dl_msg[i], sizeof(ngscope_dci_msg_t));
+                    cnt++;
+                }
+                break;
             case SRSRAN_DCI_FORMAT1A:
             case SRSRAN_DCI_FORMAT1B:
                 if( (q->dl_msg[i].corr > 0.5) && (q->dl_msg[i].decode_prob > 75)){
@@ -141,7 +150,7 @@ int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q)
                 }
                 break;
             default:
-                printf("Non-recongized DCI format:%d!\n", q->dl_msg[i].format);
+                printf("Non-recongized DCI format:%d! i:%d nof_dl_msg:%d\n", q->dl_msg[i].format, i, nof_dl_msg);
                 break;
         }
     } 

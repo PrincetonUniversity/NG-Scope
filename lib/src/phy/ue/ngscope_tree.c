@@ -17,16 +17,20 @@ void srsran_ngscope_tree_copy_dci_fromArray2PerSub(ngscope_dci_msg_t dci_array[]
         ERROR("Format or IDX is invalid!\n");
         return;
     }
-    if(format == 0){
-        // Format 0 uplink
-        dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci] = dci_array[format][idx];
-        dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci].format = SRSRAN_DCI_FORMAT0;
-        dci_per_sub->nof_ul_dci++;
+    if((format == 0)  ){
+        if(dci_per_sub->nof_ul_dci < MAX_DCI_PER_SUB){
+            // Format 0 uplink (we only record maximum of 10 message per subframe )
+            dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci] = dci_array[format][idx];
+            dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci].format = SRSRAN_DCI_FORMAT0;
+            dci_per_sub->nof_ul_dci++;
+        }
     }else{
-        // Downlink dci messages
-        dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci] = dci_array[format][idx];
-        dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci].format = ngscope_index_to_format(format);
-        dci_per_sub->nof_dl_dci++;
+        if(dci_per_sub->nof_dl_dci < MAX_DCI_PER_SUB){
+            // Downlink dci messages (we only record maximum of 10 message per subframe )
+            dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci] = dci_array[format][idx];
+            dci_per_sub->dl_msg[dci_per_sub->nof_dl_dci].format = ngscope_index_to_format(format);
+            dci_per_sub->nof_dl_dci++;
+        }
     }
     ZERO_OBJECT(dci_array[format][idx]);
     return;

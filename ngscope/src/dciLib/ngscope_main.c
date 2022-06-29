@@ -37,6 +37,8 @@ int ngscope_main(ngscope_config_t* config, prog_args_t* prog_args){
     prog_args->nof_rf_dev       = nof_rf_dev;
     prog_args->log_dl           = config->dci_log_config.log_dl;
     prog_args->log_ul           = config->dci_log_config.log_ul;
+    prog_args->rnti             = (uint16_t)config->rnti;
+    prog_args->remote_enable    = config->remote_enable;
 
     /* Task scheduler thread */
     pthread_t task_thd[MAX_NOF_RF_DEV];

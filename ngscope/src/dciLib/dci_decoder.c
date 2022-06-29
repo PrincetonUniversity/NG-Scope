@@ -133,7 +133,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         dci_decoder->dl_sf.tti                             = tti;
         dci_decoder->dl_sf.sf_type                         = SRSRAN_SF_NORM; //Ingore the MBSFN
         dci_decoder->ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm;
-        dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = dci_decoder->prog_args.enable_256qam;
+        dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = true;
 
         //n = srsran_ngscope_search_all_space_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, 
         //                                    &dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg);
@@ -142,6 +142,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, 
                                             &dci_decoder->pdsch_cfg, dci_array, dci_location, dci_per_sub);
         //uint64_t t2 = timestamp_us();        
+        //printf("time_spend:%ld (us)\n", t2-t1);
         //printf("decoder:%d finish decoding. time_spend:%ld (us)\n", dci_decoder->decoder_idx, t2-t1);
 
         //int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);

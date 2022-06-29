@@ -15,7 +15,8 @@
 #include "srsgui/srsgui.h"
 #include "ngscope/hdr/dciLib/status_plot.h"
 
-#define NOF_PLOT_SF 200
+#define NOF_PLOT_SF 500
+#define MOV_AVE_LEN 5 
 extern bool go_exit;
 extern pthread_mutex_t     plot_mutex;
 extern ngscope_plot_t      plot_data;
@@ -47,6 +48,18 @@ uint16_t contineous_handled_sf(ngscope_plot_cell_t* q){
     }
     return  untouched_idx % PLOT_SF;
 }
+
+int movingAvg(int *ptrArrNumbers, int *ptrSum, int pos, int len, int nextNum)
+{
+  //Subtract the oldest number from the prev sum, add the new number
+  *ptrSum = *ptrSum - ptrArrNumbers[pos] + nextNum;
+  //Assign the nextNum to the position in the array
+  ptrArrNumbers[pos] = nextNum;
+  //return the average
+  return *ptrSum / len;
+}
+
+
 void left_shift_vec(float* vec){
     for(int i=0; i< NOF_PLOT_SF-1; i++){
         vec[i] = vec[i+1];
@@ -64,7 +77,7 @@ void* plot_thread_run(void* arg)
     sdrgui_init();
     //plot_real_t csi;
     plot_real_t p_prb_ul, p_prb_dl;
-    plot_scatter_t pdsch, pdcch;
+//    plot_scatter_t pdsch, pdcch;
     plot_waterfall_t csi_water;
 
     plot_waterfall_init(&csi_water, nof_sub, 100);
@@ -74,17 +87,17 @@ void* plot_thread_run(void* arg)
     plot_waterfall_setSpectrogramXLabel(&csi_water, "Subcarrier Index"); 
     plot_waterfall_setSpectrogramYLabel(&csi_water, "Time"); 
 
-    plot_scatter_init(&pdsch);
-    plot_scatter_setTitle(&pdsch, "PDSCH - Equalized Symbols");
-    plot_scatter_setXAxisScale(&pdsch, -4, 4);
-    plot_scatter_setYAxisScale(&pdsch, -4, 4);
-    plot_scatter_addToWindowGrid(&pdsch, (char*)"pdsch_ue", 0, 0);
-        
-    plot_scatter_init(&pdcch);
-    plot_scatter_setTitle(&pdcch, "PDCCH - Equalized Symbols");
-    plot_scatter_setXAxisScale(&pdcch, -4, 4);
-    plot_scatter_setYAxisScale(&pdcch, -4, 4);
-    plot_real_addToWindowGrid(&pdcch, (char*)"pdsch_ue", 0, 1);
+//    plot_scatter_init(&pdsch);
+//    plot_scatter_setTitle(&pdsch, "PDSCH - Equalized Symbols");
+//    plot_scatter_setXAxisScale(&pdsch, -4, 4);
+//    plot_scatter_setYAxisScale(&pdsch, -4, 4);
+//    plot_scatter_addToWindowGrid(&pdsch, (char*)"pdsch_ue", 0, 0);
+//        
+//    plot_scatter_init(&pdcch);
+//    plot_scatter_setTitle(&pdcch, "PDCCH - Equalized Symbols");
+//    plot_scatter_setXAxisScale(&pdcch, -4, 4);
+//    plot_scatter_setYAxisScale(&pdcch, -4, 4);
+//    plot_real_addToWindowGrid(&pdcch, (char*)"pdsch_ue", 0, 1);
 
 //    plot_real_init(&csi);
 //    plot_real_setTitle(&csi, "Channel Response - Magnitude");
@@ -96,21 +109,31 @@ void* plot_thread_run(void* arg)
     plot_real_setTitle(&p_prb_dl, "Downlink PRB usage");
     plot_real_setLabels(&p_prb_dl, "Time", "PRB");
     plot_real_setYAxisScale(&p_prb_dl, 0, nof_prb);
-    plot_real_addToWindowGrid(&p_prb_dl, (char*)"pdsch_ue", 1, 0);
+    plot_real_addToWindowGrid(&p_prb_dl, (char*)"pdsch_ue", 0, 0);
 
     plot_real_init(&p_prb_ul);
     plot_real_setTitle(&p_prb_ul, "Uplink PRB usage");
     plot_real_setLabels(&p_prb_ul, "Time", "PRB");
     plot_real_setYAxisScale(&p_prb_ul, 0, nof_prb);
-    plot_real_addToWindowGrid(&p_prb_ul, (char*)"pdsch_ue", 1, 1);
+    plot_real_addToWindowGrid(&p_prb_ul, (char*)"pdsch_ue", 1, 0);
 
     int prb_idx = 0;
     float cell_dl_prb[NOF_PLOT_SF] = {0};
     float cell_ul_prb[NOF_PLOT_SF] = {0};
+    float cell_dl_prb_ave[NOF_PLOT_SF] = {0};
+    float cell_ul_prb_ave[NOF_PLOT_SF] = {0};
+ 
+    int mv_ave_buf_dl[MOV_AVE_LEN] = {0};
+    int mv_ave_buf_ul[MOV_AVE_LEN] = {0};
+
+    int sum_dl = 0;
+    int sum_ul = 0;
+
     while(!go_exit){
         pthread_mutex_lock(&plot_mutex);    
         pthread_cond_wait(&plot_cond, &plot_mutex); 
 
+        int ave_idx = 0;
         /* Plot the data */
         uint16_t new_header     = contineous_handled_sf(&plot_data.plot_data_cell[0]);
         uint16_t last_header    = plot_data.plot_data_cell[0].header;
@@ -124,22 +147,44 @@ void* plot_thread_run(void* arg)
                 //plot_real_setNewData(&csi, csi_amp, nof_sub); 
                 plot_waterfall_appendNewData(&csi_water, csi_amp, nof_sub); 
                 plot_data.plot_data_cell[0].token[index] = 0;
-            
+                uint32_t tti =  plot_data.plot_data_cell[0].plot_data_sf[index].tti;
+                printf("plot_thread -> tti:%d\n", tti);
                 int dl_prb = plot_data.plot_data_cell[0].plot_data_sf[index].cell_dl_prb;
                 int ul_prb = plot_data.plot_data_cell[0].plot_data_sf[index].cell_ul_prb;
                 // plot PRB usage
                 if(prb_idx < NOF_PLOT_SF){
                     cell_dl_prb[prb_idx] = (float)dl_prb; 
                     cell_ul_prb[prb_idx] = (float)ul_prb; 
+                    
+                    cell_dl_prb_ave[prb_idx] = (float)movingAvg(mv_ave_buf_dl, &sum_dl, ave_idx, MOV_AVE_LEN, dl_prb); 
+                    cell_ul_prb_ave[prb_idx] = (float)movingAvg(mv_ave_buf_ul, &sum_ul, ave_idx, MOV_AVE_LEN, ul_prb); 
+                    ave_idx++;
+                    if(ave_idx >= MOV_AVE_LEN){ ave_idx = 0;}
+
                     prb_idx++;
                 }else{
                     left_shift_vec(cell_dl_prb);
                     left_shift_vec(cell_ul_prb);
+
+                    left_shift_vec(cell_dl_prb_ave);
+                    left_shift_vec(cell_ul_prb_ave);
+
+
                     cell_dl_prb[NOF_PLOT_SF-1] = (float)dl_prb; 
                     cell_ul_prb[NOF_PLOT_SF-1] = (float)ul_prb; 
+
+                    cell_dl_prb_ave[NOF_PLOT_SF-1] = (float)movingAvg(mv_ave_buf_dl, &sum_dl, ave_idx, MOV_AVE_LEN, dl_prb); 
+                    cell_ul_prb_ave[NOF_PLOT_SF-1] = (float)movingAvg(mv_ave_buf_ul, &sum_ul, ave_idx, MOV_AVE_LEN, ul_prb); 
+
+                    ave_idx++;
+                    if(ave_idx >= MOV_AVE_LEN){ ave_idx = 0;}
                 }
-                plot_real_setNewData(&p_prb_dl, cell_dl_prb, NOF_PLOT_SF); 
-                plot_real_setNewData(&p_prb_ul, cell_ul_prb, NOF_PLOT_SF); 
+                
+                //plot_real_setNewData(&p_prb_dl, cell_dl_prb, NOF_PLOT_SF); 
+                //plot_real_setNewData(&p_prb_ul, cell_ul_prb, NOF_PLOT_SF); 
+ 
+                plot_real_setNewData(&p_prb_dl, cell_dl_prb_ave, NOF_PLOT_SF); 
+                plot_real_setNewData(&p_prb_ul, cell_ul_prb_ave, NOF_PLOT_SF); 
             }
         } 
         pthread_mutex_unlock(&plot_mutex);    

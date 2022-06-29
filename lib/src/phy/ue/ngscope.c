@@ -20,6 +20,8 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   int nof_ul_dci = 0;
   int nof_dl_dci = 0;
 
+  dci_per_sub->nof_dl_dci = 0;
+  dci_per_sub->nof_ul_dci = 0;
   // Generate the whole search space
   //srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL] = {0};
 
@@ -187,6 +189,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                 if(space_match){
                     // copy the matched dci message to the results
                     srsran_ngscope_tree_copy_dci_fromArray2PerSub(dci_array, dci_per_sub, format_idx, matched_root);
+                    printf("nof_dl_msg:%d nof_ul_msg:%d \n", dci_per_sub->nof_dl_dci, dci_per_sub->nof_dl_dci);
 
                     // check the locations 
                     srsran_ngscope_tree_check_nodes(dci_location, matched_root);
@@ -202,8 +205,9 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
       blk_idx++;
   } 
   srsran_ngscope_dci_prune_ret(dci_per_sub); 
-  //int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
-  //printf("after matching, there are %d non-empty nodes!\n", nof_node);
+
+  int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
+  printf("after matching, there are %d non-empty nodes!\n", nof_node);
 
   //////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
   //if(nof_node > 0){

@@ -17,6 +17,7 @@
 #include "ngscope/hdr/dciLib/parse_args.h"
 #include "ngscope/hdr/dciLib/dci_log.h"
 #include "ngscope/hdr/dciLib/time_stamp.h"
+#include "ngscope/hdr/dciLib/socket.h"
 
 //#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
 
@@ -522,6 +523,7 @@ void* status_tracker_thread(void* p){
     int nof_prb = 0;
     int dis_plot = prog_args->disable_plots;
     uint16_t targetRNTI = prog_args->rnti;
+    int remote_enable   =  prog_args->remote_enable;
 
     FILE* fd_dl[MAX_NOF_RF_DEV];
     FILE* fd_ul[MAX_NOF_RF_DEV];
@@ -562,6 +564,14 @@ void* status_tracker_thread(void* p){
     }
     printf("\n\n\n Radio is ready! \n\n"); 
 
+    if(remote_enable){    
+        status_tracker.remote_sock = connectServer();
+        if( status_tracker.remote_sock > 0){
+            printf("\n\n\n Remote Socket Connected :%d \n\n", status_tracker.remote_sock); 
+        }else{
+            printf("\n\n\n Remote Socket Connection faliled!  \n\n"); 
+        }
+    }
     while(true){
         if(go_exit) break;
         // reset the dci queue 
@@ -605,7 +615,9 @@ void* status_tracker_thread(void* p){
         for(int i=0;i<nof_dev;i++){
             curr_header[i] = status_tracker.ngscope_CA_status.cell_status[i].header;
         }
-        auto_dci_logging(&status_tracker.ngscope_CA_status, fd_dl, fd_ul, cell_ready, curr_header, last_header, nof_dev); 
+        // log dci and if remote socket connect, send the data
+        auto_dci_logging(&status_tracker.ngscope_CA_status, fd_dl, fd_ul, \
+                    cell_ready, curr_header, last_header, nof_dev, status_tracker.remote_sock, remote_enable); 
         for(int i=0;i<nof_dev;i++){
             last_header[i] = curr_header[i];
         }
@@ -621,6 +633,11 @@ void* status_tracker_thread(void* p){
           pthread_join(plot_thread, NULL);
         }
     }
+    // close the remote socket
+    if(status_tracker.remote_sock > 0){
+        close(status_tracker.remote_sock);
+    }
+
     status_tracker_print_ue_freq(&status_tracker);
     return NULL;
 }

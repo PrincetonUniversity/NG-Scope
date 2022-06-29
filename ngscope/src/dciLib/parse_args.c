@@ -17,7 +17,8 @@ void args_default(prog_args_t* args)
   args->disable_plots                      = false;
   args->disable_plots_except_constellation = false;
   args->nof_subframes                      = -1;
-  args->rnti                               = 0xFFFF; //SRSRAN_SIRNTI;
+  //args->rnti                               = 0xFFFF; //SRSRAN_SIRNTI;
+  args->rnti                               = 0x1315; //SRSRAN_SIRNTI;
   args->force_N_id_2                       = -1; // Pick the best
   args->tdd_special_sf                     = -1;
   args->sf_config                          = -1;
@@ -36,9 +37,10 @@ void args_default(prog_args_t* args)
   args->rf_index                           = 0; 
   args->rf_freq                            = 2.355e9;
   args->rf_nof_rx_ant                      = 1;
+  args->remote_enable                      = false;
   args->enable_cfo_ref                     = false;
   args->estimator_alg                      = (char*)"interpolate";
-  args->enable_256qam                      = false;
+  args->enable_256qam                      = true;
   args->rf_gain                            = -1.0;
   args->net_port                           = -1;
   args->net_address                        = (char*)"127.0.0.1";

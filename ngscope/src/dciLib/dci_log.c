@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include "ngscope/hdr/dciLib/dci_log.h"
+#include "ngscope/hdr/dciLib/socket.h"
 
 /* Logging related function */
 void log_per_dci(ngscope_CA_status_t* status,
@@ -51,7 +52,7 @@ void log_per_dci(ngscope_CA_status_t* status,
     }else{
         // We must fill the TTI even if there is no dci message inside this subframe
         fprintf(fd_dl[cell_idx], "%d\t", q.tti[buf_idx]);
-        for(int i=0; i<13;i++){
+        for(int i=0; i<10;i++){
             fprintf(fd_dl[cell_idx], "%d\t", 0);
         }
         fprintf(fd_dl[cell_idx], "%ld\n", q.timestamp_us[buf_idx]);
@@ -80,7 +81,7 @@ void log_per_dci(ngscope_CA_status_t* status,
     }else{
         // We must fill the TTI even if there is no dci message inside this subframe
         fprintf(fd_ul[cell_idx], "%d\t", q.tti[buf_idx]);
-        for(int i=0; i<13;i++){
+        for(int i=0; i<10;i++){
             fprintf(fd_ul[cell_idx], "%d\t", 0);
         }
         fprintf(fd_ul[cell_idx], "%ld\n", q.timestamp_us[buf_idx]);
@@ -89,12 +90,27 @@ void log_per_dci(ngscope_CA_status_t* status,
     return;
 }
 
+int  find_ue_dl_dci(ngscope_cell_status_t* q, uint16_t rnti, int sf_idx){
+    // RNTI cannot be zero
+    if(rnti <= 0){
+        return -1;
+    }
+
+    for(int i=0; i<MAX_DCI_PER_SUB; i++){
+        if(q->dl_msg[i][sf_idx].rnti == rnti){
+            return i;
+        }
+    } 
+    return -1;
+}
 void auto_dci_logging(ngscope_CA_status_t* q,
                         FILE* fd_dl[MAX_NOF_RF_DEV], FILE* fd_ul[MAX_NOF_RF_DEV],
                         bool cell_ready[MAX_NOF_RF_DEV],
                         int* curr_header, int* last_header,
-                        int  nof_dev)
+                        int  nof_dev, int remote_sock, int remote_enable)
 {
+    uint16_t targetRNTI = q->targetRNTI;
+
     for(int cell_idx=0; cell_idx<nof_dev; cell_idx++){
         int start_idx = last_header[cell_idx];
         int end_idx   = curr_header[cell_idx];
@@ -110,9 +126,26 @@ void auto_dci_logging(ngscope_CA_status_t* q,
                 for(int i=start_idx+1; i<=end_idx; i++){
                     // moving forward until we reach the current header
                     int idx = TTI_TO_IDX(i);
-                    //printf("Logging_idx:%d --> ", idx);
+                    //printf("Logging -->buf_idx:%d tti:%d ", idx, q->cell_status[cell_idx].tti[idx]);
                     // log the dci
                     log_per_dci(q, fd_dl, fd_ul, cell_idx, idx);
+
+                    ngscope_dci_msg_t dci;
+                    memset(&dci, 0, sizeof(ngscope_dci_msg_t));
+
+                    printf("rnti:%d\n", targetRNTI);
+
+                    //printf("tbs:%d %d\n", dci.tb[0].tbs, dci.tb[1].tbs);
+                    uint64_t time_stamp = q->cell_status[cell_idx].timestamp_us[idx];
+                    uint16_t tti        = q->cell_status[cell_idx].tti[idx];
+                    int ue_dci_idx = find_ue_dl_dci(&q->cell_status[cell_idx], targetRNTI, idx);
+                    if( ue_dci_idx >=0){
+                        memcpy(&dci, &q->cell_status[cell_idx].dl_msg[ue_dci_idx][idx], sizeof(ngscope_dci_msg_t));
+                        printf("FIND DCI%d tti:%d tbs:%d %d nof_tb:%d\n", ue_dci_idx, tti, dci.tb[0].tbs, dci.tb[1].tbs, dci.nof_tb);
+                    }
+                    if( (remote_sock > 0) && remote_enable ){
+                        ngscope_update_dci(remote_sock, time_stamp, tti, dci);
+                    }
                 }
                 //printf("\n");
             }else{

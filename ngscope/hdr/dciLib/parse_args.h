@@ -44,6 +44,7 @@ typedef struct {
   long long  rf_freq_vec[MAX_NOF_RF_DEV];
   uint32_t rx_nof_rx_ant_vec[MAX_NOF_RF_DEV];
 
+  int      remote_enable;
   float    rf_gain;
   int      net_port;
   char*    net_address;

@@ -20,6 +20,9 @@ typedef struct{
 
 typedef struct{
     int                 nof_rf_dev;
+    int                 rnti;
+    int                 remote_enable;
+
     dci_log_config_t    dci_log_config;
     rf_dev_config_t     rf_config[MAX_NOF_RF_DEV];
 }ngscope_config_t;
