@@ -28,8 +28,8 @@ int connectServer(){
    // }else{
    //     remote_addr.sin_addr.s_addr=inet_addr( masterIP );//服务器IP地址
    // }
-    //remote_addr.sin_addr.s_addr=inet_addr("127.0.0.1");//服务器IP地址
-    remote_addr.sin_addr.s_addr=inet_addr("192.168.1.10");//服务器IP地址
+    remote_addr.sin_addr.s_addr=inet_addr("127.0.0.1");//服务器IP地址
+    //remote_addr.sin_addr.s_addr=inet_addr("192.168.1.10");//服务器IP地址
     remote_addr.sin_port=htons(6767); //服务器端口号
 
     printf("\n\n\n\n\n");
