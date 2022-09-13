@@ -502,13 +502,16 @@ int status_tracker_handle_dci_buffer(ngscope_status_tracker_t* q,
     /* Update the cell status */
     ngscope_CA_status_t* cell_status = &(q->ngscope_CA_status);
     status_tracker_update_cell_status(cell_status, dci_buffer);
+    //printf("Finish updating cell status!\n");
 
     /* Update ue list ***/
     ngscope_ue_list_t* ue_list = &(q->ue_list);
     status_tracker_update_ue_list(ue_list, dci_buffer);
+    //printf("Finish updating ue_list!\n");
 
     /* Handle the plotting */ 
     status_tracker_handle_plot(dci_buffer);
+    //printf("Finish handle plot!\n");
     return 0;
 }
 
@@ -543,8 +546,9 @@ void* status_tracker_thread(void* p){
     status_tracker.ngscope_CA_status.nof_cell   = nof_dev;
 
     printf("\n\nstart status tracker nof_dev :%d %d \n\n", nof_dev, status_tracker.ngscope_CA_status.cell_status[0].ready);
-    // Logging reated 
-    fill_file_descirptor(fd_dl, fd_ul, prog_args->log_dl, prog_args->log_ul, nof_dev, prog_args->rf_freq_vec);
+
+    // Logging reated  --> fill no matter we log or not
+    fill_file_descriptor(fd_dl, fd_ul, prog_args->log_dl, prog_args->log_ul, nof_dev, prog_args->rf_freq_vec);
     
     // Container for store obtained csi  
     ngscope_status_buffer_t    dci_queue[MAX_DCI_BUFFER];
@@ -578,7 +582,7 @@ void* status_tracker_thread(void* p){
         memset(dci_queue, 0, MAX_DCI_BUFFER * sizeof(ngscope_status_buffer_t));
 
         pthread_mutex_lock(&dci_ready.mutex);
-        // Use while in case some cornal case conditional wake up
+        // Use while in case some corner case conditional wake up
         while(dci_ready.nof_dci <=0){
             pthread_cond_wait(&dci_ready.cond, &dci_ready.mutex);
         }
@@ -596,14 +600,14 @@ void* status_tracker_thread(void* p){
         
         //printf("Copy %d dci->", nof_dci); 
         //for(int i=0; i<nof_dci; i++){
-        //    printf(" %d-th dci: ul dci:%d dl_dci:%d  tti:%d IDX:%d\n", i, dci_queue[i].dci_per_sub.nof_ul_dci, 
+        //    /printf(" %d-th dci: ul dci:%d dl_dci:%d  tti:%d IDX:%d\n", i, dci_queue[i].dci_per_sub.nof_ul_dci, 
         //    dci_queue[i].dci_per_sub.nof_dl_dci, dci_queue[i].tti, TTI_TO_IDX(dci_queue[i].tti));
         //}printf("\n");
 
         for(int i=0; i<nof_dci; i++){
             status_tracker_handle_dci_buffer(&status_tracker, &dci_queue[i]);
-            //printf("status header:%d cell header:%d\n", status_tracker.ngscope_CA_status.header, 
-            //        status_tracker.ngscope_CA_status.cell_status[0].header);
+            //printf("status header:%d cell header:%d\n", status_tracker.ngscope_CA_status.header, \
+                    status_tracker.ngscope_CA_status.cell_status[0].header);
             //int header = status_tracker.ngscope_CA_status.cell_status[0].header;
             //int dl_prb = status_tracker.ngscope_CA_status.cell_status[0].cell_dl_prb[header];
             //int ul_prb = status_tracker.ngscope_CA_status.cell_status[0].cell_ul_prb[header];
@@ -615,12 +619,15 @@ void* status_tracker_thread(void* p){
         for(int i=0;i<nof_dev;i++){
             curr_header[i] = status_tracker.ngscope_CA_status.cell_status[i].header;
         }
+
         // log dci and if remote socket connect, send the data
-        auto_dci_logging(&status_tracker.ngscope_CA_status, fd_dl, fd_ul, \
+        auto_dci_logging(&status_tracker.ngscope_CA_status, prog_args, fd_dl, fd_ul, \
                     cell_ready, curr_header, last_header, nof_dev, status_tracker.remote_sock, remote_enable); 
+
         for(int i=0;i<nof_dev;i++){
             last_header[i] = curr_header[i];
         }
+
         //printf("end status\n"); 
         update_status_header(&status_tracker.ngscope_CA_status);
         //printf("status header:%d\n", status_tracker.ngscope_CA_status.header);
