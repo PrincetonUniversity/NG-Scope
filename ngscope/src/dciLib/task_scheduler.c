@@ -211,10 +211,14 @@ void copy_sf_sync_buffer(cf_t* source[SRSRAN_MAX_PORTS],
     }
     return;
 }
+
+/* Assign the decoding task to available idle decoder */
 void assign_task_to_decoder(ngscope_task_scheduler_t* task_scheduler,
-                                int idle_idx, uint32_t sf_idx, uint32_t sfn,
+                                int      idle_idx, 
+                                uint32_t sf_idx, 
+                                uint32_t sfn,
                                 uint32_t max_num_samples,
-                                cf_t* IQ_buffer[SRSRAN_MAX_PORTS])
+                                cf_t*    IQ_buffer[SRSRAN_MAX_PORTS])
 {
     //--> Lock sf buffer
     pthread_mutex_lock(&sf_buffer[idle_idx].sf_mutex);
@@ -293,7 +297,6 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
             task_tmp_buffer.sf_buf[i].IQ_buffer[j] = srsran_vec_cf_malloc(max_num_samples);
         }
     }
-    
     /********** End of setting up the tmp buffer **********************/
     
     for(int i=0;i<nof_decoder;i++){
@@ -329,7 +332,7 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
             ERROR("Error calling srsran_ue_sync_work()");
         }else if(ret == 1){
             uint32_t sf_idx = srsran_ue_sync_get_sfidx(&task_scheduler->ue_sync);
-            //printf("Get %d-th subframe \n", sf_idx);
+            printf("Get %d-th subframe \n", sf_idx);
             sf_cnt ++; 
             /********************* SFN handling *********************/
             if ( (sf_idx == 0) || (decode_pdcch == false) ) {
@@ -357,8 +360,11 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                 int idle_idx  = -1;
 
                 idle_idx  =  find_idle_decoder(nof_decoder);
+                
+                // If we cannot find any idle decoder (all of them are busy!)
+                // store them inside a temporal buffer
                 if(idle_idx < 0){
-                    //printf("Skiping %d subframe since Decoder Blocked! \
+                    printf("Skiping %d subframe since Decoder Blocked! \
                             We suggest increasing the number deocder per cell.\n", sfn*10 + sf_idx);
 
                     /* Store the data into a tmp buffer. Later, when we have idle decoder, we will decode it*/ 
@@ -378,35 +384,39 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
                         if(sfn == 1024){ sfn = 0; }
                     }
                     continue;
-                }
+                }else{
+                    /* Getting here means we have idle decoder, so we check if we have sf in tmp buffer*/ 
+                    /* we give higher priority to subframes stored inside the tmp buffer */
+                    if(task_tmp_buffer.header !=  task_tmp_buffer.tail){
+                        //printf("We have something in the tmp buffer!\n"); 
+                        while(true){
+                            idle_idx  =  find_idle_decoder(nof_decoder);
+                            if(idle_idx < 0){ 
+                                break;  
+                            }else{
+                                // Assign the Task to the corresponding decoder
+                                task_tmp_buffer.tail++; 
+                                task_tmp_buffer.tail = task_tmp_buffer.tail % MAX_TMP_BUFFER;
+                                int tmp_buf_idx = task_tmp_buffer.tail;
+                                int tmp_sf_idx  = task_tmp_buffer.sf_buf[tmp_buf_idx].sf_idx;
+                                int tmp_sfn     = task_tmp_buffer.sf_buf[tmp_buf_idx].sfn;
 
-                // Assign the Task to the corresponding decoder 
-                assign_task_to_decoder(task_scheduler, idle_idx, sf_idx, sfn, max_num_samples, sync_buffer);
+                                //printf("Assigning tti:%d to the %d-th decoder since it is idle!\n", 
+                                //                                tmp_sfn * 10 + tmp_sf_idx, idle_idx); 
 
-                /* Getting here means we have idle decoder, so we check if we have sf in tmp buffer*/ 
-                if(task_tmp_buffer.header !=  task_tmp_buffer.tail){
-                    //printf("We have something in the tmp buffer!\n"); 
-                    while(true){
-                        idle_idx  =  find_idle_decoder(nof_decoder);
-                        if(idle_idx < 0){ 
-                            break;  
-                        }else{
-                            // Assign the Task to the corresponding decoder
-                            task_tmp_buffer.tail++; 
-                            task_tmp_buffer.tail = task_tmp_buffer.tail % MAX_TMP_BUFFER;
-                            int tmp_buf_idx = task_tmp_buffer.tail;
-                            int tmp_sf_idx  = task_tmp_buffer.sf_buf[tmp_buf_idx].sf_idx;
-                            int tmp_sfn     = task_tmp_buffer.sf_buf[tmp_buf_idx].sfn;
-
-                            //printf("Assigning tti:%d to the %d-th decoder since it is idle!\n", 
-                            //                                tmp_sfn * 10 + tmp_sf_idx, idle_idx); 
-
-                            assign_task_to_decoder(task_scheduler, idle_idx, tmp_sf_idx, tmp_sfn, max_num_samples,
-                                     task_tmp_buffer.sf_buf[tmp_buf_idx].IQ_buffer);
-                            if(task_tmp_buffer.header == task_tmp_buffer.tail){
-                                break;
+                                assign_task_to_decoder(task_scheduler, idle_idx, tmp_sf_idx, tmp_sfn, max_num_samples,
+                                         task_tmp_buffer.sf_buf[tmp_buf_idx].IQ_buffer);
+                                if(task_tmp_buffer.header == task_tmp_buffer.tail){
+                                    break;
+                                }
                             }
                         }
+                    }
+                            
+                    idle_idx  =  find_idle_decoder(nof_decoder);
+                    if(idle_idx >= 0){
+                        // Assign the Task to the corresponding decoder 
+                        assign_task_to_decoder(task_scheduler, idle_idx, sf_idx, sfn, max_num_samples, sync_buffer);
                     }
                 }
             }
@@ -418,15 +428,15 @@ int task_scheduler_start(ngscope_task_scheduler_t* task_scheduler){
     }// end of while
 
 
-//--> Deal with the exit free memory 
+//--> Deal with the exit and free memory 
     /* Wait for the decoder thread to finish*/
     for(int i=0;i<nof_decoder;i++){
         // Tell the decoder thread to exit in case 
         // they are still waiting for the signal
-
         pthread_cond_signal(&sf_buffer[i].sf_cond);
         pthread_join(dci_thd[i], NULL);
     }
+
     for(int i=0;i<nof_decoder;i++){
         srsran_ue_dl_free(&dci_decoder[i].ue_dl);
         //free the buffer

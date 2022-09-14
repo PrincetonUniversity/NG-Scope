@@ -161,6 +161,8 @@ int get_target_dci(ngscope_dci_msg_t* msg, int nof_msg, uint16_t targetRNTI){
     }
     return -1;
 }
+
+
 int dci_decoder_phich_decode(ngscope_dci_decoder_t*       dci_decoder,
                                   uint32_t                tti,
                                   ngscope_dci_per_sub_t*  dci_per_sub)
@@ -237,7 +239,7 @@ void* dci_decoder_thread(void* p){
         uint32_t sf_idx = sf_buffer[dci_decoder->decoder_idx].sf_idx;
         uint32_t tti    = sfn * 10 + sf_idx;
 
-        //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", \
+        printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", \
                             dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
 
         //dci_decoder_decode(dci_decoder, sf_idx, sfn);
