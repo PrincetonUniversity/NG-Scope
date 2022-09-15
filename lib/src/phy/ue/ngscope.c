@@ -72,9 +72,9 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
   nof_location = srsran_ngscope_search_space_block_yx(&q->pdcch, sf->cfi, dci_location);
 
-  //uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+  uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
 
-  //printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
+  printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
   // Test purpose
   //srsran_ngscope_tree_check_nodes(dci_location, 5);
   //int nof_loc = 0;
@@ -167,7 +167,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
             //}    
 
             
-            //printf("TTI:%d Matched num:%d root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", \
+            printf("TTI:%d Matched num:%d root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", \
                     sf->tti, nof_matched, matched_root, format_idx, dci_location[matched_root].L, dci_location[matched_root].ncce, \
                     dci_array[format_idx][matched_root].rnti, dci_array[format_idx][matched_root].prb, \
                        dci_array[format_idx][matched_root].decode_prob, dci_array[format_idx][matched_root].corr); 
@@ -209,7 +209,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   } 
   srsran_ngscope_dci_prune_ret(dci_per_sub); 
 
-  //int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
+  int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
   //printf("After matching, there are %d non-empty nodes!\n", nof_node);
 
   //////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
@@ -220,7 +220,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
   //srsran_ngscope_dci_prune(dci_array, dci_location, nof_location, nof_cce, sf->tti % 10, dci_per_sub);
   //nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
-  //printf("after pruning, there are %d non-empty nodes!\n\n", nof_node);
+  printf("after pruning, there are %d non-empty nodes!\n\n", nof_node);
   //if(nof_node > 0){
   //  srsran_ngscope_tree_plot_multi(dci_array, dci_location, nof_location);
   //}
