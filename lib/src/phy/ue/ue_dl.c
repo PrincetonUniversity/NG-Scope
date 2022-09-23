@@ -617,7 +617,7 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
                             srsran_dl_sf_cfg_t* sf,
                             dci_blind_search_t* search_space,
                             srsran_dci_cfg_t*   dci_cfg,
-                            srsran_dci_msg_t    dci_msg[SRSRAN_MAX_DCI_MSG])
+                            srsran_dci_msg_t    dci_msg[MAX_NOF_FORMAT])
 {
   uint32_t nof_dci = 0;
   int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
