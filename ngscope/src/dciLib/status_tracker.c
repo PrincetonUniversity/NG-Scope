@@ -568,6 +568,9 @@ void* status_tracker_thread(void* p){
     }
     printf("\n\n\n Radio is ready! \n\n"); 
 
+    // remote can be any program on the same device or 
+    // program running on other devices
+    // We sync the decoded DCI with the remote ones
     if(remote_enable){    
         status_tracker.remote_sock = connectServer();
         if( status_tracker.remote_sock > 0){
@@ -576,6 +579,7 @@ void* status_tracker_thread(void* p){
             printf("\n\n\n Remote Socket Connection faliled!  \n\n"); 
         }
     }
+
     while(true){
         if(go_exit) break;
         // reset the dci queue 
