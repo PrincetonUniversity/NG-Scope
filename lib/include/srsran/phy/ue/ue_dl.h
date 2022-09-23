@@ -54,6 +54,8 @@
 #include "srsran/phy/utils/debug.h"
 #include "srsran/phy/utils/vector.h"
 
+#include "srsran/phy/ue/ngscope_st.h"
+
 #include "srsran/config.h"
 
 #define SRSRAN_MAX_CANDIDATES_UE 16 // From 36.213 Table 9.1.1-1
@@ -261,7 +263,7 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
                             srsran_dl_sf_cfg_t* sf,
                             dci_blind_search_t* search_space,
                             srsran_dci_cfg_t*   dci_cfg,
-                            srsran_dci_msg_t    dci_msg[SRSRAN_MAX_DCI_MSG]);
+                            srsran_dci_msg_t    dci_msg[MAX_NOF_FORMAT]);
 
 /* Functions used for testing purposes */
 SRSRAN_API int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,

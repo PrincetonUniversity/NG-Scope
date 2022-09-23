@@ -5,6 +5,7 @@
 #define MAX_NOF_FORMAT 4
 #define MAX_DCI_PER_SUB 8
 #define LLR_RATIO 0.3f
+
 typedef struct{
     uint32_t mcs;
     uint32_t tbs;
