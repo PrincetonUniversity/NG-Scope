@@ -40,18 +40,15 @@ int main(int argc, char** argv){
     sigprocmask(SIG_UNBLOCK, &sigset, NULL);
     signal(SIGINT, sig_int_handler);
 
-    prog_args_t prog_args;
     ngscope_config_t config;
     int nof_rf_dev;
 
-    // default parameters   
-    args_default(&prog_args);
 
     // Load the configurations
     ngscope_read_config(&config);
 
     nof_rf_dev = config.nof_rf_dev;
 
-    ngscope_main(&config, &prog_args);
+    ngscope_main(&config);
     return 1;
 }

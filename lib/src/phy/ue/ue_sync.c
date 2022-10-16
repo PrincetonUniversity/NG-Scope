@@ -705,7 +705,7 @@ static int receive_samples(srsran_ue_sync_t* q, cf_t* input_buffer[SRSRAN_MAX_CH
 {
   ///< A negative time offset means there are samples in our buffer for the next subframe bc we are sampling too fast
   if (q->next_rf_sample_offset < 0) {
-    printf("negative offse!\n");
+    //printf("negative offse!\n");
     q->next_rf_sample_offset = -q->next_rf_sample_offset;
   }
 
@@ -724,6 +724,7 @@ static int receive_samples(srsran_ue_sync_t* q, cf_t* input_buffer[SRSRAN_MAX_CH
   if (q->recv_callback(q->stream, ptr, q->frame_len - q->next_rf_sample_offset, &q->last_timestamp) < 0) {
     return SRSRAN_ERROR;
   }
+  //printf("receive done!\n");
 
   ///< reset time offset
   q->next_rf_sample_offset = 0;
@@ -770,6 +771,7 @@ int srsran_ue_sync_zerocopy(srsran_ue_sync_t* q,
       INFO("Reading %d samples. sf_idx = %d", q->sf_len, q->sf_idx);
       ret = 1;
     } else {
+	  //printf("enter receiving !\n");
       if (receive_samples(q, input_buffer, max_num_samples)) {
         ERROR("Error receiving samples");
         return SRSRAN_ERROR;

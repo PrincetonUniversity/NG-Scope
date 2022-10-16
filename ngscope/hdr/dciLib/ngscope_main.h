@@ -15,5 +15,5 @@
 #include <stdint.h>
 
 #include "ngscope_def.h"
-int ngscope_main(ngscope_config_t* config, prog_args_t* prog_args);
+int ngscope_main(ngscope_config_t* config);
 #endif

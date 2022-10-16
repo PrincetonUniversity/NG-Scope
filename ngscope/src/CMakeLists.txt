@@ -31,20 +31,20 @@ endif (RPATH)
 
 
 #add_executable(srsue main.cc ue.cc metrics_stdout.cc metrics_csv.cc metrics_json.cc)
-add_executable(hello main.c)
+add_executable(ngscope main.c)
 
 set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_radio srsran_gtpu  srsran_rlc srsran_pdcp rrc_asn1 srslog support system)
 set(SRSRAN_SOURCES ${SRSRAN_SOURCES} ngscope_dci rrc_nr_asn1 ngap_nr_asn1)
 
-target_link_libraries(hello   ${SRSRAN_SOURCES}
+target_link_libraries(ngscope   ${SRSRAN_SOURCES}
                               ${CMAKE_THREAD_LIBS_INIT}
                               ${Boost_LIBRARIES}
                               ${LIBCONFIG_LIBRARY}
                               ${ATOMIC_LIBS})
 
 if (RPATH)
-  set_target_properties(hello PROPERTIES INSTALL_RPATH ".")
+  set_target_properties(ngscope PROPERTIES INSTALL_RPATH ".")
 endif (RPATH)
 
-install(TARGETS hello DESTINATION ${RUNTIME_DIR})
+install(TARGETS ngscope DESTINATION ${RUNTIME_DIR})
 

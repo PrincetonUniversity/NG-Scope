@@ -1055,6 +1055,7 @@ plot_real_t    p_sync, pce;
 plot_scatter_t pscatequal, pscatequal_pdcch, pscatequal_pmch;
 
 static float tmp_plot[110 * 15 * 2048];
+
 static float tmp_plot2[110 * 15 * 2048];
 
 void* plot_thread_run(void* arg)

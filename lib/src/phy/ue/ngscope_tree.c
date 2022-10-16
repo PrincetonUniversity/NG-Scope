@@ -138,7 +138,6 @@ uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t* q, uint32_t cfi, s
 {
     uint32_t nof_location = srsran_pdcch_get_nof_location_yx(q, cfi);
 
-
     // nof full blocks
     int nof_L3 = nof_location / 8;          
 
@@ -444,6 +443,22 @@ int srsran_ngscope_tree_non_empty_nodes(ngscope_dci_msg_t dci_array[][MAX_CANDID
     return nof_node;
 }
 
+int srsran_ngscope_tree_prune_tree(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+                                            int nof_locations){
+	for(int i=0; i<MAX_NOF_FORMAT+1; i++){
+		for(int j=0; j<nof_locations; j++){
+			if(dci_array[i][j].corr < 0.5){
+				ZERO_OBJECT(dci_array[i][j]);
+				continue;
+			}
+			if(dci_array[i][j].decode_prob < 75){
+				ZERO_OBJECT(dci_array[i][j]);
+				continue;
+			}
+		}
+	}
+	return 0;
+}
 bool is_empty_node_regarding_llr(srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL],
                                     int index){
     if(dci_location[index].mean_llr < LLR_RATIO){
@@ -537,3 +552,5 @@ void srsran_ngscope_tree_plot_multi(ngscope_dci_msg_t      dci_array[][MAX_CANDI
   }
   //printf("\n");
 }
+
+

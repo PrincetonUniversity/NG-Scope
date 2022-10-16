@@ -20,6 +20,7 @@ extern "C" {
 
 #include "srsran/srsran.h"
 #include "ngscope_def.h"
+#include "dci_decoder.h"
 
 typedef struct{
     float       csi_amp[100 * 12];
@@ -47,6 +48,8 @@ typedef struct{
 
 void* plot_thread_run(void* arg);
 void  plot_init_thread(pthread_t* plot_thread);
+void  plot_init_pdcch_thread(pthread_t* plot_thread, decoder_plot_t* arg);
+
 #ifdef __cplusplus
 }
 #endif

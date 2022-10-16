@@ -11,12 +11,15 @@
 #include <unistd.h>
 #include <stdint.h>
 
+#include "srsgui/srsgui.h"
+
 #include "srsran/srsran.h"
 #include "ngscope/hdr/dciLib/radio.h"
 #include "ngscope/hdr/dciLib/task_scheduler.h"
 #include "ngscope/hdr/dciLib/dci_decoder.h"
 #include "ngscope/hdr/dciLib/phich_decoder.h"
 #include "ngscope/hdr/dciLib/time_stamp.h"
+#include "ngscope/hdr/dciLib/status_plot.h"
 
 extern bool                 go_exit;
 extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_DCI_DECODER];
@@ -29,6 +32,12 @@ extern ngscope_status_buffer_t    dci_buffer[MAX_DCI_BUFFER];
 // For decoding phich
 extern pend_ack_list       ack_list;
 extern pthread_mutex_t     ack_mutex;
+
+
+pthread_mutex_t dci_plot_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t 	dci_plot_cond = PTHREAD_COND_INITIALIZER;
+cf_t* pdcch_buf;
+float csi_amp[110 * 15 * 2048];
 
 int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
                         prog_args_t             prog_args,
@@ -75,6 +84,11 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
     // Set PDSCH channel estimation (we don't consider MBSFN)
     dci_decoder->ue_dl_cfg.chest_cfg = chest_pdsch_cfg;
 
+	// test: enable cif 
+	//dci_decoder->ue_dl_cfg.cfg.dci.cif_enabled = true;
+	//dci_decoder->ue_dl_cfg.cfg.dci.cif_present = true;
+	dci_decoder->ue_dl_cfg.cfg.dci.multiple_csi_request_enabled = true;
+
     /************************* Init pdsch_cfg **************************/
     dci_decoder->pdsch_cfg.meas_evm_en = true;
     // Allocate softbuffer buffers
@@ -92,8 +106,8 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,
                             uint32_t                sfn,
-                            ngscope_dci_msg_t       dci_array[][MAX_CANDIDATES_ALL],
-                            srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
+                            //ngscope_dci_msg_t       dci_array[][MAX_CANDIDATES_ALL],
+                            //srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                             ngscope_dci_per_sub_t*  dci_per_sub)
 {
     uint32_t tti = sfn * 10 + sf_idx;
@@ -127,6 +141,18 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     }
  
     int n = 0;
+
+    //decode_pdsch = false;
+//	uint64_t t1=0, t2=0;
+
+	//char fileName[100];
+	//sprintf(fileName,"decoder_%d.txt", dci_decoder->decoder_idx);
+	//FILE* fd = fopen(fileName,"a+");
+
+//	if(dci_decoder->decoder_idx == 0){
+//    	t1 = timestamp_us();        
+//	}
+
     // Now decode the PDSCH
     if(decode_pdsch){
         uint32_t tm = 3;
@@ -135,22 +161,25 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         dci_decoder->ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm;
         dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = true;
 
-        //n = srsran_ngscope_search_all_space_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, 
-        //                                    &dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg);
+    	n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub);
 
-        //uint64_t t1 = timestamp_us();        
-        n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, 
-                                            &dci_decoder->pdsch_cfg, dci_array, dci_location, dci_per_sub);
-        //uint64_t t2 = timestamp_us();        
+		//printf("end of decoding!\n");
+        //t2 = timestamp_us();        
         //printf("time_spend:%ld (us)\n", t2-t1);
         //printf("decoder:%d finish decoding. time_spend:%ld (us)\n", dci_decoder->decoder_idx, t2-t1);
-
-        //int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
-        /* prune the CSI according to a set of rules */
-        //uint32_t sf_idx = tti % 10;
-        //srsran_ngscope_dci_prune(dci_array, dci_location, nof_location, nof_cce, sf_idx, dci_per_sub);
-
     } 
+//	if(dci_decoder->decoder_idx == 0){
+//    	t2 = timestamp_us();        
+//    	printf("time_spend:%ld (us)\n", t2-t1);
+//	}
+
+	//printf("going to print t2\n");
+	//printf("%ld\n", t2);
+    //printf("time_spend:%ld (us)\n", t2-t1);
+	//fprintf(fd, "%d\t%ld\n", tti, tdif);
+	//fclose(fd);
+
     return SRSRAN_SUCCESS;
 }
 int get_target_dci(ngscope_dci_msg_t* msg, int nof_msg, uint16_t targetRNTI){
@@ -192,11 +221,24 @@ void empty_dci_array(ngscope_dci_msg_t   dci_array[][MAX_CANDIDATES_ALL],
                         ngscope_dci_per_sub_t*  dci_per_sub){
     for(int i=0; i<MAX_NOF_FORMAT+1; i++){
         for(int j=0; j<MAX_CANDIDATES_ALL; j++){
-            ZERO_OBJECT(dci_location[j]);
             ZERO_OBJECT(dci_array[i][j]);
         }
     }
-    
+   	 
+    for(int i=0; i<MAX_CANDIDATES_ALL; i++){
+		ZERO_OBJECT(dci_location[i]);
+	}
+
+    dci_per_sub->nof_dl_dci = 0;
+    dci_per_sub->nof_ul_dci = 0;
+    for(int i=0; i<MAX_DCI_PER_SUB; i++){
+        ZERO_OBJECT(dci_per_sub->dl_msg[i]); 
+        ZERO_OBJECT(dci_per_sub->ul_msg[i]); 
+    }
+
+    return;
+}
+void empty_dci_persub(ngscope_dci_per_sub_t*  dci_per_sub){
     dci_per_sub->nof_dl_dci = 0;
     dci_per_sub->nof_ul_dci = 0;
     for(int i=0; i<MAX_DCI_PER_SUB; i++){
@@ -205,59 +247,124 @@ void empty_dci_array(ngscope_dci_msg_t   dci_array[][MAX_CANDIDATES_ALL],
     }
     return;
 }
-
+    
 void* dci_decoder_thread(void* p){
-    ngscope_dci_decoder_t*  dci_decoder = (ngscope_dci_decoder_t*)p;
-    ngscope_dci_msg_t       dci_array[MAX_NOF_FORMAT+1][MAX_CANDIDATES_ALL];
-    srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL];
+	//cell_args_t* cell_args 		= (cell_args_t* )p;
+	
+	ngscope_dci_decoder_t* dci_decoder 	= (ngscope_dci_decoder_t* )p;
+
+	int decoder_idx = dci_decoder->decoder_idx;
+
+	printf("decoder idx :%d \n", decoder_idx);
     ngscope_dci_per_sub_t   dci_per_sub; 
-    ngscope_status_buffer_t        dci_ret;
+    ngscope_status_buffer_t dci_ret;
+//
+//    pthread_mutex_lock(&sf_buffer[decoder_idx].sf_mutex);
+//	dci_decoder_init(&dci_decoder, prog_args, &cell, \
+//                           sf_buffer[decoder_idx].IQ_buffer, rx_softbuffers, decoder_idx);
+//    pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);
+
+	int nof_pdcch_sample = 36 * dci_decoder->ue_dl.pdcch.nof_cce[0];
+	int nof_prb = dci_decoder->cell.nof_prb;
+	int sz = srsran_symbol_sz(nof_prb);
+	bool enable_plot = !dci_decoder->prog_args.disable_plots;	
+    pthread_t plot_thread;
+	if(enable_plot){
+		if(decoder_idx == 0){
+			pdcch_buf = srsran_vec_cf_malloc(36*80);
+			srsran_vec_cf_zero(pdcch_buf, nof_pdcch_sample);
+
+			decoder_plot_t decoder_plot;
+			decoder_plot.decoder_idx 		= decoder_idx;
+			decoder_plot.nof_pdcch_sample 	= nof_pdcch_sample;
+			decoder_plot.nof_prb 			= nof_prb;
+			decoder_plot.size 				= sz;
+			plot_init_pdcch_thread(&plot_thread, &decoder_plot);
+		}
+	}
+
     int rf_idx     = dci_decoder->prog_args.rf_index;
 
-    printf("Decoder thread idx:%d\n\n\n",dci_decoder->decoder_idx);
+//    uint64_t t1=0, t2=0, t3=0, t4=0;  
+	char fileName[100];
+	sprintf(fileName,"decoder_%d.txt", decoder_idx);
+	FILE* fd = fopen(fileName,"w+");
+
+    printf("Decoder thread idx:%d\n\n\n",decoder_idx);
+
     while(!go_exit){
-        empty_dci_array(dci_array, dci_location, &dci_per_sub);
-        //printf("dci decoder -1\n");
+                
+		//empty_dci_array(dci_array, dci_location, &dci_per_sub);
+		empty_dci_persub(&dci_per_sub);
+
 //--->  Lock the buffer
-        pthread_mutex_lock(&sf_buffer[dci_decoder->decoder_idx].sf_mutex);
+        pthread_mutex_lock(&sf_buffer[decoder_idx].sf_mutex);
     
         // We release the token in the last minute just before the waiting of the condition signal 
         pthread_mutex_lock(&token_mutex);
-        if(sf_token[dci_decoder->decoder_idx] == true){
-            sf_token[dci_decoder->decoder_idx] = false;
+        if(sf_token[decoder_idx] == true){
+            sf_token[decoder_idx] = false;
         }
         pthread_mutex_unlock(&token_mutex);
 
 //--->  Wait the signal 
         //printf("%d-th decoder is waiting for conditional signal!\n", dci_decoder->decoder_idx);
-
-        pthread_cond_wait(&sf_buffer[dci_decoder->decoder_idx].sf_cond, 
-                          &sf_buffer[dci_decoder->decoder_idx].sf_mutex);
+		//t1 = timestamp_us();        
+        pthread_cond_wait(&sf_buffer[decoder_idx].sf_cond, 
+                          &sf_buffer[decoder_idx].sf_mutex);
         //printf("%d-th decoder Get the conditional signal!\n", dci_decoder->decoder_idx);
     
-        uint32_t sfn    = sf_buffer[dci_decoder->decoder_idx].sfn;
-        uint32_t sf_idx = sf_buffer[dci_decoder->decoder_idx].sf_idx;
+        uint32_t sfn    = sf_buffer[decoder_idx].sfn;
+        uint32_t sf_idx = sf_buffer[decoder_idx].sf_idx;
+
         uint32_t tti    = sfn * 10 + sf_idx;
+		fprintf(fd,"%d\n", tti);
 
         //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", \
-                            dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
+                            decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
+		//usleep(1000);
 
-        //dci_decoder_decode(dci_decoder, sf_idx, sfn);
-        dci_decoder_decode(dci_decoder, sf_idx, sfn, dci_array, dci_location, &dci_per_sub);
+        //t2 = timestamp_us();        
+        dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
+
+        //t3 = timestamp_us();        
 //--->  Unlock the buffer
-        //usleep(2000);
-        pthread_mutex_unlock(&sf_buffer[dci_decoder->decoder_idx].sf_mutex);
+        pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);	
+
+		if(enable_plot){
+			if(decoder_idx == 0){
+				pthread_mutex_lock(&dci_plot_mutex);    
+				srsran_vec_cf_copy(pdcch_buf, dci_decoder->ue_dl.pdcch.d, nof_pdcch_sample);
+
+				if (sz > 0) {
+					srsran_vec_f_zero(csi_amp, sz);
+				}
+				int g = (sz - 12 * nof_prb) / 2;
+				for (int i = 0; i < 12 * nof_prb; i++) {
+					csi_amp[g + i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i]));
+					if (isinf(csi_amp[g + i])) {
+						csi_amp[g + i] = -80;
+					}
+				}
+				pthread_cond_signal(&dci_plot_cond);
+				pthread_mutex_unlock(&dci_plot_mutex);    
+			}
+		}
+        //t4 = timestamp_us();        
+
         //printf("End of decoding decoder_idx:%d sfn:%d sf_idx:%d tti:%d\n", 
         //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
 
-        dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub);
+//        dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub);
+
         dci_ret.dci_per_sub  = dci_per_sub;
         dci_ret.tti          = sfn *10 + sf_idx;
         dci_ret.cell_idx     = rf_idx;
-   
-        for(int i=0; i< 12 * dci_decoder->cell.nof_prb; i++){
-            dci_ret.csi_amp[i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i])); 
-        }
+// 
+//        for(int i=0; i< 12 * dci_decoder->cell.nof_prb; i++){
+//            dci_ret.csi_amp[i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i])); 
+//        }
+
        // // put the dci into the dci buffer
         pthread_mutex_lock(&dci_ready.mutex);
         dci_buffer[dci_ready.header] = dci_ret;
@@ -265,12 +372,31 @@ void* dci_decoder_thread(void* p){
         if(dci_ready.nof_dci < MAX_DCI_BUFFER){
             dci_ready.nof_dci++;
         }
+
         //printf("TTI :%d ul_dci: %d dl_dci:%d nof_dci:%d\n", dci_ret.tti, dci_per_sub.nof_ul_dci, 
         //                                        dci_per_sub.nof_dl_dci, dci_ready.nof_dci);
         pthread_cond_signal(&dci_ready.cond);
         pthread_mutex_unlock(&dci_ready.mutex);
+
+		//fprintf(fd, "%d\t%ld\t%ld\n",tti, t4-t1, t3-t2);
     }
+	//fprintf(fd, "%ld\t%ld\n", t4-t1, t3-t2);
+
+	// we free the ue dl in task scheduler
     //srsran_ue_dl_free(&dci_decoder->ue_dl);
-    printf("Close %d-th DCI decoder!\n",dci_decoder->decoder_idx);
+
+		
+    printf("Going to Close %d-th DCI decoder!\n",decoder_idx);
+	if(enable_plot){
+		if(decoder_idx == 0){
+			pthread_cond_signal(&dci_plot_cond);
+			pthread_join(plot_thread, NULL);
+			free(pdcch_buf);
+		}
+	}
+    printf("Close %d-th DCI decoder!\n",decoder_idx);
+	fclose(fd);
+
     return NULL;
 }
+

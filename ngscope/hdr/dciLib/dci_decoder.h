@@ -29,7 +29,14 @@ typedef struct{
     srsran_cell_t      cell;
     prog_args_t        prog_args;
     int                decoder_idx;
-} ngscope_dci_decoder_t;
+}ngscope_dci_decoder_t;
+
+typedef struct{
+	int decoder_idx;
+	int nof_pdcch_sample;
+	int nof_prb;
+	int size;
+}decoder_plot_t;
 
 int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
                         prog_args_t             prog_args,
@@ -41,8 +48,6 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,
                             uint32_t                sfn,
-                            ngscope_dci_msg_t       dci_array[][MAX_CANDIDATES_ALL],
-                            srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL], 
                             ngscope_dci_per_sub_t*  dci_per_sub);
 
 void* dci_decoder_thread(void* p);

@@ -22,6 +22,11 @@ extern pthread_mutex_t     plot_mutex;
 extern ngscope_plot_t      plot_data;
 extern pthread_cond_t      plot_cond;
 
+extern pthread_mutex_t dci_plot_mutex;
+extern cf_t* pdcch_buf;
+extern float csi_amp[110 * 15 * 2048];
+extern pthread_cond_t 	dci_plot_cond;
+	
 uint16_t contineous_handled_sf(ngscope_plot_cell_t* q){
     uint16_t start  = q->header;
     uint16_t end    = q->dci_touched;
@@ -66,6 +71,9 @@ void left_shift_vec(float* vec){
     }
     return;
 }
+
+
+
 void* plot_thread_run(void* arg)
 {
     int nof_prb;
@@ -191,7 +199,6 @@ void* plot_thread_run(void* arg)
     }
     return NULL;
 }
-
 void  plot_init_thread(pthread_t* plot_thread){
     pthread_attr_t     attr;
     struct sched_param param;
@@ -200,6 +207,61 @@ void  plot_init_thread(pthread_t* plot_thread){
     pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
     pthread_attr_setschedparam(&attr, &param);
     if (pthread_create(plot_thread, NULL, plot_thread_run, NULL)) {
+        perror("pthread_create");
+        exit(-1);
+    }
+    return;
+}
+
+void* plot_pdcch_run(void* arg)
+{
+	printf("init 0!\n");
+	decoder_plot_t* q = (decoder_plot_t*)arg;
+	//int decoder_idx 		= q->decoder_idx; 
+	int nof_pdcch_sample 	= q->nof_pdcch_sample;
+	int size 				= q->size;
+
+    plot_scatter_t pdcch;
+    plot_real_t csi;
+
+    sdrgui_init();
+
+   	plot_scatter_init(&pdcch);
+    plot_scatter_setTitle(&pdcch, "PDCCH - Equalized Symbols");
+    plot_scatter_setXAxisScale(&pdcch, -3, 3);
+    plot_scatter_setYAxisScale(&pdcch, -3, 3);
+
+    plot_real_addToWindowGrid(&pdcch, (char*)"pdsch_ue", 0, 0);
+
+    plot_real_init(&csi);
+    plot_real_setTitle(&csi, "Channel Response - Magnitude");
+    plot_real_setLabels(&csi, "Subcarrier Index", "dB");
+    plot_real_setYAxisScale(&csi, -40, 40);
+    plot_real_addToWindowGrid(&csi, (char*)"pdsch_ue", 0, 1);
+
+
+    while(!go_exit){
+        pthread_mutex_lock(&dci_plot_mutex);    
+		printf("waiting for signal!\n");
+        pthread_cond_wait(&dci_plot_cond, &dci_plot_mutex); 
+      	plot_scatter_setNewData(&pdcch, pdcch_buf, nof_pdcch_sample);
+      	plot_real_setNewData(&csi, csi_amp, size);
+        pthread_mutex_unlock(&dci_plot_mutex);    
+	}
+
+	return NULL;
+}
+
+
+void plot_init_pdcch_thread(pthread_t* plot_thread, decoder_plot_t* arg){
+    pthread_attr_t     attr;
+    struct sched_param param;
+    param.sched_priority = 0;
+    pthread_attr_init(&attr);
+    pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+    pthread_attr_setschedparam(&attr, &param);
+	printf("plot thread creating thread!\n");
+    if (pthread_create(plot_thread, NULL, plot_pdcch_run, (void *)arg)) {
         perror("pthread_create");
         exit(-1);
     }

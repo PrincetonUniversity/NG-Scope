@@ -24,22 +24,12 @@
 extern "C" {
 #endif
 
-void auto_dci_logging(ngscope_CA_status_t* q,
-			prog_args_t* prog_args,
-                        FILE* fd_dl[MAX_NOF_RF_DEV], 
-			FILE* fd_ul[MAX_NOF_RF_DEV],
-                        bool cell_ready[MAX_NOF_RF_DEV],
-                        int* curr_header, 
-			int* last_header,
-                        int  nof_dev, 
-			int remote_sock, 
-			int remote_enable);
-
 void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
-                            FILE* fd_ul[MAX_NOF_RF_DEV],
-                            bool log_dl, 
-			    bool log_ul, 
-			    int nof_rf_dev,
-                            long long* rf_freq);
+							FILE* 	fd_ul[MAX_NOF_RF_DEV],
+							bool 	log_dl, 
+							bool 	log_ul, 
+							int  	nof_rf_dev,
+							long long* rf_freq);
 
+void* dci_log_thread(void* p);
 #endif

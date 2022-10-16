@@ -650,6 +650,9 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
         }else{
             //printf("PROB:%f\n", decode_prob);
         }
+		if(dci_msg[nof_dci].rnti == 14499){
+			printf("FOUND RNTI: format:%d\n", dci_msg[nof_dci].format);
+		}
         dci_msg[nof_dci].decode_prob = decode_prob;
         // Check if RNTI is matched
         //if ((dci_msg[nof_dci].nof_bits > 0) && decode_prob > 50 ) {
