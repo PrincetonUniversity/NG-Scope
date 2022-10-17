@@ -612,18 +612,3 @@ void* task_scheduler_thread(void* p){
     return NULL;
 }
 
-
-//void* task_scheduler_thread(void* p){
-//    prog_args_t* prog_args = (prog_args_t*)p;
-//
-//    ngscope_task_scheduler_t task_scheduler;
-//    task_scheduler_init(&task_scheduler, *prog_args);
-//    task_scheduler_start(&task_scheduler);
-//
-////    task_scheduler_start(prog_args);
-//
-//    printf("Close %d-th RF devices!\n", prog_args->rf_index);
-//    return NULL;
-//}
-
-
