@@ -43,11 +43,13 @@ int task_sf_ring_buffer_put(task_tmp_buffer_t* q,
 							uint32_t sfn, 
 							uint32_t sf_idx,
 							int rf_nof_rx_ant,
-							int max_num_samples){
+							int max_num_samples)
+{
+	// we do nothing if the buffer is full
 	if(q->full) return 0;
-	q->len++;
-	q->header++;
-	q->header = q->header % MAX_TMP_BUFFER; // advance the header first
+
+	/* Now we put the data into the buffer */
+
 	//printf("Nof buffer:%d %d\n", task_tmp_buffer.header, task_tmp_buffer.nof_buf);
 	q->sf_buf[q->header].sf_idx   = sf_idx;
 	q->sf_buf[q->header].sfn      = sfn;
@@ -55,10 +57,13 @@ int task_sf_ring_buffer_put(task_tmp_buffer_t* q,
 		memcpy(q->sf_buf[q->header].IQ_buffer[p], 
 								buffers[p], max_num_samples*sizeof(cf_t));
 	}   
+	
+	/*After puting data into the buffer, we need to update the corresponding parameters*/
+	q->len++;
+	q->header++;
+	q->header = q->header % MAX_TMP_BUFFER; // advance the header first
 	if(q->len == MAX_TMP_BUFFER){
-		q->full = true;
-	}else{
-		q->full = false;
+		q->full = true;  // the buffer is full
 	}
 	return 1;
 }
@@ -68,10 +73,10 @@ int task_sf_ring_buffer_get(task_tmp_buffer_t* q){
 	q->len--;
 	q->tail++; 
 	q->tail = q->tail % MAX_TMP_BUFFER;
-	if(q->len == 0){
+
+	if(q->len < MAX_TMP_BUFFER){
 		q->full = false;
 	}
-
 	return 0;
 }
 

@@ -312,42 +312,46 @@ void* dci_decoder_thread(void* p){
 		//t1 = timestamp_us();        
         pthread_cond_wait(&sf_buffer[decoder_idx].sf_cond, 
                           &sf_buffer[decoder_idx].sf_mutex);
-        //printf("%d-th decoder Get the conditional signal!\n", dci_decoder->decoder_idx);
     
         uint32_t sfn    = sf_buffer[decoder_idx].sfn;
         uint32_t sf_idx = sf_buffer[decoder_idx].sf_idx;
 
         uint32_t tti    = sfn * 10 + sf_idx;
+		bool   empty_sf = sf_buffer[decoder_idx].empty_sf;
+        //printf("%d-th decoder Get the conditional signal! empty:%d\n", dci_decoder->decoder_idx, empty_sf);
+    
+ 
 		fprintf(fd,"%d\n", tti);
 
-        //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", \
-                            decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
-		//usleep(1000);
+        //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
+		// We only decode when the subframe is not empty
+		if(empty_sf){
+			pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);	
+		}else{
+			//usleep(1000);
+			dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
+			//t3 = timestamp_us();        
+	//--->  Unlock the buffer
+			pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);	
 
-        //t2 = timestamp_us();        
-        dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
+			if(enable_plot){
+				if(decoder_idx == 0){
+					pthread_mutex_lock(&dci_plot_mutex);    
+					srsran_vec_cf_copy(pdcch_buf, dci_decoder->ue_dl.pdcch.d, nof_pdcch_sample);
 
-        //t3 = timestamp_us();        
-//--->  Unlock the buffer
-        pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);	
-
-		if(enable_plot){
-			if(decoder_idx == 0){
-				pthread_mutex_lock(&dci_plot_mutex);    
-				srsran_vec_cf_copy(pdcch_buf, dci_decoder->ue_dl.pdcch.d, nof_pdcch_sample);
-
-				if (sz > 0) {
-					srsran_vec_f_zero(csi_amp, sz);
-				}
-				int g = (sz - 12 * nof_prb) / 2;
-				for (int i = 0; i < 12 * nof_prb; i++) {
-					csi_amp[g + i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i]));
-					if (isinf(csi_amp[g + i])) {
-						csi_amp[g + i] = -80;
+					if (sz > 0) {
+						srsran_vec_f_zero(csi_amp, sz);
 					}
+					int g = (sz - 12 * nof_prb) / 2;
+					for (int i = 0; i < 12 * nof_prb; i++) {
+						csi_amp[g + i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i]));
+						if (isinf(csi_amp[g + i])) {
+							csi_amp[g + i] = -80;
+						}
+					}
+					pthread_cond_signal(&dci_plot_cond);
+					pthread_mutex_unlock(&dci_plot_mutex);    
 				}
-				pthread_cond_signal(&dci_plot_cond);
-				pthread_mutex_unlock(&dci_plot_mutex);    
 			}
 		}
         //t4 = timestamp_us();        
@@ -360,12 +364,8 @@ void* dci_decoder_thread(void* p){
         dci_ret.dci_per_sub  = dci_per_sub;
         dci_ret.tti          = sfn *10 + sf_idx;
         dci_ret.cell_idx     = rf_idx;
-// 
-//        for(int i=0; i< 12 * dci_decoder->cell.nof_prb; i++){
-//            dci_ret.csi_amp[i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i])); 
-//        }
 
-       // // put the dci into the dci buffer
+        // put the dci into the dci buffer
         pthread_mutex_lock(&dci_ready.mutex);
         dci_buffer[dci_ready.header] = dci_ret;
         dci_ready.header = (dci_ready.header + 1) % MAX_DCI_BUFFER;

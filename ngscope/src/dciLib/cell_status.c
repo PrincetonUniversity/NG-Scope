@@ -271,7 +271,7 @@ void* cell_status_thread(void* arg){
         cell_stat_ready.nof_dci   = 0;
         pthread_mutex_unlock(&cell_stat_ready.mutex);
 
-		printf("cell_stat: tti:%d cell_idx:%d \n", dci_buf[0].tti, dci_buf[0].cell_idx);
+		//printf("cell_stat: tti:%d cell_idx:%d \n", dci_buf[0].tti, dci_buf[0].cell_idx);
 //		//printf("cell ready:%d \n", cell_status[0].cell_ready);
         pthread_mutex_lock(&cell_status_mutex);
 		for(int i=0; i<nof_dci; i++){
@@ -299,7 +299,8 @@ void* cell_status_thread(void* arg){
 			}
 		}
     } 
-	sleep(2);
+
+	sleep(1);
 	for(int i=0; i<info.nof_cell; i++){
 		cell_status_print_ue_freq(&(ue_list[i]));
 	}

@@ -89,8 +89,8 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
   nof_location = srsran_ngscope_search_space_block_yx(&q->pdcch, sf->cfi, dci_location);
 
-  uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
-  printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
+  //uint32_t nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+  //printf("TTI:%d NOF CCE:%d nof location:%d\n", sf->tti, nof_cce, nof_location);
 
   // Test purpose
   //srsran_ngscope_tree_check_nodes(dci_location, 5);
@@ -178,13 +178,13 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
             if(nof_matched > 1){
                 // Prune the nodes since it is possible that two RNTIs are matched for one node
                 pruned_nof_dci = srsran_ngscope_tree_prune_node(dci_array, nof_matched, matched_root, matched_format_vec, &format_idx);
-				printf("selected format:%d\n", format_idx);
-				for(int i=0; i< nof_matched; i++){
-                	printf("TTI:%d Matched num:%d root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", \
-						sf->tti, nof_matched, matched_root, matched_format_vec[i], dci_location[matched_root].L, dci_location[matched_root].ncce, \
-						dci_array[matched_format_vec[i]][matched_root].rnti, dci_array[matched_format_vec[i]][matched_root].prb, \
-						   dci_array[matched_format_vec[i]][matched_root].decode_prob, dci_array[matched_format_vec[i]][matched_root].corr); 
-				}
+				//printf("selected format:%d\n", format_idx);
+				//for(int i=0; i< nof_matched; i++){
+                //	printf("TTI:%d Matched num:%d root_idx:%d format:%d L:%d NCCE:%d rnti:%d PRB:%d decode_prob:%f corr:%f\n", \
+				//		sf->tti, nof_matched, matched_root, matched_format_vec[i], dci_location[matched_root].L, dci_location[matched_root].ncce, \
+				//		dci_array[matched_format_vec[i]][matched_root].rnti, dci_array[matched_format_vec[i]][matched_root].prb, \
+				//		   dci_array[matched_format_vec[i]][matched_root].decode_prob, dci_array[matched_format_vec[i]][matched_root].corr); 
+				//}
             }
             
             for(int i=0; i< nof_matched; i++){
@@ -253,7 +253,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   //srsran_ngscope_tree_prune_tree(dci_array, nof_location);
 
   int nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
-  printf("TTI:%d Searching %d location, found %d dci, left %d non-empty nodes!\n",\
+  //printf("TTI:%d Searching %d location, found %d dci, left %d non-empty nodes!\n",\
   		sf->tti, cnt, found_dci, nof_node);
 
   //////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);

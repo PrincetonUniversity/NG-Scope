@@ -19,6 +19,7 @@
 #include "ngscope/hdr/dciLib/time_stamp.h"
 
 #include "ngscope/hdr/dciLib/task_sf_ring_buffer.h"
+#include "ngscope/hdr/dciLib/skip_tti.h"
 
 extern bool go_exit;
 
@@ -31,10 +32,10 @@ extern ngscope_status_buffer_t  dci_buffer[MAX_DCI_BUFFER];
 /******************* Global buffer for passing subframe IQ  ******************/ 
 ngscope_sf_buffer_t sf_buffer[MAX_NOF_DCI_DECODER] = 
 {
-    {0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
-    {0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
-    {0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
-    {0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
+    {false, 0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
+    {false, 0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
+    {false, 0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
+    {false, 0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
 };
 bool                sf_token[MAX_NOF_DCI_DECODER];
 pthread_mutex_t     token_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -42,7 +43,7 @@ pthread_mutex_t     token_mutex = PTHREAD_MUTEX_INITIALIZER;
 pend_ack_list       ack_list;
 pthread_mutex_t     ack_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-    
+task_skip_tti_t 	skip_tti;
 task_tmp_buffer_t   task_tmp_buffer;
 pthread_mutex_t     tmp_buf_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -240,8 +241,9 @@ void assign_task_to_decoder(int      idle_idx,
     pthread_mutex_unlock(&token_mutex);
 
     //printf("TTI:%d --> sfn:%d sf_idx:%d\n", sf_idx + sfn * 10, sfn, sf_idx);
-    sf_buffer[idle_idx].sf_idx  = sf_idx;
-    sf_buffer[idle_idx].sfn     = sfn;
+    sf_buffer[idle_idx].sf_idx  	= sf_idx;
+    sf_buffer[idle_idx].sfn     	= sfn;
+    sf_buffer[idle_idx].empty_sf    = false; // not empty subframe
 
     // copy the buffer source:sync_buffer dest: IQ_buffer
     //copy_sf_sync_buffer(sync_buffer, sf_buffer[idle_idx].IQ_buffer, max_num_samples);
@@ -258,6 +260,35 @@ void assign_task_to_decoder(int      idle_idx,
 
     return;
 }
+
+/* Assign the empty task to available idle decoder */
+void assign_empty_task_to_decoder(int      idle_idx, 
+									uint32_t sf_idx, 
+									uint32_t sfn)
+{
+    //--> Lock sf buffer
+    pthread_mutex_lock(&sf_buffer[idle_idx].sf_mutex);
+
+    // Tell the scheduler that we now busy
+    pthread_mutex_lock(&token_mutex);
+    sf_token[idle_idx] = true;
+    pthread_mutex_unlock(&token_mutex);
+
+    //printf("TTI:%d --> sfn:%d sf_idx:%d\n", sf_idx + sfn * 10, sfn, sf_idx);
+    sf_buffer[idle_idx].sf_idx  	= sf_idx;
+    sf_buffer[idle_idx].sfn     	= sfn;
+    sf_buffer[idle_idx].empty_sf    = true; // not empty subframe
+
+    // Tell the corresponding idle thread to process the signal
+    //printf("Send the conditional signal to the %d-th decoder!\n", idle_idx);
+    pthread_cond_signal(&sf_buffer[idle_idx].sf_cond);
+
+    //--> Unlock sf buffer
+    pthread_mutex_unlock(&sf_buffer[idle_idx].sf_mutex);
+
+    return;
+}
+
 typedef struct{
     int         nof_decoder;
     uint32_t    rf_nof_rx_ant;
@@ -288,27 +319,45 @@ void* handle_tmp_buffer_thread(void* p){
 
         //uint64_t t1 = timestamp_us();        
         pthread_mutex_lock(&tmp_buf_mutex);
-        //if(task_tmp_buffer.header !=  task_tmp_buffer.tail){
+		if(!skip_tti_empty(&skip_tti)){
+			while(!go_exit){
+				int idle_idx  =  find_idle_decoder(nof_decoder);
+                if(idle_idx < 0){ 
+                    break;  
+                }else{
+					//printf("1-> len:%d sfn:%d sf_idx:%d \n",  skip_tti.nof_tti,\
+								skip_tti.sf[skip_tti.nof_tti-1], skip_tti.sf_idx[skip_tti.nof_tti-1]);
+					uint32_t tti 	= skip_tti_get(&skip_tti);
+					uint32_t sfn 	= tti / 10;
+					uint32_t sf_idx = tti % 10;
+					//printf("2-> len:%d sfn:%d sf_idx:%d tti:%d\n",  skip_tti.nof_tti,\
+								sfn, sf_idx, tti);
+                    assign_empty_task_to_decoder(idle_idx, sf_idx, sfn);
+					//printf("after assignment skip tti:%d\n", skip_tti.nof_tti);
+               	}  
+				if(skip_tti_empty(&skip_tti)){
+					break;
+				}
+			}
+		}
         if(!task_sf_ring_buffer_empty(&task_tmp_buffer)){
 			//int nof_buf_sf = get_nof_buffered_sf();
             //printf("We have %d subframes the tmp buffer!\n", nof_buf_sf); 
-            while(true){
+            while(!go_exit){
                 int idle_idx  =  find_idle_decoder(nof_decoder);
                 if(idle_idx < 0){ 
                     break;  
                 }else{
                     // Assign the Task to the corresponding decoder
-                    //task_tmp_buffer.tail++; 
-                    //task_tmp_buffer.tail = task_tmp_buffer.tail % MAX_TMP_BUFFER;
                     int tmp_buf_idx = task_tmp_buffer.tail;
                     int tmp_sf_idx  = task_tmp_buffer.sf_buf[tmp_buf_idx].sf_idx;
                     int tmp_sfn     = task_tmp_buffer.sf_buf[tmp_buf_idx].sfn;
 
-                    //printf("Assigning tti:%d to the %d-th decoder since it is idle!\n", \
+                    //printf("Assigning tti:%d to the %d-th decoder since it is idle!\n\n", \
                                                     tmp_sfn * 10 + tmp_sf_idx, idle_idx); 
-
                     assign_task_to_decoder(idle_idx, rf_nof_rx_ant, tmp_sf_idx, tmp_sfn, max_num_samples,
                              task_tmp_buffer.sf_buf[tmp_buf_idx].IQ_buffer);
+
 					// advance the tail 
                    	task_sf_ring_buffer_get(&task_tmp_buffer);
 
@@ -375,16 +424,7 @@ void* task_scheduler_thread(void* p){
 
     /********************** Set up the tmp buffer **********************/
 	task_sf_ring_buffer_init(&task_tmp_buffer, max_num_samples);
-
-//    task_tmp_buffer.header   = 0;
-//    task_tmp_buffer.tail     = 0;
-//    //task_tmp_buffer.nof_buf  = 0;
-//    // init the buffer
-//    for(int i=0; i<MAX_TMP_BUFFER; i++){
-//        for (int j = 0; j < SRSRAN_MAX_PORTS; j++) {
-//            task_tmp_buffer.sf_buf[i].IQ_buffer[j] = srsran_vec_cf_malloc(max_num_samples);
-//        }
-//    }
+	skip_tti_init(&skip_tti);
     /********** End of setting up the tmp buffer **********************/
    
     // Start the tmp buffer handling thd
@@ -408,12 +448,6 @@ void* task_scheduler_thread(void* p){
 
         //mib_init_imp(&ue_mib[i], sf_buffer[i].IQ_buffer, &task_scheduler->cell);
         pthread_create( &dci_thd[i], NULL, dci_decoder_thread, (void*)&dci_decoder[i]);
-//
-//		cell_args[i].cell 			= task_scheduler.cell;
-//		cell_args[i].prog_args 		= task_scheduler.prog_args;
-//		cell_args[i].decoder_idx 	= i;            
-//        printf("start the %d-th | %d-th decoding thread!\n", i, cell_args[i].decoder_idx);
-//        pthread_create(&dci_thd[i], NULL, dci_decoder_thread, (void*)&(cell_args[i]));
     }
     
     // Let's sleep for 1 second and wait for the decoder to be ready!
@@ -489,19 +523,13 @@ void* task_scheduler_thread(void* p){
 
                     pthread_mutex_lock(&tmp_buf_mutex);
                     /* Store the data into a tmp buffer. Later, when we have idle decoder, we will decode it*/ 
-					task_sf_ring_buffer_put(&task_tmp_buffer, buffers, sfn, sf_idx, 
-								task_scheduler.prog_args.rf_nof_rx_ant, max_num_samples);
-//
-//                    task_tmp_buffer.header++;
-//                    task_tmp_buffer.header = task_tmp_buffer.header % MAX_TMP_BUFFER; // advance the header first
-//                    //printf("Nof buffer:%d %d\n", task_tmp_buffer.header, task_tmp_buffer.nof_buf);
-//                    task_tmp_buffer.sf_buf[task_tmp_buffer.header].sf_idx   = sf_idx;
-//                    task_tmp_buffer.sf_buf[task_tmp_buffer.header].sfn      = sfn;
-//                    for(int p=0; p<task_scheduler.prog_args.rf_nof_rx_ant; p++){
-//                        memcpy(task_tmp_buffer.sf_buf[task_tmp_buffer.header].IQ_buffer[p], 
-//                                                buffers[p], max_num_samples*sizeof(cf_t));
-//                    }   
-//
+					//printf("put %d subframe into the buffer\n", sfn*10+sf_idx);
+					if(task_sf_ring_buffer_put(&task_tmp_buffer, buffers, sfn, sf_idx, 
+								task_scheduler.prog_args.rf_nof_rx_ant, max_num_samples) == 0){
+						int nof_buf_sf = task_sf_ring_buffer_len(&task_tmp_buffer);
+						printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
+						skip_tti_put(&skip_tti, sfn, sf_idx);			
+					}
 					//int nof_buf_sf = get_nof_buffered_sf();
 					int nof_buf_sf = task_sf_ring_buffer_len(&task_tmp_buffer);
 					fprintf(fd,"%d\t%d\t%d\n",task_tmp_buffer.header, task_tmp_buffer.tail, nof_buf_sf);

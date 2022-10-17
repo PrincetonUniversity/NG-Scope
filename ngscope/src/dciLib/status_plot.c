@@ -242,7 +242,7 @@ void* plot_pdcch_run(void* arg)
 
     while(!go_exit){
         pthread_mutex_lock(&dci_plot_mutex);    
-		printf("waiting for signal!\n");
+		//printf("waiting for signal!\n");
         pthread_cond_wait(&dci_plot_cond, &dci_plot_mutex); 
       	plot_scatter_setNewData(&pdcch, pdcch_buf, nof_pdcch_sample);
       	plot_real_setNewData(&csi, csi_amp, size);
