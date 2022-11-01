@@ -23,5 +23,4 @@ extern "C" {
 
 int accept_slave_connect(int* server_fd, int* client_fd_vec, int portNum);
 int connectServer();
-void ngscope_update_dci(int sock, uint64_t time_stamp, uint16_t tti, ngscope_dci_msg_t dci);
 #endif

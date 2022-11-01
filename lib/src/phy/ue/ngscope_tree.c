@@ -212,14 +212,30 @@ uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t* q, uint32_t cfi, s
     return nof_blk * 15; 
 }
 
-static int match_two_dci_vec(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], int root, int child, int*  matched_format){
+static int match_two_dci_vec(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL], 
+								int 		root, 
+								int 		child,
+								uint16_t 	targetRNTI,
+								int*  		matched_format,
+								int* 		matched_root){
     int nof_matched = 0;
     for(int i=0;i<MAX_NOF_FORMAT+1;i++){
         //printf("ROOT-RNTI:%d Child-RNTI:%d ",dci_array[i][root].rnti, dci_array[i][child].rnti);
-        if( (dci_array[i][root].rnti > 0) && (dci_array[i][child].rnti > 0)){
+		if(dci_array[i][root].rnti == targetRNTI){
+				matched_format[nof_matched] = i;
+                nof_matched 	= 1;
+				*matched_root 	= root;
+				break;
+		}else if(dci_array[i][child].rnti == targetRNTI){
+				matched_format[nof_matched] = i;
+                nof_matched 	= 1;
+				*matched_root 	= child;
+				break;
+		}else if( (dci_array[i][root].rnti > 0) && (dci_array[i][child].rnti > 0)){
             if(dci_array[i][root].rnti == dci_array[i][child].rnti){
                 matched_format[nof_matched] = i;
                 nof_matched++;
+				*matched_root 	= root;
                 //return i; 
             }
         }
@@ -236,6 +252,7 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_A
                                         int nof_location, 
                                         int blk_idx, 
                                         int loc_idx,
+										uint16_t targetRNTI,
                                         int* nof_matched_dci,
                                         int* root_idx, 
                                         int* format_idx)
@@ -244,6 +261,7 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_A
     int nof_matched = 0; 
     int root;
     int left_child;
+	int matched_root = 0;
     // In a tree, only the node with idx 0-6 can be parent node
     for(int i=0;i<7;i++){
         root       = start_idx + i;
@@ -255,7 +273,7 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_A
             break;
         }
         //int matched_format[MAX_NOF_FORMAT+1] = {0};
-        nof_matched = match_two_dci_vec(dci_array, root, left_child, format_idx);
+        nof_matched = match_two_dci_vec(dci_array, root, left_child, targetRNTI, format_idx, &matched_root);
         if(nof_matched > 0){
             //printf("FIND MATACH!\n");
             break;
@@ -265,7 +283,8 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_A
         //printf("FIND MATACH!\n");
         //*format_idx = matched_ret; 
         *nof_matched_dci    = nof_matched;
-        *root_idx           = root;
+        //*root_idx           = root;
+        *root_idx           = matched_root;
    }
 
     return;

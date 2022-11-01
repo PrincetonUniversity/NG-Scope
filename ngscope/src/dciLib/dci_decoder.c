@@ -113,7 +113,8 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     uint32_t tti = sfn * 10 + sf_idx;
 
     bool decode_pdsch = false;
-      
+    uint16_t targetRNTI = dci_decoder->prog_args.rnti;  
+
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
         decode_pdsch = true;
@@ -162,7 +163,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = true;
 
     	n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
-								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub);
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, targetRNTI);
 
 		//printf("end of decoding!\n");
         //t2 = timestamp_us();        

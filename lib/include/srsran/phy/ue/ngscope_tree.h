@@ -35,6 +35,7 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t  dci_array[][MAX_CANDIDATES_
                                     int             nof_location, 
                                     int             blk_idx, 
                                     int             loc_idx, 
+									uint16_t 		targetRNTI,
                                     int*            nof_matched,
                                     int*            root_idx,
                                     int*            format_idx);

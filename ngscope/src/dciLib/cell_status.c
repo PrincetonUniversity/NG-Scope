@@ -18,6 +18,7 @@
 #include "ngscope/hdr/dciLib/dci_log.h"
 #include "ngscope/hdr/dciLib/time_stamp.h"
 #include "ngscope/hdr/dciLib/socket.h"
+#include "ngscope/hdr/dciLib/sync_dci_remote.h"
 #include "ngscope/hdr/dciLib/cell_status.h"
 
 extern bool go_exit;
@@ -49,6 +50,7 @@ int init_cell_status(uint16_t targetRNTI, int cell_prb, int cell_idx){
 	cell_status[cell_idx].cell_prb	 = cell_prb;
 	cell_status[cell_idx].cell_ready = false;
 	cell_status[cell_idx].cell_header= 0;
+	cell_status[cell_idx].cell_idx 	 = cell_idx;
 
 	for(int i=0; i<NOF_LOG_SUBF; i++){
 		memset(&(cell_status[cell_idx].sub_stat[i]), 0, sizeof(sf_status_t));
@@ -67,6 +69,7 @@ void enqueue_dci_sf(sf_status_t*q,
 	q->nof_dl_msg 		= dci_buffer->dci_per_sub.nof_dl_dci;
 	q->nof_ul_msg 		= dci_buffer->dci_per_sub.nof_ul_dci;
 
+	//printf("log tti:%d\n", q->tti);
     // Set the logging timestamp
     q->timestamp_us 	= timestamp_us();
 
@@ -110,41 +113,57 @@ void enqueue_dci_sf(sf_status_t*q,
 	return;
 }
 
-//ngscope_dci_msg_t dci;
-//memset(&dci, 0, sizeof(ngscope_dci_msg_t));
-//
-////printf("rnti:%d\n", targetRNTI);
-//
-////printf("tbs:%d %d\n", dci.tb[0].tbs, dci.tb[1].tbs);
-//uint64_t time_stamp = q->cell_status[cell_idx].timestamp_us[idx];
-//uint16_t tti        = q->cell_status[cell_idx].tti[idx];
-//int ue_dci_idx = find_ue_dl_dci(&q->cell_status[cell_idx], targetRNTI, idx);
-//if( ue_dci_idx >=0){
-//	memcpy(&dci, &q->cell_status[cell_idx].dl_msg[ue_dci_idx][idx], sizeof(ngscope_dci_msg_t));
-//	//printf("FIND DCI%d tti:%d tbs:%d %d nof_tb:%d\n", ue_dci_idx, tti, dci.tb[0].tbs, dci.tb[1].tbs, dci.nof_tb);
-//}
-//if( (remote_sock > 0) && remote_enable ){
-//	ngscope_update_dci(remote_sock, time_stamp, tti, dci);
-//}
-//
-//int push_dci_to_remote(sf_status_t* q, uint16_t targetRNTI, int remote_sock){
-//	// container for the dci to be pushed
-//	ngscope_dci_msg_t dci;
-//	memset(&dci, 0, sizeof(ngscope_dci_msg_t));
-//	/* We push one dci per subframe, 
-//	   no matter we have the dci of the target UE or not*/
-//	uint64_t time_stamp = q->timestamp_us;
-//	uint16_t tti        = q->tti;
-//
-//	return 0;
-//	//check do we have 
-//}
+int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int remote_sock){
+	if(remote_sock <= 0){
+		//printf("ERROR: sock not set!\n\n");
+		return -1;
+	}
+	ngscope_dci_sync_t dci_sync;
+	dci_sync_init(&dci_sync);
+
+	// container for the dci to be pushed
+	/* We push one dci per subframe, 
+	   no matter we have the dci of the target UE or not*/
+	dci_sync.time_stamp = q->timestamp_us;
+	dci_sync.tti        = q->tti;
+
+	dci_sync.cell_idx   = cell_idx;
+
+	// We set to default protocol version
+	// TODO add more protocol and enable configuing it
+	dci_sync.proto_v 	= 0;
+
+	int 	nof_dl_msg  = q->nof_dl_msg;
+	int 	nof_ul_msg  = q->nof_ul_msg;
+
+	for(int i=0; i<nof_dl_msg;i++){
+		if(q->dl_msg[i].rnti == targetRNTI){
+			//printf("found rnti:%d tbs:%d \n", targetRNTI, q->dl_msg[i].tb[0].tbs);
+			dci_sync.downlink = true;
+			memcpy(&dci_sync.dl_dci, &q->dl_msg[i], sizeof(ngscope_dci_msg_t));
+		}
+	}
+	for(int i=0; i<nof_ul_msg;i++){
+		if(q->ul_msg[i].rnti == targetRNTI){
+			dci_sync.uplink = true;
+			memcpy(&dci_sync.ul_dci, &q->ul_msg[i], sizeof(ngscope_dci_msg_t));
+		}
+	}
+
+	ngscope_sync_dci_remote(remote_sock, dci_sync);
+
+	return 0;
+}
+
+
 void update_cell_status_header(cell_status_t* q, int remote_sock){
 	int index = TTI_TO_IDX( (q->cell_header + 1));
 	while(q->sub_stat[index].filled){
 		q->cell_header 				= index;
 		q->sub_stat[index].filled 	= false;
 
+		push_dci_to_remote(&q->sub_stat[index], q->cell_idx, q->targetRNTI, remote_sock);
+		//printf("push tti:%d index:%d\n", q->sub_stat[index].tti, index);
 		// update the index
 		index = TTI_TO_IDX( (index + 1));
 	}
@@ -180,6 +199,7 @@ void enqueue_dci_cell(cell_status_t*q,
 	}
 	return;
 }
+
 void enqueue_dci_rnti(ngscope_ue_list_t* q, uint32_t tti, uint16_t rnti, bool dl){
     if(q->ue_cnt[rnti] == 0){
         q->ue_enter_time[rnti] = tti;

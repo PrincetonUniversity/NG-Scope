@@ -13,7 +13,8 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                                              srsran_pdsch_cfg_t*    pdsch_cfg,
                                              //ngscope_dci_msg_t      dci_array[][MAX_CANDIDATES_ALL],
                                              //srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
-                                             ngscope_dci_per_sub_t* dci_per_sub)
+                                             ngscope_dci_per_sub_t* dci_per_sub,
+											 uint16_t targetRNTI)
 {
   int ret = SRSRAN_ERROR;
   int nof_location = 0;
@@ -164,9 +165,11 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
         }
 	
         int matched_format_vec[MAX_NOF_FORMAT+1] = {0};
+
         int matched_root    = -1;
         int nof_matched     = 0;
-        srsran_ngscope_tree_CP_match(dci_array, nof_location, blk_idx, loc_idx, &nof_matched, &matched_root, matched_format_vec);
+        srsran_ngscope_tree_CP_match(dci_array, nof_location, blk_idx, loc_idx, targetRNTI, 
+											&nof_matched, &matched_root, matched_format_vec);
          
 		//printf("cp match done!\n");
         /********************* Prune the single node *************************/

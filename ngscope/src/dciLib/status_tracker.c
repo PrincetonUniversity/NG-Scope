@@ -19,6 +19,7 @@
 #include "ngscope/hdr/dciLib/time_stamp.h"
 #include "ngscope/hdr/dciLib/socket.h"
 #include "ngscope/hdr/dciLib/cell_status.h"
+#include "ngscope/hdr/dciLib/sync_dci_remote.h"
 
 //#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
 
@@ -551,13 +552,20 @@ void* status_tracker_thread(void* p){
 
     /* Wait the Radio to be ready */
     wait_for_radio(&status_tracker, nof_dev);
-        
+       
+
+	uint16_t cell_prb[MAX_NOF_RF_DEV];	
+	for(int i=0; i<nof_dev; i++){
+		cell_prb[i] = status_tracker.ngscope_CA_status.cell_prb[i];
+	}
 	// remote can be any program on the same device or 
     // program running on other devices
     // We sync the decoded DCI with the remote ones
     if(remote_enable){    
         status_tracker.remote_sock = connectServer();
         if( status_tracker.remote_sock > 0){
+			uint8_t nof_cell = nof_dev;	
+			ngscope_sync_config_remote(status_tracker.remote_sock, cell_prb, nof_cell);
             printf("\n\n\n Remote Socket Connected :%d \n\n", status_tracker.remote_sock); 
         }else{
             printf("\n\n\n Remote Socket Connection faliled!  \n\n"); 

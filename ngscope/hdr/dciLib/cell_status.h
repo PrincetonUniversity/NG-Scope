@@ -46,6 +46,7 @@ typedef struct{
 	uint16_t 	cell_header;
     uint16_t    targetRNTI;
 
+	int 		cell_idx;
 	bool 	 	cell_ready; //If the cell is ready
 
 	int 		cell_prb; 	//Total PRB the cell has
