@@ -20,6 +20,8 @@
 #include "ngscope/hdr/dciLib/socket.h"
 #include "ngscope/hdr/dciLib/cell_status.h"
 #include "ngscope/hdr/dciLib/sync_dci_remote.h"
+#include "ngscope/hdr/dciLib/load_config.h"
+#include "ngscope/hdr/dciLib/thread_exit.h"
 
 //#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
 
@@ -36,6 +38,10 @@ extern dci_ready_t               cell_stat_ready;
 pthread_cond_t      plot_cond  = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t     plot_mutex = PTHREAD_MUTEX_INITIALIZER;
 ngscope_plot_t      plot_data;
+
+
+extern bool task_scheduler_closed[MAX_NOF_RF_DEV];
+
 /* Operator */
 bool a_le_than_b(int a, int b){
     if( (a-b) >= 0){
@@ -523,15 +529,18 @@ int status_tracker_handle_dci_buffer(ngscope_status_tracker_t* q,
 
 void* status_tracker_thread(void* p){
     /* TODO log target status */
-    prog_args_t* prog_args = (prog_args_t*)p; 
+    //prog_args_t* prog_args = (prog_args_t*)p; 
+
+	ngscope_config_t* config = (ngscope_config_t *)p;
 
     // Number of RF devices
-    int nof_dev = prog_args->nof_rf_dev;
+    int nof_dev = config->nof_rf_dev;
     int nof_dci = 0;
     //int nof_prb = 0;
-    int dis_plot = prog_args->disable_plots;
-    uint16_t targetRNTI = prog_args->rnti;
-    int remote_enable   =  prog_args->remote_enable;
+    int dis_plot = config->rf_config[0].disable_plot;
+
+    uint16_t targetRNTI = config->rnti;
+    int remote_enable   = config->remote_enable;
 
     printf("DIS_PLOT:%d nof_RF_DEV:%d \n", dis_plot, nof_dev);
     /* Init the status tracker */
@@ -599,8 +608,8 @@ void* status_tracker_thread(void* p){
 
 	/* create the dci logging thread */
 	pthread_t 	dci_log_thd;	
-	if(prog_args->log_dl || prog_args->log_dl){
-    	pthread_create(&dci_log_thd, NULL, dci_log_thread, (void*)(prog_args));
+	if(ngscope_config_check_log(config)){
+    	pthread_create(&dci_log_thd, NULL, dci_log_thread, (void*)(config));
 	}
 
 	FILE* fd = fopen("status_tracker.txt","w+");
@@ -683,6 +692,7 @@ void* status_tracker_thread(void* p){
     }
     printf("Close Status Tracker!\n");
 	fclose(fd);    
+
 //
 //    if(dis_plot == 0){
 //        if (!pthread_kill(plot_thread, 0)) {
@@ -690,12 +700,13 @@ void* status_tracker_thread(void* p){
 //          pthread_join(plot_thread, NULL);
 //        }
 //    }
-         
+ 	wait_for_ALL_RF_DEV_close();        
+
 	// Wait for the cell status tracking thread to end
 	pthread_join(cell_stat_thd, NULL);
 
 	// Wait for the dci log thread to end
-	if(prog_args->log_dl || prog_args->log_dl){
+	if(ngscope_config_check_log(config)){
 		pthread_join(dci_log_thd, NULL);
 	}
     
@@ -706,6 +717,6 @@ void* status_tracker_thread(void* p){
 
     //status_tracker_print_ue_freq(&status_tracker);
 
-    printf("Close Status Tracker!\n");
+    printf("Status Tracker CLOSED!\n");
     return NULL;
 }

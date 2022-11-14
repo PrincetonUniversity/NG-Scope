@@ -20,6 +20,7 @@
 #include "ngscope/hdr/dciLib/socket.h"
 #include "ngscope/hdr/dciLib/sync_dci_remote.h"
 #include "ngscope/hdr/dciLib/cell_status.h"
+#include "ngscope/hdr/dciLib/thread_exit.h"
 
 extern bool go_exit;
 
@@ -28,40 +29,88 @@ extern dci_ready_t               cell_stat_ready;
 
 extern ngscope_ue_list_t 	ue_list[MAX_NOF_RF_DEV];
 
-
 extern cell_status_t 	cell_status[MAX_NOF_RF_DEV];
 extern CA_status_t   	ca_status;
 extern pthread_mutex_t 	cell_status_mutex;
 
+extern bool task_scheduler_closed[MAX_NOF_RF_DEV];
+
 /* init the ca status */
-int init_CA_status(uint16_t targetRNTI, int nof_cell, int cell_prb[MAX_NOF_RF_DEV]){
-	ca_status.targetRNTI 	= targetRNTI;
-	ca_status.nof_cell 		= nof_cell;
-	ca_status.header 		= 0;
-	ca_status.all_cell_synced 		= false;
+int init_CA_status(CA_status_t* q, uint16_t targetRNTI, int nof_cell, int cell_prb[MAX_NOF_RF_DEV]){
+	q->targetRNTI 	= targetRNTI;
+	q->nof_cell 	= nof_cell;
+	q->header 		= 0;
+	q->all_cell_ready 		= false;
 	
-	memcpy(ca_status.cell_prb, cell_prb, MAX_NOF_RF_DEV *sizeof(int));
+	memcpy(&q->cell_prb, cell_prb, MAX_NOF_RF_DEV *sizeof(int));
 	return 0;
 }
+/* Operator */
+bool a_larger_than_b(int a, int b){
+    if( (a-b) >= 0){
+       return true;
+    }else{
+        /* b --> 320 --> a 
+           b 310   a 1 (a is larger then b in this case) */
+        if( (abs(NOF_LOG_SUBF - b) < NOF_LOG_SUBF/8) && 
+            (a < NOF_LOG_SUBF/8)){
+            return true;
+        }
+    } 
+    return false;
+}
+
+
+int find_header(int cell_header[MAX_NOF_RF_DEV], int nof_cell){
+	int min_header = cell_header[0];
+	for(int i=1; i<nof_cell; i++){
+		if(a_larger_than_b(min_header, cell_header[i])){
+			min_header = cell_header[i];
+		}
+	}
+	return min_header;
+}
+
+void update_CA_status_header(CA_status_t* q, cell_status_t 	p[MAX_NOF_RF_DEV]){
+	int nof_cell = q->nof_cell; 
+	int cell_header[MAX_NOF_RF_DEV] = {0};
+
+	bool cell_ready = true;
+	for(int i=0; i<nof_cell; i++){
+		if(p[i].cell_ready == false){
+			cell_ready = false;
+		}
+		cell_header[i] = p[i].cell_header;
+	}
+
+	if(cell_ready){
+		q->all_cell_ready = true;
+		q->header = find_header(cell_header, nof_cell);
+	}
+	
+	return;
+}
+
 
 /* Init the cell status */
-int init_cell_status(uint16_t targetRNTI, int cell_prb, int cell_idx){
-	cell_status[cell_idx].targetRNTI = targetRNTI;
-	cell_status[cell_idx].cell_prb	 = cell_prb;
-	cell_status[cell_idx].cell_ready = false;
-	cell_status[cell_idx].cell_header= 0;
-	cell_status[cell_idx].cell_idx 	 = cell_idx;
+int init_cell_status(cell_status_t* q, uint16_t targetRNTI, int cell_prb, int cell_idx){
+	q->targetRNTI 	= targetRNTI;
+	q->cell_prb	 	= cell_prb;
+	q->cell_ready 	= false;
+	q->cell_header	= 0;
+	q->cell_idx 	= cell_idx;
+
+	q->nof_logged_dci 	= 0;
+	q->most_recent_sf 	= 0;
 
 	for(int i=0; i<NOF_LOG_SUBF; i++){
-		memset(&(cell_status[cell_idx].sub_stat[i]), 0, sizeof(sf_status_t));
+		memset(&(q->sub_stat[i]), 0, sizeof(sf_status_t));
 	}
 	return 0;
 }
 
 /* fill the msg to one subframe */
-void enqueue_dci_sf(sf_status_t*q, 
-					uint16_t targetRNTI,
-					cell_status_buffer_t* dci_buffer){
+void enqueue_dci_sf(sf_status_t*q, uint16_t targetRNTI, cell_status_buffer_t* dci_buffer){
 	memcpy(q->dl_msg, &(dci_buffer->dci_per_sub.dl_msg), dci_buffer->dci_per_sub.nof_dl_dci);
 	memcpy(q->ul_msg, &(dci_buffer->dci_per_sub.ul_msg), dci_buffer->dci_per_sub.nof_ul_dci);
 
@@ -108,11 +157,14 @@ void enqueue_dci_sf(sf_status_t*q,
 		}
 		q->cell_ul_prb = cell_prb;
 	}
+
 	/* Mark this subframe as filed*/
 	q->filled = true;
 	return;
 }
 
+
+/* push to recorded dci to remote */
 int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int remote_sock){
 	if(remote_sock <= 0){
 		//printf("ERROR: sock not set!\n\n");
@@ -155,14 +207,36 @@ int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int re
 	return 0;
 }
 
+// check if the dci message decoding has timed out
+// This is to prevent that in some cases the dci decoding of a specific 
+// subframe has been missed
+void check_dci_decoding_timeout(cell_status_t* q){
+	int header 		= TTI_TO_IDX( (q->cell_header + 1)); 
+	int recent_sf 	= q->most_recent_sf;
+	while(header != recent_sf){
+		//printf("header:%d\n",header);
+		if(q->sub_stat[header].filled == false){
+			int time_lag = (recent_sf - header + NOF_LOG_SUBF) % NOF_LOG_SUBF;
+			if(time_lag > DCI_DECODE_TIMEOUT){
+				q->sub_stat[header].filled = true;
+			}
+		}
+		header = TTI_TO_IDX((header + 1));
+	}
+}
 
-void update_cell_status_header(cell_status_t* q, int remote_sock){
+void update_cell_status_header(cell_status_t* q, int remote_sock, FILE* fd, uint32_t tti){
+	if(q->nof_logged_dci < 50){
+		return;
+	}
+	check_dci_decoding_timeout(q);
+
 	int index = TTI_TO_IDX( (q->cell_header + 1));
 	while(q->sub_stat[index].filled){
 		q->cell_header 				= index;
 		q->sub_stat[index].filled 	= false;
-
 		push_dci_to_remote(&q->sub_stat[index], q->cell_idx, q->targetRNTI, remote_sock);
+		fprintf(fd,"%d\t%d\t%d\t%d\t\n", q->sub_stat[index].tti, q->cell_header, index, tti);
 		//printf("push tti:%d index:%d\n", q->sub_stat[index].tti, index);
 		// update the index
 		index = TTI_TO_IDX( (index + 1));
@@ -170,10 +244,35 @@ void update_cell_status_header(cell_status_t* q, int remote_sock){
 	return;
 }
 
+void update_most_recent_sf(cell_status_t* q, int index){
+	int recent_sf 	= q->most_recent_sf;
+	//if( abs(index - recent_sf)> 100 ){
+	//	printf("The most recent sf and the new sf seems jump too much! Take care!\n");
+	//}
+
+	if(index > recent_sf){
+		// only valid if index and recent_sf doesn't cross boundry
+		// |-----------------------recent_sf  index --------------|
+		if( abs(index - recent_sf)< 30 ){
+			q->most_recent_sf = index;
+		}
+	}else if(index < recent_sf){
+		// only valid if the index and recent sf across the boundry
+		// |--index -----------------------------------recent_sf---|
+		if( abs(index - recent_sf)> 250 ){
+			q->most_recent_sf = index;
+		}
+	}
+	
+	return;
+}
+
 /* insert the dci into the cell status */
-void enqueue_dci_cell(cell_status_t*q, 
+void enqueue_dci_cell(cell_status_t* q, 
 						cell_status_buffer_t* dci_buffer,
-						int remote_sock){
+						int remote_sock,
+						FILE* fd1,
+						FILE* fd2){
 
 	uint32_t tti 	= dci_buffer->tti;
 	int 	 index 	= TTI_TO_IDX(tti);
@@ -186,21 +285,42 @@ void enqueue_dci_cell(cell_status_t*q,
 		q->cell_ready = true;
 		// in case index-1 is negative
 		q->cell_header = TTI_TO_IDX(index - 1 + NOF_LOG_SUBF);
+		q->most_recent_sf 	= q->cell_header;
 	}
 
 	/* Enqueue the dci into the cell */
 	enqueue_dci_sf(&(q->sub_stat[index]), q->targetRNTI, dci_buffer);
 
+	// increase the number logged dci (we enqueue only 1 dci)
+	if(q->nof_logged_dci < NOF_LOG_SUBF){
+		q->nof_logged_dci++;
+	}
+
+	update_most_recent_sf(q, index);
+
 	/* update the header */
 	uint16_t last_header = q->cell_header;
-	update_cell_status_header(q, remote_sock);
+
+	if(q->cell_idx == 0){
+		fprintf(fd1, "%d\t%d\t%d\t%d\t", tti, index, last_header, q->most_recent_sf);
+		for(int i=0; i< NOF_LOG_SUBF; i++){
+			fprintf(fd1, "%d", q->sub_stat[i].filled);
+			if(i % 40 == 0){
+				fprintf(fd1, " ");
+			}
+		}
+		fprintf(fd1, "\n");
+	}
+
+	update_cell_status_header(q, remote_sock, fd2, tti);
+
 	if(last_header != q->cell_header){
 		/* Header has been updated */
 	}
 	return;
 }
 
-void enqueue_dci_rnti(ngscope_ue_list_t* q, uint32_t tti, uint16_t rnti, bool dl){
+void enqueue_ue_list_rnti(ngscope_ue_list_t* q, uint32_t tti, uint16_t rnti, bool dl){
     if(q->ue_cnt[rnti] == 0){
         q->ue_enter_time[rnti] = tti;
     }    
@@ -259,18 +379,22 @@ void* cell_status_thread(void* arg){
 	int remote_sock 	= info.remote_sock;
 	
 	int nof_dci;
+
 	cell_status_buffer_t dci_buf[MAX_DCI_BUFFER];
 
 	/* We now init two status buffer CA status and cell status */
 	// --> init the CA status
-	init_CA_status(info.targetRNTI, info.nof_cell, info.cell_prb);
+	init_CA_status(&ca_status, info.targetRNTI, info.nof_cell, info.cell_prb);
 
 	// --> init the cell status
 	for(int i=0; i<info.nof_cell; i++){
-		init_cell_status(info.targetRNTI, info.cell_prb[i], i);
+		init_cell_status(&cell_status[i], info.targetRNTI, info.cell_prb[i], i);
 	}
 
 	FILE* fd = fopen("cell_status.txt","w+");
+	FILE* fd_log = fopen("dci_log.txt","w+");
+	FILE* fd_tti = fopen("tti_log.txt","w+");
+
 	while(true){
         if(go_exit) break;
 
@@ -299,31 +423,37 @@ void* cell_status_thread(void* arg){
   			fprintf(fd, "%d\t%d\t%d\t\n", dci_buf[i].tti, nof_dci, cell_status[cell_idx].cell_header);
 			//fprintf(fd, "%d\t%d\n", dci_buf[i].tti, nof_dci);
 			//enqueue the dci to the according cell status buffer
-			enqueue_dci_cell(&(cell_status[cell_idx]), &(dci_buf[i]), remote_sock);
+			enqueue_dci_cell(&(cell_status[cell_idx]), &(dci_buf[i]), remote_sock, fd_tti, fd_log);
 
 			//int header = cell_status[cell_idx].cell_header;
 			//printf("cell status header:%d ready:%d\n", header, cell_status[cell_idx].cell_ready);
 		}
+		update_CA_status_header(&ca_status, cell_status);
         pthread_mutex_unlock(&cell_status_mutex);
 
 		// update ue list
 		for(int i=0; i<nof_dci; i++){
 			int cell_idx = dci_buf[i].cell_idx;	
 			for(int j=0; j<dci_buf[i].dci_per_sub.nof_dl_dci; j++){
-				enqueue_dci_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
+				enqueue_ue_list_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
 						dci_buf[i].dci_per_sub.dl_msg[j].rnti, true);
 			}
 			for(int j=0; j<dci_buf[i].dci_per_sub.nof_ul_dci; j++){
-				enqueue_dci_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
+				enqueue_ue_list_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
 						dci_buf[i].dci_per_sub.ul_msg[j].rnti, false);
 			}
 		}
     } 
 
-	sleep(1);
+ 	wait_for_ALL_RF_DEV_close();        
 	for(int i=0; i<info.nof_cell; i++){
 		cell_status_print_ue_freq(&(ue_list[i]));
 	}
+
 	fclose(fd);
+	fclose(fd_log);
+	fclose(fd_tti);
+	printf("CELL STATUS TRACK CLOSED!\n");
+
 	return NULL;
 }

@@ -16,6 +16,7 @@
 
 #include "srsran/srsran.h"
 #include "ngscope_def.h"
+#include "load_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,7 +75,6 @@ typedef struct{
     bool        all_cell_synced;
     ngscope_cell_status_t cell_status[MAX_NOF_RF_DEV];
 }ngscope_CA_status_t;
-
 
 typedef struct{
     ngscope_CA_status_t ngscope_CA_status;

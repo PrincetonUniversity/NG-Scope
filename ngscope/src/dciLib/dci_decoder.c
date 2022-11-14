@@ -20,11 +20,13 @@
 #include "ngscope/hdr/dciLib/phich_decoder.h"
 #include "ngscope/hdr/dciLib/time_stamp.h"
 #include "ngscope/hdr/dciLib/status_plot.h"
+#include "ngscope/hdr/dciLib/thread_exit.h"
 
 extern bool                 go_exit;
-extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_DCI_DECODER];
-extern bool                 sf_token[MAX_NOF_DCI_DECODER];
-extern pthread_mutex_t      token_mutex; 
+
+extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
+extern bool                 sf_token[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
+extern pthread_mutex_t      token_mutex[MAX_NOF_RF_DEV]; 
 
 extern dci_ready_t         dci_ready;
 extern ngscope_status_buffer_t    dci_buffer[MAX_DCI_BUFFER];
@@ -33,11 +35,16 @@ extern ngscope_status_buffer_t    dci_buffer[MAX_DCI_BUFFER];
 extern pend_ack_list       ack_list;
 extern pthread_mutex_t     ack_mutex;
 
+extern bool dci_decoder_up[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
+extern bool task_scheduler_up[MAX_NOF_RF_DEV];
 
-pthread_mutex_t dci_plot_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t 	dci_plot_cond = PTHREAD_COND_INITIALIZER;
-cf_t* pdcch_buf;
-float csi_amp[110 * 15 * 2048];
+pthread_mutex_t dci_plot_mutex[MAX_NOF_RF_DEV] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
+					 								PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+pthread_cond_t 	dci_plot_cond[MAX_NOF_RF_DEV] = {PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER,
+													PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER};
+
+cf_t* pdcch_buf[MAX_NOF_RF_DEV];
+float csi_amp[MAX_NOF_RF_DEV][110 * 15 * 2048];
 
 int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
                         prog_args_t             prog_args,
@@ -250,11 +257,11 @@ void empty_dci_persub(ngscope_dci_per_sub_t*  dci_per_sub){
 }
     
 void* dci_decoder_thread(void* p){
-	//cell_args_t* cell_args 		= (cell_args_t* )p;
-	
 	ngscope_dci_decoder_t* dci_decoder 	= (ngscope_dci_decoder_t* )p;
 
 	int decoder_idx = dci_decoder->decoder_idx;
+    int rf_idx     	= dci_decoder->prog_args.rf_index;
+
 
 	printf("decoder idx :%d \n", decoder_idx);
     ngscope_dci_per_sub_t   dci_per_sub; 
@@ -272,8 +279,8 @@ void* dci_decoder_thread(void* p){
     pthread_t plot_thread;
 	if(enable_plot){
 		if(decoder_idx == 0){
-			pdcch_buf = srsran_vec_cf_malloc(36*80);
-			srsran_vec_cf_zero(pdcch_buf, nof_pdcch_sample);
+			pdcch_buf[rf_idx] = srsran_vec_cf_malloc(36*80);
+			srsran_vec_cf_zero(pdcch_buf[rf_idx], nof_pdcch_sample);
 
 			decoder_plot_t decoder_plot;
 			decoder_plot.decoder_idx 		= decoder_idx;
@@ -283,9 +290,6 @@ void* dci_decoder_thread(void* p){
 			plot_init_pdcch_thread(&plot_thread, &decoder_plot);
 		}
 	}
-
-    int rf_idx     = dci_decoder->prog_args.rf_index;
-
 //    uint64_t t1=0, t2=0, t3=0, t4=0;  
 	char fileName[100];
 	sprintf(fileName,"decoder_%d.txt", decoder_idx);
@@ -299,26 +303,26 @@ void* dci_decoder_thread(void* p){
 		empty_dci_persub(&dci_per_sub);
 
 //--->  Lock the buffer
-        pthread_mutex_lock(&sf_buffer[decoder_idx].sf_mutex);
+        pthread_mutex_lock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);
     
         // We release the token in the last minute just before the waiting of the condition signal 
-        pthread_mutex_lock(&token_mutex);
-        if(sf_token[decoder_idx] == true){
-            sf_token[decoder_idx] = false;
+        pthread_mutex_lock(&token_mutex[rf_idx]);
+        if(sf_token[rf_idx][decoder_idx] == true){
+            sf_token[rf_idx][decoder_idx] = false;
         }
-        pthread_mutex_unlock(&token_mutex);
+        pthread_mutex_unlock(&token_mutex[rf_idx]);
 
 //--->  Wait the signal 
         //printf("%d-th decoder is waiting for conditional signal!\n", dci_decoder->decoder_idx);
 		//t1 = timestamp_us();        
-        pthread_cond_wait(&sf_buffer[decoder_idx].sf_cond, 
-                          &sf_buffer[decoder_idx].sf_mutex);
+        pthread_cond_wait(&sf_buffer[rf_idx][decoder_idx].sf_cond, 
+                          &sf_buffer[rf_idx][decoder_idx].sf_mutex);
     
-        uint32_t sfn    = sf_buffer[decoder_idx].sfn;
-        uint32_t sf_idx = sf_buffer[decoder_idx].sf_idx;
+        uint32_t sfn    = sf_buffer[rf_idx][decoder_idx].sfn;
+        uint32_t sf_idx = sf_buffer[rf_idx][decoder_idx].sf_idx;
 
         uint32_t tti    = sfn * 10 + sf_idx;
-		bool   empty_sf = sf_buffer[decoder_idx].empty_sf;
+		bool   empty_sf = sf_buffer[rf_idx][decoder_idx].empty_sf;
         //printf("%d-th decoder Get the conditional signal! empty:%d\n", dci_decoder->decoder_idx, empty_sf);
     
  
@@ -327,31 +331,31 @@ void* dci_decoder_thread(void* p){
         //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
 		// We only decode when the subframe is not empty
 		if(empty_sf){
-			pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);	
+			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
 		}else{
 			//usleep(1000);
 			dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
 			//t3 = timestamp_us();        
 	//--->  Unlock the buffer
-			pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);	
+			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
 
 			if(enable_plot){
 				if(decoder_idx == 0){
-					pthread_mutex_lock(&dci_plot_mutex);    
-					srsran_vec_cf_copy(pdcch_buf, dci_decoder->ue_dl.pdcch.d, nof_pdcch_sample);
+					pthread_mutex_lock(&dci_plot_mutex[rf_idx]);    
+					srsran_vec_cf_copy(pdcch_buf[rf_idx], dci_decoder->ue_dl.pdcch.d, nof_pdcch_sample);
 
 					if (sz > 0) {
-						srsran_vec_f_zero(csi_amp, sz);
+						srsran_vec_f_zero(&(csi_amp[rf_idx][0]), sz);
 					}
 					int g = (sz - 12 * nof_prb) / 2;
 					for (int i = 0; i < 12 * nof_prb; i++) {
-						csi_amp[g + i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i]));
-						if (isinf(csi_amp[g + i])) {
-							csi_amp[g + i] = -80;
+						csi_amp[rf_idx][g + i] = srsran_convert_amplitude_to_dB(cabsf(dci_decoder->ue_dl.chest_res.ce[0][0][i]));
+						if (isinf(csi_amp[rf_idx][g + i])) {
+							csi_amp[rf_idx][g + i] = -80;
 						}
 					}
-					pthread_cond_signal(&dci_plot_cond);
-					pthread_mutex_unlock(&dci_plot_mutex);    
+					pthread_cond_signal(&dci_plot_cond[rf_idx]);
+					pthread_mutex_unlock(&dci_plot_mutex[rf_idx]);    
 				}
 			}
 		}
@@ -372,7 +376,9 @@ void* dci_decoder_thread(void* p){
         dci_ready.header = (dci_ready.header + 1) % MAX_DCI_BUFFER;
         if(dci_ready.nof_dci < MAX_DCI_BUFFER){
             dci_ready.nof_dci++;
-        }
+        }else{
+			printf("DCI-buffer between decoder and status tracker is full! Considering increase its side!\n");
+		}
 
         //printf("TTI :%d ul_dci: %d dl_dci:%d nof_dci:%d\n", dci_ret.tti, dci_per_sub.nof_ul_dci, 
         //                                        dci_per_sub.nof_dl_dci, dci_ready.nof_dci);
@@ -386,17 +392,22 @@ void* dci_decoder_thread(void* p){
 	// we free the ue dl in task scheduler
     //srsran_ue_dl_free(&dci_decoder->ue_dl);
 
-		
+	wait_for_decoder_ready_to_close(rf_idx, decoder_idx);
+	// free the ue dl and the related buffer
+    //srsran_ue_dl_free(&dci_decoder->ue_dl);
+	
     printf("Going to Close %d-th DCI decoder!\n",decoder_idx);
 	if(enable_plot){
 		if(decoder_idx == 0){
-			pthread_cond_signal(&dci_plot_cond);
+			pthread_cond_signal(&dci_plot_cond[rf_idx]);
 			pthread_join(plot_thread, NULL);
-			free(pdcch_buf);
+			free(pdcch_buf[rf_idx]);
 		}
 	}
-    printf("Close %d-th DCI decoder!\n",decoder_idx);
 	fclose(fd);
+	dci_decoder_up[rf_idx][decoder_idx] = false;
+
+    printf("%d-th RF-DEV %d-th DCI decoder CLOSED!\n",rf_idx, decoder_idx);
 
     return NULL;
 }

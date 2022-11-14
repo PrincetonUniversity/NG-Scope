@@ -50,6 +50,8 @@ typedef struct{
 	bool 	 	cell_ready; //If the cell is ready
 
 	int 		cell_prb; 	//Total PRB the cell has
+	int 		nof_logged_dci;
+	int 		most_recent_sf;
 
 	sf_status_t sub_stat[NOF_LOG_SUBF];
 }cell_status_t;
@@ -59,7 +61,7 @@ typedef struct{
 	int         nof_cell;
     int         header;
     int         cell_prb[MAX_NOF_RF_DEV];
-    bool        all_cell_synced;
+    bool        all_cell_ready;
 }CA_status_t;
 
 typedef struct{

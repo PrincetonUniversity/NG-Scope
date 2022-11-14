@@ -77,11 +77,28 @@ int ngscope_read_config(ngscope_config_t* config){
             printf("rf_args:%s ",config->rf_config[i].rf_args);
         }
         printf("\n");
-        if(! config_lookup_bool(cfg, "disable_plot", &config->rf_config[i].disable_plot)){
+
+        sprintf(name, "rf_config%d.disable_plot",i);
+        if(! config_lookup_bool(cfg, name, &config->rf_config[i].disable_plot)){
             printf("ERROR: reading disable_plot\n");
         }else{
             printf("disable plot: %d\n", config->rf_config[i].disable_plot);
         }
+
+        sprintf(name, "rf_config%d.log_dl",i);
+		if(! config_lookup_bool(cfg, name, &config->rf_config[i].log_dl)){
+            printf("ERROR: reading log_dl\n");
+        }else{
+            printf("log dl dci: %d\n", config->rf_config[i].log_dl);
+        }
+
+        sprintf(name, "rf_config%d.log_ul",i);
+		if(! config_lookup_bool(cfg, name, &config->rf_config[i].log_ul)){
+            printf("ERROR: reading log_ul\n");
+        }else{
+            printf("log dl dci: %d\n", config->rf_config[i].log_dl);
+        }
+
     }
 
     // DCI log config
@@ -95,4 +112,13 @@ int ngscope_read_config(ngscope_config_t* config){
 
 
     return 0;
+}
+
+bool ngscope_config_check_log(ngscope_config_t* config){
+	for(int i=0; i<config->nof_rf_dev; i++){
+		if(config->rf_config[i].log_dl || config->rf_config[i].log_ul){
+			return true;
+		}	
+	}
+	return false;
 }

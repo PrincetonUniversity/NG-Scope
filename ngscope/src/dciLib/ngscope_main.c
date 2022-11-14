@@ -40,6 +40,15 @@ pthread_mutex_t     cell_status_mutex = PTHREAD_MUTEX_INITIALIZER;
 // UE list
 ngscope_ue_list_t 	ue_list[MAX_NOF_RF_DEV];
 
+// dci decoder status
+bool dci_decoder_up[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER] = {{false}};
+bool task_scheduler_up[MAX_NOF_RF_DEV] = {false};
+
+//bool dci_decoder_closed[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER] = {{true}};
+bool task_scheduler_closed[MAX_NOF_RF_DEV] = {true, true, true, true};
+pthread_mutex_t     scheduler_close_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
 int ngscope_main(ngscope_config_t* config){
     int nof_rf_dev;
 
@@ -53,10 +62,15 @@ int ngscope_main(ngscope_config_t* config){
     }
 
     nof_rf_dev = config->nof_rf_dev;
-
+	
+	for(int i=0; i<MAX_NOF_RF_DEV; i++){
+		printf("RF-DEV:%d\n", task_scheduler_closed[i]);
+	}
     /* Task scheduler thread */
     pthread_t task_thd[MAX_NOF_RF_DEV];
     for(int i=0; i<nof_rf_dev; i++){
+		task_scheduler_up[i] 		= true;
+		task_scheduler_closed[i] 	= false;
 
 		prog_args[i].nof_rf_dev       = nof_rf_dev;
 		prog_args[i].log_dl           = config->dci_log_config.log_dl;
@@ -81,7 +95,7 @@ int ngscope_main(ngscope_config_t* config){
     prog_args[0].disable_plots    = config->rf_config[0].disable_plot;
     printf("disable_plots :%d\n", prog_args[0].disable_plots);
 
-    pthread_create(&status_thd, NULL, status_tracker_thread, (void*)(&(prog_args[0])));
+    pthread_create(&status_thd, NULL, status_tracker_thread, (void*)(config));
 
     /* Now waiting for those threads to end */
     for(int i=0; i<nof_rf_dev; i++){

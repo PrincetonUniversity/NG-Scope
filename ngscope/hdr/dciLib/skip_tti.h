@@ -29,7 +29,6 @@ typedef struct{
 
 int skip_tti_init(task_skip_tti_t* q);
 int skip_tti_put(task_skip_tti_t* q, uint32_t sf, uint32_t sf_idx);
-
 uint32_t skip_tti_get(task_skip_tti_t* q);
 int skip_tti_empty(task_skip_tti_t* q);
 

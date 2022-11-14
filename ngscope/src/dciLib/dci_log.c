@@ -99,20 +99,22 @@ void log_ul_subframe(sf_status_t* q,
 
 /* Logging related function */
 void log_per_subframe(sf_status_t* q,
-					prog_args_t* prog_args,
+					//prog_args_t* prog_args,
+					ngscope_config_t* config,
 					FILE* fd_dl, 
-					FILE* fd_ul)
+					FILE* fd_ul, 
+					int   cell_idx)
 {
-    bool log_dl    = prog_args->log_dl;
-    bool log_ul    = prog_args->log_ul;
+    //bool log_dl    = prog_args->log_dl;
+    //bool log_ul    = prog_args->log_ul;
 
     //printf("TTI:%d idx:%d nof_dl_msg:%d nof_ul_msg:%d\n", q.tti[buf_idx], buf_idx, nof_dl_msg, nof_ul_msg);
 
-    if(log_dl){
+    if(config->rf_config[cell_idx].log_dl){
 		log_dl_subframe(q, fd_dl);
     }
 
-    if(log_ul){
+    if(config->rf_config[cell_idx].log_ul){
 		log_ul_subframe(q, fd_ul);
     }
 
@@ -135,13 +137,18 @@ int  find_ue_dl_dci(ngscope_cell_status_t* q, uint16_t rnti, int sf_idx){
 
 
 void auto_dci_logging(cell_status_t* q,
-						prog_args_t* prog_args,
+						//prog_args_t* prog_args,
+						ngscope_config_t* config,
 						FILE* fd_dl, 
 						FILE* fd_ul,
-						int   last_header)
+						int   last_header,
+						int   cell_idx,
+						FILE* fd)
 {
 	int start_idx = last_header;
 	int end_idx   = q->cell_header;
+
+	//FILE* fd = fopen("./auto_dci_log.txt","a+");
 
 	if(q->cell_ready){
 		// we are not logging single dci 
@@ -150,29 +157,38 @@ void auto_dci_logging(cell_status_t* q,
 		}else if(start_idx > end_idx){
 			end_idx += NOF_LOG_SUBF;
 		}
+
+		fprintf(fd,"%d\t%d\t%d\n", start_idx, end_idx, q->sub_stat[start_idx].tti);
 		//printf("start_idx:%d end_idx:%d\n", start_idx, end_idx);
 		for(int i=start_idx+1; i<=end_idx; i++){
 			// moving forward until we reach the current header
 			int idx = TTI_TO_IDX(i);
 			// log the dci
-			log_per_subframe(&q->sub_stat[idx], prog_args, fd_dl, fd_ul);
+			log_per_subframe(&q->sub_stat[idx], config, fd_dl, fd_ul, cell_idx);
 		}
+		//while(start_idx != end_idx){
+	//		start_idx = TTI_TO_IDX(start_idx+1);
+	//		log_per_subframe(&q->sub_stat[start_idx], prog_args, fd_dl, fd_ul);
+	//	}
 	}
+	//fclose(fd);
     return;
 }
 
 void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
                             FILE* fd_ul[MAX_NOF_RF_DEV],
-                            bool log_dl, bool log_ul, int nof_rf_dev,
-                            long long* rf_freq)
+							ngscope_config_t* config)
+                            //bool log_dl, bool log_ul, int nof_rf_dev,
+                            //long long* rf_freq)
 {
+
+	int nof_rf_dev = config->nof_rf_dev;
     // create the folder
     system("mkdir ./dci_log");
-
     char fileName[128];
     for(int i=0; i<nof_rf_dev; i++){
-        if(log_dl){
-            sprintf(fileName, "./dci_log/dci_raw_log_dl_freq_%lld.dciLog", rf_freq[i]);
+        if(config->rf_config[i].log_dl){
+            sprintf(fileName, "./dci_log/dci_raw_log_dl_freq_%lld.dciLog", config->rf_config[i].rf_freq);
             fd_dl[i] = fopen(fileName, "w+");
              if(fd_dl[i] == NULL){
                 printf("ERROR: fail to open log file!\n");
@@ -180,8 +196,8 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
             }
         }
 
-        if(log_ul){
-            sprintf(fileName, "./dci_log/dci_raw_log_ul_freq_%lld.dciLog", rf_freq[i]);
+        if(config->rf_config[i].log_ul){
+            sprintf(fileName, "./dci_log/dci_raw_log_ul_freq_%lld.dciLog", config->rf_config[i].rf_freq);
             fd_ul[i] = fopen(fileName, "w+");
              if(fd_ul[i]== NULL){
                 printf("ERROR: fail to open log file!\n");
@@ -192,15 +208,20 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
 }
 
 void* dci_log_thread(void* p){
-  	prog_args_t* prog_args = (prog_args_t*)p; 
+  	//prog_args_t* prog_args = (prog_args_t*)p; 
+	ngscope_config_t* config = (ngscope_config_t*)p;
     FILE* fd_dl[MAX_NOF_RF_DEV];
     FILE* fd_ul[MAX_NOF_RF_DEV];
-    int nof_dev = prog_args->nof_rf_dev;
+    int nof_dev = config->nof_rf_dev;
     // Logging reated  --> fill no matter we log or not
-    fill_file_descriptor(fd_dl, fd_ul, prog_args->log_dl, prog_args->log_ul, nof_dev, prog_args->rf_freq_vec);
+    fill_file_descriptor(fd_dl, fd_ul, config);
+	//prog_args->log_dl, prog_args->log_ul, nof_dev, prog_args->rf_freq_vec);
 
 	int curr_header[MAX_NOF_RF_DEV];
 	bool cell_ready[MAX_NOF_RF_DEV] = {false};
+
+	FILE* fd = fopen("./auto_dci_log.txt","w+");
+
 	while(!go_exit){
         pthread_mutex_lock(&cell_status_mutex);
 		for(int i=0; i<nof_dev; i++){
@@ -210,10 +231,14 @@ void* dci_log_thread(void* p){
 					curr_header[i] = cell_status[i].cell_header;
 					cell_ready[i] = true;
 				}else{
-					auto_dci_logging(&cell_status[i], prog_args, fd_dl[i], fd_ul[i], curr_header[i]);
+					//int cur_head = curr_header[i];
+					//int cell_header = cell_status[i].cell_header;
+					auto_dci_logging(&cell_status[i], config, fd_dl[i], fd_ul[i], curr_header[i], i, fd);
 					if(curr_header[i] !=  cell_status[i].cell_header){
 						curr_header[i] =  cell_status[i].cell_header;
 					}
+					//fprintf(fd, "%d\t%d\t%d\t%d\t\n", cur_head, cell_header, curr_header[i], 
+								//cell_status[i].cell_header);
 				}
 			}		
 		}
@@ -221,5 +246,7 @@ void* dci_log_thread(void* p){
 		// we may not want to always hold the lock
 		usleep(100);
 	}
+	fclose(fd);
+	printf("DCI LOGGING THREAD closed!\n");
 	return NULL;
 }

@@ -9,6 +9,8 @@ typedef struct{
     char        rf_args[100];
     int         nof_thread;
     int         disable_plot;
+	int 		log_dl;
+	int			log_ul;
 }rf_dev_config_t;
 
 typedef struct{
@@ -28,4 +30,5 @@ typedef struct{
 }ngscope_config_t;
 
 int ngscope_read_config(ngscope_config_t* config);
+bool ngscope_config_check_log(ngscope_config_t* config);
 #endif

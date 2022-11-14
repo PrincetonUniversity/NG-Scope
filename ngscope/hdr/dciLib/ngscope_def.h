@@ -33,7 +33,7 @@ extern "C" {
 #define MAX_TTI 10240
 
 #define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
-
+#define DCI_DECODE_TIMEOUT 30
 typedef struct{
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
