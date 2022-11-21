@@ -4,7 +4,23 @@
 #include <string.h>
 #include <libconfig.h>
 #include "ngscope/hdr/dciLib/load_config.h"
+int compar(const void* a,const void* b)
+{
+    return (*(long long*)a - *(long long*)b);
+}
 
+bool containsDuplicate(long long* nums, int numsSize){
+    int i,j;
+    qsort(nums, numsSize,sizeof(long long),compar);
+    for(i = 0,j = 1;j < numsSize;i++,j++)
+    {
+        if(nums[i] == nums[j])
+        {
+            return true;
+        }
+    }
+    return false;
+}
 int ngscope_read_config(ngscope_config_t* config){
     config_t* cfg = (config_t *)malloc(sizeof(config_t));
     config_init(cfg);
@@ -38,12 +54,14 @@ int ngscope_read_config(ngscope_config_t* config){
     }
     printf("read remote_enable:%d\n", config->remote_enable);
     
+	long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
 
 //    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){
 //        printf("ERROR: reading con_time_s\n");
 //    }
 //    printf("read connection time:%d\n", config->con_time_s);
 //
+
     for(int i=0;i<config->nof_rf_dev;i++){
 
         char name[50];
@@ -53,6 +71,8 @@ int ngscope_read_config(ngscope_config_t* config){
         }else{
             printf("rf_freq:%lld ",config->rf_config[i].rf_freq);
         }
+		// store the data inside the vector
+		freq_vec[i] = config->rf_config[i].rf_freq;
 
         sprintf(name, "rf_config%d.N_id_2",i);
         if(! config_lookup_int(cfg, name, &config->rf_config[i].N_id_2)){
@@ -100,6 +120,12 @@ int ngscope_read_config(ngscope_config_t* config){
         }
 
     }
+
+	if(containsDuplicate(freq_vec, config->nof_rf_dev)){
+		printf("Two USRP is listening to the same base station (with the same frequency), which results in unpredictable behavior when logging the DCI messages. \n \
+		So, we currently doesn't support it! Please check your configuration files to fix it.\n");
+		exit(0);
+	}
 
     // DCI log config
     config->dci_log_config.nof_cell = config->nof_rf_dev;

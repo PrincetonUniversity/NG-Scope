@@ -124,14 +124,25 @@ void log_per_subframe(sf_status_t* q, ngscope_dci_log_config_t* config, int cell
     return;
 }
 
+//
+//int  find_ue_dl_dci(ngscope_cell_status_t* q, uint16_t rnti, int sf_idx){
+//    // RNTI cannot be zero
+//    if(rnti <= 0){
+//        return -1;
+//    }
+//
+//    for(int i=0; i<MAX_DCI_PER_SUB; i++){
+//        if(q->dl_msg[i][sf_idx].rnti == rnti){
+//            return i;
+//        }
+//    } 
+//    return -1;
+//}
+//
 void log_per_cell(ngscope_cell_dci_ring_buffer_t* q, ngscope_dci_log_config_t* config, int cell_idx)
 {
 	int start_idx = config->curr_header[cell_idx];
 	int end_idx   = q->cell_header;
-
-#ifdef LOG_DCI_LOGGER
-	fprintf(config->fd_log_cell, "%d\t%d\t\n", start_idx, end_idx);
-#endif
 
 	if(q->cell_ready){
 		// we are not logging single dci 
@@ -151,36 +162,67 @@ void log_per_cell(ngscope_cell_dci_ring_buffer_t* q, ngscope_dci_log_config_t* c
 	//fclose(fd);
     return;
 }
-
 void log_multi_cell(ngscope_cell_dci_ring_buffer_t* 	q, 
 					ngscope_dci_log_config_t* 			config,
-					ngscope_cell_dci_ring_buffer_t 		cell_status[MAX_NOF_RF_DEV],
-					CA_status_t*   						ca_status)
+					ngscope_cell_dci_ring_buffer_t 		cell_status[MAX_NOF_RF_DEV])
 {
-	if(ca_status->all_cell_ready){
-		for(int i=0; i<config->nof_cell; i++){
-			if(go_exit) break;
-			if(cell_status[i].cell_ready){
-				if(config->cell_ready[i] == false){
-					// The first time we log the dci messages
-					config->curr_header[i] = cell_status[i].cell_header;
-					config->cell_ready[i] = true;
-					dci_ring_buffer_clear_cell_fill_flag(q, i);
-				}else{
-					//int cur_head = curr_header[i];
-					//int cell_header = cell_status[i].cell_header;
-					log_per_cell(&cell_status[i], config, i);
-					if(config->curr_header[i] !=  cell_status[i].cell_header){
-						config->curr_header[i] =  cell_status[i].cell_header;
-					}
-					//fprintf(fd, "%d\t%d\t%d\t%d\t\n", cur_head, cell_header, curr_header[i], 
-								//cell_status[i].cell_header);
+	for(int i=0; i<config->nof_cell; i++){
+		if(go_exit) break;
+		if(cell_status[i].cell_ready){
+			if(config->cell_ready[i] == false){
+				// The first time we log the dci messages
+				config->curr_header[i] = cell_status[i].cell_header;
+				config->cell_ready[i] = true;
+			}else{
+				//int cur_head = curr_header[i];
+				//int cell_header = cell_status[i].cell_header;
+				log_per_cell(&cell_status[i], config, i);
+				if(config->curr_header[i] !=  cell_status[i].cell_header){
+					config->curr_header[i] =  cell_status[i].cell_header;
 				}
-			}		
-		}
+				//fprintf(fd, "%d\t%d\t%d\t%d\t\n", cur_head, cell_header, curr_header[i], 
+							//cell_status[i].cell_header);
+			}
+		}		
 	}
 	return;
 }
+//
+//void auto_dci_logging(ngscope_cell_dci_ring_buffer_t* q,
+//						//prog_args_t* prog_args,
+//						ngscope_config_t* config,
+//						FILE* fd_dl, 
+//						FILE* fd_ul,
+//						int   last_header,
+//						int   cell_idx,
+//						FILE* fd)
+//{
+//	int start_idx = last_header;
+//	int end_idx   = q->cell_header;
+//
+//	//FILE* fd = fopen("./auto_dci_log.txt","a+");
+//
+//	if(q->cell_ready){
+//		// we are not logging single dci 
+//		if(start_idx == end_idx){
+//			return;
+//		}else if(start_idx > end_idx){
+//			end_idx += q->buf_size;
+//		}
+//		fprintf(fd,"%d\t%d\t%d\n", start_idx, end_idx, q->sub_stat[start_idx].tti);
+//		//printf("start_idx:%d end_idx:%d\n", start_idx, end_idx);
+//		for(int i=start_idx+1; i<=end_idx; i++){
+//			if(go_exit) break;
+//			// moving forward until we reach the current header
+//			int idx = i % q->buf_size;
+//			// log the dci
+//			log_per_subframe(&q->sub_stat[idx], config, fd_dl, fd_ul, cell_idx);
+//		}
+//	}
+//	//fclose(fd);
+//    return;
+//}
+
 void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
                           FILE* fd_ul[MAX_NOF_RF_DEV],
 						  ngscope_config_t* config)
@@ -223,39 +265,16 @@ void fill_dci_log_config(ngscope_dci_log_config_t* q, ngscope_config_t* config){
 		q->curr_header[i] 	= 0;
 		q->cell_ready[i] 	= false;
 	}
-
 	fill_file_descriptor(q->fd_dl,  q->fd_ul, config);
-
-#ifdef LOG_DCI_LOGGER
-	q->fd_log_cell = fopen("dci_log_cell.txt", "w+");
-#endif
-
 	return;
 }
 
-void clear_dci_log_config(ngscope_dci_log_config_t* q){
-
-    for(int i=0; i<q->nof_cell; i++){
-		if(q->log_dl[i]){
-			fclose(q->fd_dl[i]);
-		}
-
-		if(q->log_ul[i]){
-			fclose(q->fd_ul[i]);
-		}
-	}
-#ifdef LOG_DCI_LOGGER
-	fclose(q->fd_log_cell);
-#endif
-	return;
-}
 void* dci_log_thread(void* p){
 	log_config_t* log_config  = (log_config_t*)p;
 
 	ngscope_dci_log_config_t dci_log_config;
 
-	int buf_size = DCI_LOGGER_RING_BUF_SIZE;
-
+	int buf_size = DCI_LOGGER_RING_BUF_SIZE; 
 	ngscope_cell_dci_ring_buffer_t 		cell_status[MAX_NOF_RF_DEV];
 	CA_status_t   						ca_status;
 
@@ -267,8 +286,6 @@ void* dci_log_thread(void* p){
 	/* We now init two status buffer CA status and cell status */
 	// --> init the CA status
 	CA_status_init(&ca_status, buf_size, dci_log_config.targetRNTI, dci_log_config.nof_cell, log_config->cell_prb);
-
-	FILE* fd = fopen("dci_log.txt", "w+");
 
 	printf("\n\n\n nof_cell:%d targetRNTI:%d \n\n\n", dci_log_config.nof_cell, dci_log_config.targetRNTI);
 
@@ -305,15 +322,10 @@ void* dci_log_thread(void* p){
 			dci_ring_buffer_put_dci(&cell_status[cell_idx], &dci_buf[i], 0);
 		}
 		CA_status_update_header(&ca_status, cell_status);
-		log_multi_cell(cell_status,  &dci_log_config, cell_status, &ca_status);
-		fprintf(fd, "%d\t%d\t\n", cell_status[0].cell_header, dci_log_config.curr_header[0]);
+		log_multi_cell(cell_status,  &dci_log_config, cell_status);
 	} 
-	fclose(fd);
-
-	clear_dci_log_config(&dci_log_config);
 
  	wait_for_ALL_RF_DEV_close();        
-
 	for(int i=0; i<dci_log_config.nof_cell; i++){
 		// delete the ring buffer
 		dci_ring_buffer_delete(&(cell_status[i]));
@@ -322,42 +334,6 @@ void* dci_log_thread(void* p){
 	printf("DCI-LOGGER IS CLOSED!\n");
 	return NULL;
 }
-
-//void auto_dci_logging(ngscope_cell_dci_ring_buffer_t* q,
-//						//prog_args_t* prog_args,
-//						ngscope_config_t* config,
-//						FILE* fd_dl, 
-//						FILE* fd_ul,
-//						int   last_header,
-//						int   cell_idx,
-//						FILE* fd)
-//{
-//	int start_idx = last_header;
-//	int end_idx   = q->cell_header;
-//
-//	//FILE* fd = fopen("./auto_dci_log.txt","a+");
-//
-//	if(q->cell_ready){
-//		// we are not logging single dci 
-//		if(start_idx == end_idx){
-//			return;
-//		}else if(start_idx > end_idx){
-//			end_idx += q->buf_size;
-//		}
-//		fprintf(fd,"%d\t%d\t%d\n", start_idx, end_idx, q->sub_stat[start_idx].tti);
-//		//printf("start_idx:%d end_idx:%d\n", start_idx, end_idx);
-//		for(int i=start_idx+1; i<=end_idx; i++){
-//			if(go_exit) break;
-//			// moving forward until we reach the current header
-//			int idx = i % q->buf_size;
-//			// log the dci
-//			log_per_subframe(&q->sub_stat[idx], config, fd_dl, fd_ul, cell_idx);
-//		}
-//	}
-//	//fclose(fd);
-//    return;
-//}
-
 
 //void* dci_log_thread(void* p){
 //  	//prog_args_t* prog_args = (prog_args_t*)p; 

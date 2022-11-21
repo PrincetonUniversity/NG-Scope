@@ -23,17 +23,31 @@ extern "C" {
 #define MAX_NOF_DCI_DECODER 6
 #define MAX_NOF_RF_DEV 4
 #define NOF_LOG_SF 32
-#define NOF_LOG_SUBF (NOF_LOG_SF * 10)
+//#define NOF_LOG_SUBF (NOF_LOG_SF * 10)
+
+// the buffer size of the cell status tracker 32-SFN 
+#define CELL_STATUS_RING_BUF_SIZE 320 
+
+// the buffer size of the DCI-logger 16-SFN 
+#define DCI_LOGGER_RING_BUF_SIZE 160 
+
+
 #define MAX_MSG_PER_SUBF 10
 
-#define MAX_DCI_BUFFER 10
+#define MAX_DCI_BUFFER 20
 
 #define PLOT_SF 10
 
 #define MAX_TTI 10240
 
-#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
+//#define TTI_TO_IDX(i) (i%NOF_LOG_SUBF)
+
 #define DCI_DECODE_TIMEOUT 30
+
+/*     LOGGING Related  */
+#define LOG_DCI_RING_BUFFER
+#define LOG_DCI_LOGGER
+
 typedef struct{
     pthread_mutex_t mutex;
     pthread_cond_t  cond;

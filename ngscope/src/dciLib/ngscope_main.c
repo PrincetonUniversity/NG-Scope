@@ -23,19 +23,26 @@
 pthread_mutex_t     cell_mutex = PTHREAD_MUTEX_INITIALIZER;
 srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
 
+//  DCI-Decoder <--- DCI buffer ---> Status-Tracker
+ngscope_status_buffer_t dci_buffer[MAX_DCI_BUFFER];
+dci_ready_t         	dci_ready = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, 0};
 
-// DCI from dci_decoder -> status_tracker
-dci_ready_t         dci_ready = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, 0};
-ngscope_status_buffer_t    dci_buffer[MAX_DCI_BUFFER];
+//  Status-Tracker <--- DCI buffer ---> (DCI-Ring-Buffer -- Cell-Status-Tracker)
+ngscope_status_buffer_t cell_stat_buffer[MAX_DCI_BUFFER];
+dci_ready_t          	cell_stat_ready = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, 0};
 
-// DCI from status_tracker -> cell_status 
-cell_status_buffer_t cell_stat_buffer[MAX_DCI_BUFFER];
-dci_ready_t          cell_stat_ready = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, 0};
+//  Status-Tracker <--- DCI buffer ---> (DCI-Ring-Buffer -- DCI-Logger)
+ngscope_status_buffer_t log_stat_buffer[MAX_DCI_BUFFER];
+dci_ready_t          	log_stat_ready = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, 0};
 
-// DCI status
-cell_status_t 		cell_status[MAX_NOF_RF_DEV];
-CA_status_t   		ca_status;
+// DCI status container for Cell-Status-Tracker
+ngscope_cell_dci_ring_buffer_t 		cell_status[MAX_NOF_RF_DEV];
+CA_status_t   						ca_status;
 pthread_mutex_t     cell_status_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// DCI status container for DCI-Logger 
+ngscope_cell_dci_ring_buffer_t 		log_cell_status[MAX_NOF_RF_DEV];
+CA_status_t   						log_ca_status;
 
 // UE list
 ngscope_ue_list_t 	ue_list[MAX_NOF_RF_DEV];

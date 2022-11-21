@@ -26,7 +26,77 @@ extern pthread_mutex_t dci_plot_mutex;
 extern cf_t* pdcch_buf;
 extern float csi_amp[110 * 15 * 2048];
 extern pthread_cond_t 	dci_plot_cond;
-	
+//	
+//void init_plot_data(ngscope_CA_status_t* q, int nof_dev){
+//    pthread_mutex_lock(&plot_mutex);
+//    plot_data.nof_cell = nof_dev;
+//
+//    //pthread_mutex_lock(&cell_mutex);
+//    for(int i=0; i<nof_dev; i++){
+//        plot_data.cell_prb[i] = q->cell_prb[i];
+//    }
+//    //pthread_mutex_unlock(&cell_mutex);
+//
+//    pthread_mutex_unlock(&plot_mutex);
+//}
+int sum_per_sf_prb_dl(ngscope_dci_per_sub_t* q){
+    int nof_dl_prb = 0;
+    if(q->nof_dl_dci > 0){
+        for(int i=0; i< q->nof_dl_dci; i++){
+            nof_dl_prb += q->dl_msg[i].prb; 
+        }
+    }
+    return nof_dl_prb;
+}
+
+int sum_per_sf_prb_ul(ngscope_dci_per_sub_t* q){
+    int nof_ul_prb = 0;
+    if(q->nof_ul_dci > 0){
+        for(int i=0; i< q->nof_ul_dci; i++){
+            nof_ul_prb += q->ul_msg[i].prb; 
+        }
+    }
+    return nof_ul_prb;
+}
+
+int status_tracker_handle_plot(ngscope_status_buffer_t* dci_buffer){
+    int      idx, max_prb;
+    uint32_t tti = dci_buffer->tti;
+    int cell_idx = dci_buffer->cell_idx;
+
+    idx = tti % PLOT_SF;
+    pthread_mutex_lock(&plot_mutex);
+    max_prb = plot_data.cell_prb[cell_idx];
+        
+    /* Enqueue CSI */
+    for(int i=0; i< max_prb * 12; i++){
+        //plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].csi_amp[i] = \
+            dci_buffer->csi_amp[i];
+    }
+
+    /* Enqueue TTI */
+    plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].tti = tti;
+
+    /* Enqueue Cell downlink PRB */
+    plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].cell_dl_prb = 
+        sum_per_sf_prb_dl(&dci_buffer->dci_per_sub);
+
+    /* Enqueue Cell uplink PRB */
+    plot_data.plot_data_cell[cell_idx].plot_data_sf[idx].cell_ul_prb = 
+        sum_per_sf_prb_ul(&dci_buffer->dci_per_sub);
+
+    /* touch the buffer and set the token */ 
+    plot_data.plot_data_cell[cell_idx].dci_touched = idx;
+    plot_data.plot_data_cell[cell_idx].token[idx]  = 1;
+
+    pthread_cond_signal(&plot_cond);
+    pthread_mutex_unlock(&plot_mutex);
+
+    return 0;
+}
+
+
+
 uint16_t contineous_handled_sf(ngscope_plot_cell_t* q){
     uint16_t start  = q->header;
     uint16_t end    = q->dci_touched;
