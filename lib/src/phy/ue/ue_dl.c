@@ -673,8 +673,10 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
           //      dci_msg[nof_dci].format = decoded_format; 
           //    }
           // }
+
           int ue_specific = srsran_ngscope_ue_locations_ncce_check_ue_specific(nof_cce, 
                                         sf->tti % 10, dci_msg[nof_dci].rnti, dci_msg[nof_dci].location.ncce); 
+
           int common_space = srsran_ngscope_ue_locations_ncce_check_common(nof_cce, 
                                         sf->tti % 10, dci_msg[nof_dci].rnti, dci_msg[nof_dci].location.ncce); 
           

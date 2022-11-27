@@ -28,8 +28,8 @@ extern "C" {
 // the buffer size of the cell status tracker 32-SFN 
 #define CELL_STATUS_RING_BUF_SIZE 320 
 
-// the buffer size of the DCI-logger 16-SFN 
-#define DCI_LOGGER_RING_BUF_SIZE 160 
+// the buffer size of the DCI-logger 32-SFN 
+#define DCI_LOGGER_RING_BUF_SIZE 320 
 
 
 #define MAX_MSG_PER_SUBF 10

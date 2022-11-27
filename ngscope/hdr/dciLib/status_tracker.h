@@ -22,23 +22,6 @@
 extern "C" {
 #endif
 
-typedef struct SRSLTE_API {
-  // Yaxiong's Modification: RNTI list
-  bool      active_ue_list[65536];
-  uint16_t  ue_cnt[65536];
-  uint16_t  ue_dl_cnt[65536];
-  uint16_t  ue_ul_cnt[65536];
-
-  uint32_t  ue_last_active[65536];
-  uint32_t  ue_enter_time[65536];
-
-  uint16_t  max_freq_ue;
-  uint16_t  max_dl_freq_ue;
-  uint16_t  max_ul_freq_ue;
-  uint16_t  nof_active_ue;
-
-} ngscope_ue_list_t;
-
 
 // status of one cell
 typedef struct{

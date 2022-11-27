@@ -22,11 +22,11 @@
 #include "srsran/phy/ue/ngscope_st.h"
 
 /* Yaxiong's dci search function */
-SRSRAN_API int srsran_ngscope_search_all_space_yx(srsran_ue_dl_t*     q,
-                                 srsran_dl_sf_cfg_t* sf,
-                                 srsran_ue_dl_cfg_t* cfg,
-                                 srsran_pdsch_cfg_t* pdsch_cfg);
-
+//SRSRAN_API int srsran_ngscope_search_all_space_yx(srsran_ue_dl_t*     q,
+//                                 srsran_dl_sf_cfg_t* sf,
+//                                 srsran_ue_dl_cfg_t* cfg,
+//                                 srsran_pdsch_cfg_t* pdsch_cfg);
+//
 //SRSRAN_API int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*     q,
 //                                 srsran_dl_sf_cfg_t* sf,
 //                                 srsran_ue_dl_cfg_t* cfg,

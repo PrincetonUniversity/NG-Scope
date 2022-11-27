@@ -17,22 +17,25 @@
 #include "srsran/phy/phch/regs.h"
 
 #include "srsran/phy/ue/ngscope_st.h"
+#include "srsran/phy/ue/ngscope_search_space.h"
 
-void srsran_ngscope_tree_copy_dci_fromArray2PerSub(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+typedef struct{
+	int loc_idx;
+	int format_idx;
+}tree_loc_t;
+
+typedef struct{
+	ngscope_dci_msg_t 		dci_array[MAX_NOF_FORMAT+1][MAX_CANDIDATES_ALL];
+	srsran_dci_location_t 	dci_location[MAX_CANDIDATES_ALL];
+	int 					nof_location;
+}ngscope_tree_t;
+
+void srsran_ngscope_tree_copy_dci_fromArray2PerSub(ngscope_tree_t* q,
                                         ngscope_dci_per_sub_t* dci_per_sub,
                                         int format,
                                         int idx);
 
-uint32_t srsran_ngscope_search_space_all_yx(srsran_pdcch_t*             q, 
-                                                uint32_t                cfi, 
-                                                srsran_dci_location_t*  c);
-
-uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t*           q,    
-                                                uint32_t                cfi, 
-                                                srsran_dci_location_t*  c);
-
-void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t  dci_array[][MAX_CANDIDATES_ALL], 
-                                    int             nof_location, 
+void srsran_ngscope_tree_CP_match(ngscope_tree_t* q, 
                                     int             blk_idx, 
                                     int             loc_idx, 
 									uint16_t 		targetRNTI,
@@ -40,30 +43,45 @@ void srsran_ngscope_tree_CP_match(ngscope_dci_msg_t  dci_array[][MAX_CANDIDATES_
                                     int*            root_idx,
                                     int*            format_idx);
 
-int  srsran_ngscope_tree_prune_node(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
+int  srsran_ngscope_tree_prune_node(ngscope_tree_t* q,
                                         int nof_matched,
                                         int root,
                                         int* format_vec,
                                         int* format_idx);
-int srsran_ngscope_tree_check_nodes(srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
+
+int srsran_ngscope_tree_check_nodes(ngscope_tree_t* q,
                                         int                 index);
 
-int srsran_ngscope_tree_clear_dciArray_nodes(ngscope_dci_msg_t  dci_array[][MAX_CANDIDATES_ALL],
-                                              int               index);
+ngscope_dci_msg_t srsran_ngscope_tree_find_rnti(ngscope_tree_t* q, uint16_t rnti);
 
-int srsran_ngscope_tree_non_empty_nodes(ngscope_dci_msg_t   dci_array[][MAX_CANDIDATES_ALL], 
-                                        int                 nof_locations);
+int srsran_ngscope_tree_clear_dciArray_nodes(ngscope_tree_t* q, int index);
 
-int srsran_ngscope_tree_solo_nodes(ngscope_dci_msg_t        dci_array[][MAX_CANDIDATES_ALL],
-                                    srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
-                                    ngscope_dci_per_sub_t*  dci_per_sub,
-                                    int                     nof_location);
 
-void srsran_ngscope_tree_plot_multi(ngscope_dci_msg_t      dci_array[][MAX_CANDIDATES_ALL],
-                                    srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
-                                    uint32_t nof_location);
+int srsran_ngscope_tree_non_empty_nodes(ngscope_tree_t* q);
 
-int srsran_ngscope_tree_prune_tree(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
-                                    int nof_locations);
+int srsran_ngscope_tree_solo_nodes(ngscope_tree_t* q,
+                                    ngscope_dci_per_sub_t*  dci_per_sub);
+
+int srsran_ngscope_tree_prune_tree(ngscope_tree_t* q);
+
+int ngscope_tree_init(ngscope_tree_t* q);
+int ngscope_tree_set_locations(ngscope_tree_t* q, srsran_pdcch_t* pdcch, uint32_t cfi);
+
+int srsran_ngscope_tree_copy_rnti(ngscope_tree_t* q,
+                                    ngscope_dci_per_sub_t* 	dci_per_sub,
+									uint16_t 				rnti);
+
+int srsran_ngscope_tree_put_dl_dci(ngscope_tree_t* q, int format_idx, int loc_idx, float decode_prob, float corr,
+									srsran_dci_dl_t* 		dci_dl,
+									srsran_pdsch_grant_t* 	dci_dl_grant);
+
+int srsran_ngscope_tree_put_ul_dci(ngscope_tree_t* q, int format_idx, int loc_idx, float decode_prob, float corr,
+									srsran_dci_ul_t* 		dci_ul,
+									srsran_pusch_grant_t* 	dci_ul_grant);
+
+/****************** PLOT RELATED *************/
+void srsran_ngscope_tree_plot_multi(ngscope_tree_t* q);
+void srsran_ngscope_tree_plot_loc(ngscope_tree_t* q);
+
 
 #endif

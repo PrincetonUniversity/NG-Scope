@@ -510,9 +510,11 @@ int srsran_pdcch_decode_msg(srsran_pdcch_t* q, srsran_dl_sf_cfg_t* sf, srsran_dc
 int srsran_pdcch_decode_msg_yx(srsran_pdcch_t* q, srsran_dl_sf_cfg_t* sf, srsran_dci_cfg_t* dci_cfg, srsran_dci_msg_t* msg, float* prob)
 {
   int ret = SRSRAN_ERROR_INVALID_INPUTS;
+  //printf("NOF_CCE:%d\n",NOF_CCE(sf->cfi));
+
   if (q != NULL && msg != NULL && srsran_dci_location_isvalid(&msg->location)) {
     if (msg->location.ncce * 72 + PDCCH_FORMAT_NOF_BITS(msg->location.L) > NOF_CCE(sf->cfi) * 72) {
-      ERROR("Invalid location: nCCE: %d, L: %d, NofCCE: %d", msg->location.ncce, msg->location.L, NOF_CCE(sf->cfi));
+      ERROR("Invalid location: nCCE: %d, L: %d, NofCCE: %d cfi:%d", msg->location.ncce, msg->location.L, NOF_CCE(sf->cfi), sf->cfi);
     } else {
       ret = SRSRAN_SUCCESS;
 

@@ -24,6 +24,7 @@ int srsran_ngscope_unpack_dl_dci_2grant(srsran_ue_dl_t*     q,
 
 void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                         int i, int j,
+										srsran_dci_location_t loc,
                                         float decode_prob, float corr,
                                         srsran_dci_dl_t* dci_dl,
                                         srsran_pdsch_grant_t* dci_dl_grant)
@@ -37,6 +38,7 @@ void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].decode_prob      = decode_prob;
     dci_array[i][j].corr             = corr;
 
+    dci_array[i][j].loc       	= loc;
    
     // transport block 1
     dci_array[i][j].tb[0].mcs      = dci_dl_grant->tb[0].mcs_idx;
@@ -86,6 +88,7 @@ int srsran_ngscope_unpack_ul_dci_2grant(srsran_ue_dl_t*     q,
 
 void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                         int i, int j,
+										srsran_dci_location_t loc,
                                         float decode_prob, float corr,
                                         srsran_dci_ul_t* dci_ul,
                                         srsran_pusch_grant_t* dci_ul_grant)
@@ -102,6 +105,8 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].tb[0].rv       = dci_ul_grant->tb.rv;
     //dci_array[i][j].tb[0].ndi      = dci_ul_grant->tb.ndi;
 
+    dci_array[i][j].loc       	= loc;
+	
     dci_array[i][j].phich.n_dmrs   =  dci_ul->n_dmrs;
     dci_array[i][j].phich.n_prb_tilde   = dci_ul_grant->n_prb_tilde[0];
 

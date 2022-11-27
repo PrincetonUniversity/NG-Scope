@@ -134,16 +134,16 @@ void* status_tracker_thread(void* p){
     printf("\n\n\n Radio is ready! \n\n"); 
 
 	/* Create the cell status tracking thread */
-    //pthread_t 			cell_stat_thd;
-	//cell_status_info_t 	info;
+    pthread_t 			cell_stat_thd;
+	cell_status_info_t 	info;
 
-	//info.targetRNTI 	= targetRNTI;
-	//info.nof_cell 		= nof_dev;
-	//info.remote_sock 	= status_tracker.remote_sock;
-	//info.remote_enable 	= remote_enable;
+	info.targetRNTI 	= targetRNTI;
+	info.nof_cell 		= nof_dev;
+	info.remote_sock 	= status_tracker.remote_sock;
+	info.remote_enable 	= remote_enable;
 
-	//memcpy(info.cell_prb, status_tracker.cell_prb, nof_dev * sizeof(int));
-    //pthread_create(&cell_stat_thd, NULL, cell_status_thread, (void*)(&info));
+	memcpy(info.cell_prb, status_tracker.cell_prb, nof_dev * sizeof(int));
+    pthread_create(&cell_stat_thd, NULL, cell_status_thread, (void*)(&info));
 
 	/* create the dci logging thread */
 	pthread_t 	dci_log_thd;	
@@ -220,34 +220,6 @@ void* status_tracker_thread(void* p){
             dci_queue[i].dci_per_sub.nof_dl_dci, dci_queue[i].tti, TTI_TO_IDX(dci_queue[i].tti));
         }
 		//printf("\n");
-
-//        for(int i=0; i<nof_dci; i++){
-//            status_tracker_handle_dci_buffer(&status_tracker, &dci_queue[i]);
-//            //printf("status header:%d cell header:%d\n", status_tracker.ngscope_CA_status.header, \
-//                    status_tracker.ngscope_CA_status.cell_status[0].header);
-//            //int header = status_tracker.ngscope_CA_status.cell_status[0].header;
-//            //int dl_prb = status_tracker.ngscope_CA_status.cell_status[0].cell_dl_prb[header];
-//            //int ul_prb = status_tracker.ngscope_CA_status.cell_status[0].cell_ul_prb[header];
-//            //printf("CELL header:%d prb:%d %d \n", header, dl_prb, ul_prb); 
-//        }
-//            
-//        /*   Logging the DCI */
-//        // Update the current header
-//        for(int i=0;i<nof_dev;i++){
-//            curr_header[i] = status_tracker.ngscope_CA_status.cell_status[i].header;
-//        }
-//
-//        // log dci and if remote socket connect, send the data
-//        auto_dci_logging(&status_tracker.ngscope_CA_status, prog_args, fd_dl, fd_ul, \
-//                    cell_ready, curr_header, last_header, nof_dev, status_tracker.remote_sock, remote_enable); 
-//
-//        for(int i=0;i<nof_dev;i++){
-//            last_header[i] = curr_header[i];
-//        }
-//
-//        //printf("end status\n"); 
-//        update_status_header(&status_tracker.ngscope_CA_status);
-        //printf("status header:%d\n", status_tracker.ngscope_CA_status.header);
     }
     printf("Close Status Tracker!\n");
 	fclose(fd);    
@@ -262,7 +234,7 @@ void* status_tracker_thread(void* p){
  	wait_for_ALL_RF_DEV_close();        
 
 	// Wait for the cell status tracking thread to end
-	//pthread_join(cell_stat_thd, NULL);
+	pthread_join(cell_stat_thd, NULL);
 
 	// Wait for the dci log thread to end
 	if(ngscope_config_check_log(config)){

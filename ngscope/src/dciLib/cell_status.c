@@ -21,6 +21,7 @@
 #include "ngscope/hdr/dciLib/sync_dci_remote.h"
 #include "ngscope/hdr/dciLib/cell_status.h"
 #include "ngscope/hdr/dciLib/thread_exit.h"
+#include "ngscope/hdr/dciLib/ue_list.h"
 
 extern bool go_exit;
 
@@ -33,9 +34,7 @@ extern dci_ready_t          	cell_stat_ready;
 //extern CA_status_t   		ca_status;
 //extern pthread_mutex_t 		cell_status_mutex;
 
-
 extern ngscope_ue_list_t 	ue_list[MAX_NOF_RF_DEV];
-
 
 extern bool task_scheduler_closed[MAX_NOF_RF_DEV];
 
@@ -326,58 +325,6 @@ extern bool task_scheduler_closed[MAX_NOF_RF_DEV];
 //	return;
 //}
 
-void enqueue_ue_list_rnti(ngscope_ue_list_t* q, uint32_t tti, uint16_t rnti, bool dl){
-    if(q->ue_cnt[rnti] == 0){
-        q->ue_enter_time[rnti] = tti;
-    }    
-    q->ue_cnt[rnti]++;
-    q->ue_last_active[rnti] = tti; 
-    if(dl){
-        q->ue_dl_cnt[rnti]++;
-    }else{
-        q->ue_ul_cnt[rnti]++;
-    }
-    return;
-}
-
-void find_max_freq_ue(ngscope_ue_list_t* q){
-    // we only count the C-RNTI
-    int max_cnt = 0, idx = 0; 
-    int max_dl_cnt =0, dl_idx = 0;
-    int max_ul_cnt =0, ul_idx = 0;
-    for(int i=10; i<65524; i++){
-        if(q->ue_cnt[i] > max_cnt){
-            max_cnt = q->ue_cnt[i];
-            idx     = i;
-        } 
-        if(q->ue_dl_cnt[i] > max_dl_cnt){
-            max_dl_cnt = q->ue_dl_cnt[i];
-            dl_idx     = i;
-        }
-        if(q->ue_ul_cnt[i] > max_ul_cnt){
-            max_ul_cnt = q->ue_ul_cnt[i];
-            ul_idx     = i;
-        }
-    }
-    q->max_freq_ue = idx;
-    q->max_dl_freq_ue = dl_idx;
-    q->max_ul_freq_ue = ul_idx;
-    return;
-}
-
-int cell_status_print_ue_freq(ngscope_ue_list_t* q){
-	// find the max frequency ue in the ue list
-	find_max_freq_ue(q);
-
-	// print the max frequency ue in the ue list
-    printf("High Freq UE: DL rnti:%d freq:%d | UL rnti:%d freq:%d | Total rnti:%d freq: %d\n",
-        q->max_dl_freq_ue, q->ue_dl_cnt[q->max_dl_freq_ue], 
-        q->max_ul_freq_ue, q->ue_ul_cnt[q->max_ul_freq_ue], 
-        q->max_freq_ue, q->ue_cnt[q->max_freq_ue]);
-    return 0;
-}
-
-
 void* cell_status_thread(void* arg){
 	// get the info 
 	cell_status_info_t info;
@@ -442,21 +389,26 @@ void* cell_status_thread(void* arg){
 
 		// update ue list
 		for(int i=0; i<nof_dci; i++){
-			int cell_idx = dci_buf[i].cell_idx;	
-			for(int j=0; j<dci_buf[i].dci_per_sub.nof_dl_dci; j++){
-				enqueue_ue_list_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
-						dci_buf[i].dci_per_sub.dl_msg[j].rnti, true);
-			}
-			for(int j=0; j<dci_buf[i].dci_per_sub.nof_ul_dci; j++){
-				enqueue_ue_list_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
-						dci_buf[i].dci_per_sub.ul_msg[j].rnti, false);
-			}
+
+			ngscope_ue_list_enqueue_rnti_per_sf_per_cell(ue_list, &dci_buf[i]);
+
+			//int cell_idx = dci_buf[i].cell_idx;	
+			//for(int j=0; j<dci_buf[i].dci_per_sub.nof_dl_dci; j++){
+			//	enqueue_ue_list_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
+			//			dci_buf[i].dci_per_sub.dl_msg[j].rnti, true);
+			//}
+			//for(int j=0; j<dci_buf[i].dci_per_sub.nof_ul_dci; j++){
+			//	enqueue_ue_list_rnti(&(ue_list[cell_idx]), dci_buf[i].tti, \
+			//			dci_buf[i].dci_per_sub.ul_msg[j].rnti, false);
+			//}
 		}
     } 
 
  	wait_for_ALL_RF_DEV_close();        
 	for(int i=0; i<info.nof_cell; i++){
-		cell_status_print_ue_freq(&(ue_list[i]));
+
+		ngscope_ue_list_print_ue_freq(&(ue_list[i]));
+
 		// delete the ring buffer
 		dci_ring_buffer_delete(&(cell_status[i]));
 	}

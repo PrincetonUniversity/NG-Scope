@@ -6,6 +6,9 @@
 #define MAX_DCI_PER_SUB 10
 #define LLR_RATIO 0.3f
 
+#define PDCCH_FORMAT_NOF_BITS(i) ((1 << i) * 72)
+
+#include "srsran/phy/phch/dci.h"
 typedef struct{
     uint32_t mcs;
     uint32_t tbs;
@@ -36,6 +39,7 @@ typedef struct{
 
     // parameters stored for decoding phich
     ngscope_dci_phich_t phich;
+	srsran_dci_location_t loc;
 }ngscope_dci_msg_t;
 
 
