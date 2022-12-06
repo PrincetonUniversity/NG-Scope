@@ -145,6 +145,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 		*****************************************************************/
         nof_ul_dci = 0;
         nof_dl_dci = 0;
+		bool found_targetRNTI = false;
         if(nof_dci > 0){
             for(int j=0;j<nof_dci;j++){
                 if(dci_msg[j].format == SRSRAN_DCI_FORMAT0){
@@ -164,8 +165,25 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                     }
                 } 
             }
+            for(int j=0;j<MAX_NOF_FORMAT+1;j++){
+				if(tree.dci_array[j][loc_idx].rnti == targetRNTI){
+					found_dci++;
+					// copy the matched dci message to the results
+					srsran_ngscope_tree_copy_dci_fromArray2PerSub(&tree, dci_per_sub, j, loc_idx);
+					// check the locations 
+					srsran_ngscope_tree_check_nodes(&tree, loc_idx);
+					// delete the messages in the dci array (including matched root and its children)
+					srsran_ngscope_tree_clear_dciArray_nodes(&tree, loc_idx);
+					found_targetRNTI = true;
+					break;
+				}
+			}
         }
-	
+		if(found_targetRNTI){
+			tree.dci_location[loc_idx].checked = true;
+			loc_idx++;
+			continue;
+		}
 		/*****************************************************************
 		* Matching child parent	in the tree
 		*****************************************************************/
@@ -184,7 +202,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
             // Prune the dci messages, if we have more than 1 matched RNTI found 
             if(nof_matched > 1){
                 // Prune the nodes since it is possible that two RNTIs are matched for one node
-                pruned_nof_dci = srsran_ngscope_tree_prune_node(&tree, nof_matched, matched_root, matched_format_vec, &format_idx);
+                pruned_nof_dci = srsran_ngscope_tree_prune_node(&tree, nof_matched, matched_root, targetRNTI, matched_format_vec, &format_idx);
             }
             
             for(int i=0; i< nof_matched; i++){
@@ -229,10 +247,11 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                 }
                 if(space_match){
 					found_dci++;
-					if(tree.dci_array[format_idx][matched_root].rnti == targetRNTI){
-						printf("COPY  RNTI: tti:%d L:%d ncce:%d format:%d\n", sf->tti, tree.dci_array[format_idx][matched_root].loc.L, 
-									tree.dci_array[format_idx][matched_root].loc.ncce, format_idx);
-					}
+					//if(tree.dci_array[format_idx][matched_root].rnti == targetRNTI){
+					//	printf("COPY  RNTI: tti:%d L:%d ncce:%d format:%d\n", sf->tti, tree.dci_array[format_idx][matched_root].loc.L, 
+					//				tree.dci_array[format_idx][matched_root].loc.ncce, format_idx);
+					//}
+
                     // copy the matched dci message to the results
                     srsran_ngscope_tree_copy_dci_fromArray2PerSub(&tree, dci_per_sub, format_idx, matched_root);
                     //printf("nof_dl_msg:%d nof_ul_msg:%d \n", dci_per_sub->nof_dl_dci, dci_per_sub->nof_dl_dci);
@@ -257,11 +276,10 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   //srsran_ngscope_tree_prune_tree(tree.dci_array, nof_location);
   srsran_ngscope_tree_copy_rnti(&tree, dci_per_sub, targetRNTI);
 
-  ngscope_dci_msg_t ue_dci = srsran_ngscope_tree_find_rnti(&tree, targetRNTI);
-
-  if(ue_dci.rnti > 0){
-	printf("FOUND RNTI: tti:%d L:%d ncce:%d format:%d\n", sf->tti, ue_dci.loc.L, ue_dci.loc.ncce, ue_dci.format);
-  }
+  //ngscope_dci_msg_t ue_dci = srsran_ngscope_tree_find_rnti(&tree, targetRNTI);
+  //if(ue_dci.rnti > 0){
+  //  printf("FOUND RNTI: tti:%d L:%d ncce:%d format:%d\n", sf->tti, ue_dci.loc.L, ue_dci.loc.ncce, ue_dci.format);
+  //}
 
   int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
 

@@ -148,6 +148,7 @@ void srsran_ngscope_tree_CP_match(ngscope_tree_t* q,
 int  srsran_ngscope_tree_prune_node(ngscope_tree_t* q,
                                         int nof_matched,
                                         int root, 
+										uint16_t targetRNTI,
                                         int* format_vec,
                                         int* format_idx)
 {
@@ -155,7 +156,12 @@ int  srsran_ngscope_tree_prune_node(ngscope_tree_t* q,
     // count number of format 0 and 4 
     int cnt = 0;
     int idx[2] = {0};
+
     for(int i=0; i<nof_format; i++){
+		if(q->dci_array[format_vec[i]][root].rnti == targetRNTI){
+			*format_idx = format_vec[i];
+			return 1;
+		}
         if( (format_vec[i] == 0) || (format_vec[i] == 4)){
             //idx[cnt] = i; 
             idx[cnt] = format_vec[i]; 

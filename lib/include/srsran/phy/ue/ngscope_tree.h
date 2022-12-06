@@ -46,6 +46,7 @@ void srsran_ngscope_tree_CP_match(ngscope_tree_t* q,
 int  srsran_ngscope_tree_prune_node(ngscope_tree_t* q,
                                         int nof_matched,
                                         int root,
+										uint16_t rnti,
                                         int* format_vec,
                                         int* format_idx);
 
