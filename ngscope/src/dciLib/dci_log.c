@@ -57,6 +57,14 @@ void log_dl_subframe(sf_status_t* q,
 			}
 
 			fprintf(fd_dl, "%d\t%ld\t",  q->dl_msg[i].harq, q->timestamp_us);
+
+			fprintf(fd_dl, "%d\t",  q->dl_msg[i].tb[0].ndi);
+			if(q->dl_msg[i].nof_tb > 1){
+				fprintf(fd_dl, "%d\t",  q->dl_msg[i].tb[1].ndi);
+			}else{
+				fprintf(fd_dl, "%d\t",  0);
+			}
+
 			fprintf(fd_dl, "\n");
 		}
 	}else{
@@ -65,7 +73,11 @@ void log_dl_subframe(sf_status_t* q,
 		for(int i=0; i<10;i++){
 			fprintf(fd_dl, "%d\t", 0);
 		}
-		fprintf(fd_dl, "%ld\n", q->timestamp_us);
+		fprintf(fd_dl, "%ld\t", q->timestamp_us);
+		for(int i=0; i<2;i++){
+			fprintf(fd_dl, "%d\t", 0);
+		}
+		fprintf(fd_dl, "\n");
 	}
 	return;
 }

@@ -13,7 +13,7 @@ typedef struct{
     uint32_t mcs;
     uint32_t tbs;
     uint32_t rv;
-    //bool     ndi;
+    bool     ndi;
 }ngscope_dci_tb_t;
 
 

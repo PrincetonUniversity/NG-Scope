@@ -45,6 +45,7 @@ void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].tb[0].tbs      = dci_dl_grant->tb[0].tbs;
     dci_array[i][j].tb[0].rv       = dci_dl_grant->tb[0].rv;
     //dci_array[i][j].tb[0].ndi      = dci_dl_grant->tb[0].ndi;
+    dci_array[i][j].tb[0].ndi      = dci_dl->tb[0].ndi;
 
     if(dci_dl_grant->nof_tb > 1){
        // transport block 1
@@ -52,6 +53,7 @@ void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
         dci_array[i][j].tb[1].tbs      = dci_dl_grant->tb[1].tbs;
         dci_array[i][j].tb[1].rv       = dci_dl_grant->tb[1].rv;
         //dci_array[i][j].tb[1].ndi      = dci_dl_grant->tb[1].ndi;
+    	dci_array[i][j].tb[1].ndi      = dci_dl->tb[1].ndi;
     }
     return;
 }
