@@ -146,7 +146,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 		*****************************************************************/
         nof_ul_dci = 0;
         nof_dl_dci = 0;
-		//bool found_targetRNTI = false;
+		bool found_targetRNTI = false;
 
         if(nof_dci > 0){
             for(int j=0;j<nof_dci;j++){
