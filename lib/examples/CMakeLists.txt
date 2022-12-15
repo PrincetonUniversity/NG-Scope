@@ -81,8 +81,8 @@ if(RF_FOUND)
   add_executable(decode_phich decode_phich.c phich_decoder.c)
   target_link_libraries(decode_phich srsran_phy srsran_common srsran_rf pthread)
 
-  add_executable(ng_scope ng_scope_main.c phich_decoder.c)
-  target_link_libraries(ng_scope srsran_phy srsran_common srsran_rf pthread)
+  #add_executable(ng_scope ng_scope_main.c phich_decoder.c)
+  #target_link_libraries(ng_scope srsran_phy srsran_common srsran_rf pthread)
 
   add_executable(usrp_capture usrp_capture.c)
   target_link_libraries(usrp_capture srsran_phy srsran_rf)
@@ -104,7 +104,7 @@ if(RF_FOUND)
 
   if(SRSGUI_FOUND)
     target_link_libraries(decode_phich ${SRSGUI_LIBRARIES})
-    target_link_libraries(ng_scope ${SRSGUI_LIBRARIES})
+    #target_link_libraries(ng_scope ${SRSGUI_LIBRARIES})
     target_link_libraries(pssch_ue ${SRSGUI_LIBRARIES})
   endif(SRSGUI_FOUND)
 
