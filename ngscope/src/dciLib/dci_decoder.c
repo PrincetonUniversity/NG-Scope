@@ -120,7 +120,9 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     uint32_t tti = sfn * 10 + sf_idx;
 
     bool decode_pdsch = false;
-    uint16_t targetRNTI = dci_decoder->prog_args.rnti;  
+
+	bool decode_single_ue 	= dci_decoder->prog_args.decode_single_ue;
+    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
@@ -168,9 +170,13 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         dci_decoder->dl_sf.sf_type                         = SRSRAN_SF_NORM; //Ingore the MBSFN
         dci_decoder->ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm;
         dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = true;
-
-    	n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+		if(decode_single_ue){
+			n = srsran_ngscope_decode_dci_signleUE_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
 								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, targetRNTI);
+		}else{
+    		n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, targetRNTI);
+		}
 
 		//printf("end of decoding!\n");
         //t2 = timestamp_us();        
@@ -334,6 +340,7 @@ void* dci_decoder_thread(void* p){
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
 		}else{
 			//usleep(1000);
+    		dci_per_sub.timestamp 	= timestamp_us();
 			dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
 			//t3 = timestamp_us();        
 	//--->  Unlock the buffer

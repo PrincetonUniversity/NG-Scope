@@ -24,6 +24,7 @@ typedef struct{
     int                 nof_rf_dev;
     int                 rnti;
     int                 remote_enable;
+	int 				decode_single_ue;
 
     dci_log_config_t    dci_log_config;
     rf_dev_config_t     rf_config[MAX_NOF_RF_DEV];

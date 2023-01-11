@@ -268,7 +268,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
                 }
             } 
         }
-		printf("prune done!\n");
+		//printf("prune done!\n");
         tree.dci_location[loc_idx].checked = true;
 		//printf("set dci location done!\n");
         loc_idx++;
@@ -315,4 +315,162 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   return ret;
 }
 
+/* Yaxiong's dci search function */
+int srsran_ngscope_search_all_space_array_signleUE_yx(srsran_ue_dl_t*        q,
+                                             srsran_dl_sf_cfg_t*    sf,
+                                             srsran_ue_dl_cfg_t*    cfg,
+                                             srsran_pdsch_cfg_t*    pdsch_cfg,
+                                             ngscope_dci_per_sub_t* dci_per_sub,
+											 uint16_t targetRNTI)
+{
+  int ret = SRSRAN_ERROR;
+  //int nof_location = 0;
+  int nof_ul_dci = 0;
+  int nof_dl_dci = 0;
+
+  dci_per_sub->nof_dl_dci = 0;
+  dci_per_sub->nof_ul_dci = 0;
+  // Generate the whole search space
+  //srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL] = {0};
+
+  // We only search 5 formats
+  //int MAX_NOF_FORMAT = 4;  
+
+  //dci configuration
+  srsran_dci_cfg_t dci_cfg = cfg->cfg.dci;
+
+  //dci_cfg.multiple_csi_request_enabled 	= true;
+
+  //printf("multicsi:%d cif_enable:%d srs:%d not_ue_ss:%d", dci_cfg.multiple_csi_request_enabled,\
+  	dci_cfg.cif_enabled, dci_cfg.srs_request_enabled, dci_cfg.is_not_ue_ss);
+ 
+  srsran_dci_msg_t      dci_msg[MAX_NOF_FORMAT];
+
+  srsran_dci_ul_t       dci_ul[MAX_NOF_FORMAT]; 
+  srsran_pusch_grant_t  dci_ul_grant[MAX_NOF_FORMAT]; 
+
+  srsran_dci_dl_t       dci_dl[MAX_NOF_FORMAT];
+  srsran_pdsch_grant_t  dci_dl_grant[MAX_NOF_FORMAT];
+
+  //ngscope_dci_msg_t     dci_array[MAX_NOF_FORMAT+1][MAX_CANDIDATES_ALL];
+  //srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL];
+  //for(int i=0; i<MAX_NOF_FORMAT+1; i++){
+  //  for(int j=0; j<MAX_CANDIDATES_ALL; j++){
+  //  	ZERO_OBJECT(dci_array[i][j]);
+  //  }
+  //}
+  //for(int i=0; i<MAX_CANDIDATES_ALL; i++){
+  //  ZERO_OBJECT(dci_location[i]);
+  //}
+
+  ngscope_tree_t tree;
+  ngscope_tree_init(&tree);
+
+  dci_blind_search_t search_space;
+  ZERO_OBJECT(search_space);
+
+  //search_space.formats[0] = SRSRAN_DCI_FORMAT0;
+  search_space.formats[0] = SRSRAN_DCI_FORMAT1;
+  search_space.formats[1] = SRSRAN_DCI_FORMAT1A;
+  search_space.formats[2] = SRSRAN_DCI_FORMAT1C;
+  search_space.formats[3] = SRSRAN_DCI_FORMAT2;
+
+  search_space.nof_locations = 1;
+
+  if(q->cell.nof_ports == 1){
+    // if the cell has only 1 antenna, it doesn't support MIMO
+    search_space.nof_formats = 4;
+  }else{
+    search_space.nof_formats = MAX_NOF_FORMAT;
+  }
+  uint32_t mi_set_len;
+  if (q->cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) {
+    mi_set_len = 3;
+  } else {
+    mi_set_len = 1;
+  }
+    
+  // Currently we assume FDD only 
+  srsran_ue_dl_set_mi_auto(q);
+  if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
+    ERROR("ERROR decode FFT\n");
+    return ret;
+  }
+
+  ngscope_tree_set_locations(&tree, &q->pdcch, sf->cfi);
+  //printf("NOF_LOC:%d cfi:%d nof_cce: %d %d %d\n", tree.nof_location, sf->cfi, q->pdcch.nof_cce[0], q->pdcch.nof_cce[1], q->pdcch.nof_cce[2]);
+  //srsran_ngscope_tree_plot_loc(&tree);
+  
+  int loc_idx = 0;
+  int blk_idx = 0;
+  int cnt = 0;
+  //int found_dci = 0;
+  //printf("enter while!\n");
+  while(loc_idx < tree.nof_location){
+  	  //printf("inside while!\n");
+      for(int i=0;i<15;i++){
+        //printf("%d-th ncce:%d L:%d | ", i, dci_location[i].ncce, dci_location[i].L);
+        if(loc_idx > tree.nof_location) break; 
+        //if(dci_location[loc_idx].checked){
+        if(tree.dci_location[loc_idx].checked || tree.dci_location[loc_idx].mean_llr < LLR_RATIO){
+			//skip the location, if 1) it has been checked 2) its llr ratio is too small
+			//printf("check:%d mean_llr::%f\n",dci_location[loc_idx].checked, dci_location[loc_idx].mean_llr);
+            loc_idx++;
+            continue;
+        }
+		cnt++;
+        search_space.loc[0] = tree.dci_location[loc_idx]; 
+
+        // Search all the formats in this location
+        int nof_dci = srsran_ngscope_search_in_space_yx(q, sf, &search_space, &dci_cfg, dci_msg);
+		/*****************************************************************
+		* 	dci_msg -> dci
+		*****************************************************************/
+        nof_ul_dci = 0;
+        nof_dl_dci = 0;
+
+        if(nof_dci > 0){
+            for(int j=0;j<nof_dci;j++){
+                if(dci_msg[j].format == SRSRAN_DCI_FORMAT0){
+                    //Upack the uplink dci to uplink grant
+                    if(srsran_ngscope_unpack_ul_dci_2grant(q, sf, cfg, pdsch_cfg, &dci_msg[j],  
+                                    &dci_ul[nof_ul_dci], &dci_ul_grant[nof_ul_dci]) == SRSRAN_SUCCESS){
+                        srsran_ngscope_dci_into_array_ul(tree.dci_array, 0, loc_idx, tree.dci_location[loc_idx],
+                                        dci_msg[j].decode_prob, dci_msg[j].corr, &dci_ul[nof_ul_dci], &dci_ul_grant[nof_ul_dci]);
+                    }
+                }else{
+                    // Upack the downlink dci to downlink grant
+                    if(srsran_ngscope_unpack_dl_dci_2grant(q, sf, cfg, pdsch_cfg, &dci_msg[j], 
+                                    &dci_dl[nof_dl_dci], &dci_dl_grant[nof_dl_dci]) == SRSRAN_SUCCESS){
+                        int format_idx = ngscope_format_to_index(dci_msg[j].format);
+                        srsran_ngscope_dci_into_array_dl(tree.dci_array, format_idx, loc_idx, tree.dci_location[loc_idx],
+                                dci_msg[j].decode_prob, dci_msg[j].corr, &dci_dl[nof_dl_dci], &dci_dl_grant[nof_dl_dci]);
+                    }
+                } 
+            }
+        }
+		//printf("prune done!\n");
+        tree.dci_location[loc_idx].checked = true;
+		//printf("set dci location done!\n");
+        loc_idx++;
+		//printf("loc ++ done!\n");
+      }//end of for
+      blk_idx++;
+  }//end of while 
+
+  	srsran_ngscope_tree_copy_rnti(&tree, dci_per_sub, targetRNTI);
+	return ret;
+}
+
+/* Yaxiong's dci search function */
+int srsran_ngscope_decode_dci_signleUE_yx(srsran_ue_dl_t*        	q,
+                                             srsran_dl_sf_cfg_t*    sf,
+                                             srsran_ue_dl_cfg_t*    cfg,
+                                             srsran_pdsch_cfg_t*    pdsch_cfg,
+                                             ngscope_dci_per_sub_t* dci_per_sub,
+											 uint16_t targetRNTI)
+{
+	srsran_ue_decode_dci_yx(q, sf, cfg, pdsch_cfg, dci_per_sub, targetRNTI);
+	return 1;	
+}
 

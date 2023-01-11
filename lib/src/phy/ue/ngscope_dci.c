@@ -1,5 +1,5 @@
-#include "srsran/srsran.h"
 #include <string.h>
+#include "srsran/srsran.h"
 
 /* Combination of unpack and translate to grant */
 // Downlink first
@@ -21,6 +21,43 @@ int srsran_ngscope_unpack_dl_dci_2grant(srsran_ue_dl_t*     q,
     }
     return SRSRAN_SUCCESS;
 }
+//
+//void copy_single_dl_dci(ngscope_dci_msg_t* 		dci_array,
+//						srsran_dci_location_t 	loc,
+//                        float decode_prob, 
+//						float corr,
+//                        srsran_dci_dl_t* 		dci_dl,
+//                        srsran_pdsch_grant_t* 	dci_dl_grant)
+//{
+//    dci_array->rnti    = dci_dl->rnti;
+//    dci_array->prb     = dci_dl_grant->nof_prb;
+//    dci_array->harq    = dci_dl->pid;
+//    dci_array->nof_tb  = dci_dl_grant->nof_tb;
+//    dci_array->dl      = true;
+// 
+//    dci_array->decode_prob  = decode_prob;
+//    dci_array->corr         = corr;
+//
+//    dci_array->loc       	= loc;
+//   
+//    // transport block 1
+//    dci_array->tb[0].mcs      = dci_dl_grant->tb[0].mcs_idx;
+//    dci_array->tb[0].tbs      = dci_dl_grant->tb[0].tbs;
+//    dci_array->tb[0].rv       = dci_dl_grant->tb[0].rv;
+//    //dci_array[i][j].tb[0].ndi      = dci_dl_grant->tb[0].ndi;
+//    dci_array->tb[0].ndi      = dci_dl->tb[0].ndi;
+//
+//    if(dci_dl_grant->nof_tb > 1){
+//       // transport block 1
+//        dci_array->tb[1].mcs      = dci_dl_grant->tb[1].mcs_idx;
+//        dci_array->tb[1].tbs      = dci_dl_grant->tb[1].tbs;
+//        dci_array->tb[1].rv       = dci_dl_grant->tb[1].rv;
+//        //dci_array->tb[1].ndi      = dci_dl_grant->tb[1].ndi;
+//    	dci_array->tb[1].ndi      = dci_dl->tb[1].ndi;
+//    }
+//    return;
+//}
+
 
 void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                         int i, int j,
@@ -87,6 +124,7 @@ int srsran_ngscope_unpack_ul_dci_2grant(srsran_ue_dl_t*     q,
     }
     return SRSRAN_SUCCESS;
 }
+
 
 void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                         int i, int j,

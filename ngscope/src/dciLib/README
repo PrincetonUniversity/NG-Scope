@@ -1,0 +1,46 @@
+#The list of files
+
+--> dci_log.c
+The library for dci logging and also the implementation of dci_logger thread.
+
+--> cell_status.c  
+The implemetation of the cell status handling thread. This thread put the received dci messages into the corresponding container.
+
+--> dci_ring_buffer.c
+The implementation of the dci handling library. Mainly, this lib focuses on putting dci into the data structures.
+
+--> dci_decoder.c
+The implementation of the dci decoder.
+
+--> status_tracker.c
+The implementation of the status tracker thread, which receives the dci from the dci-decoder and dispatch the received dci to the corresonding handling thread, for example, the dci recording thread and the cell-status tracking thread. It is the central hub of the dci message handling. The dci received from all aggregated cells (all USRPs) will be forwarded to this thread.
+
+--> radio.c
+The library for handling radio (usrp) related functions, such open the radio and close the radio.
+
+--> task_scheduler.c
+The implementation of the task scheduler. Task scheduler demodulates the signal, divides the signal into subframes and forward the subframe to an idle dci-decoder.
+
+--> thread_exit.c
+The library that should be called when the whole program terminates. We implement this because NG-scope is mutli-threading. Without proper exiting mechanism, the program could crash easily.
+
+--> load_config.c
+The library that loads the configurations.
+
+--> task_sf_ring_buffer.c
+The library of the subframe ring buffer.
+
+--> skip_tti.c
+The library that handles the tti skipping.
+
+--> status_plot.c
+The plotting library
+
+--> time_stamp.c
+The library to get the time stamps
+ 
+--> ngscope_main.c
+The main function
+
+
+

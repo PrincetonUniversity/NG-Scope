@@ -16,6 +16,8 @@
 #include "srsran/phy/phch/ra.h"
 #include "srsran/phy/phch/regs.h"
 
+#include "srsran/phy/ue/ue_dl.h"
+
 int srsran_ngscope_unpack_dl_dci_2grant(srsran_ue_dl_t*     q,
                                         srsran_dl_sf_cfg_t* sf,
                                         srsran_ue_dl_cfg_t* cfg,
@@ -23,6 +25,13 @@ int srsran_ngscope_unpack_dl_dci_2grant(srsran_ue_dl_t*     q,
                                         srsran_dci_msg_t* dci_msg,
                                         srsran_dci_dl_t* dci_dl,
                                         srsran_pdsch_grant_t* dci_dl_grant);
+
+//void copy_single_dl_dci(ngscope_dci_msg_t* 			dci_array;
+//							srsran_dci_location_t 	loc,
+//							float decode_prob, float corr,
+//							srsran_dci_dl_t* 		dci_dl,
+//							srsran_pdsch_grant_t* 	dci_dl_grant);
+//
 
 void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                         int i, int j,
@@ -38,6 +47,13 @@ int srsran_ngscope_unpack_ul_dci_2grant(srsran_ue_dl_t*     q,
                                         srsran_dci_msg_t* dci_msg,
                                         srsran_dci_ul_t* dci_ul,
                                         srsran_pusch_grant_t* dci_ul_grant);
+
+//void copy_single_ul_dci(ngscope_dci_msg_t* 			dci_array,
+//							srsran_dci_location_t 	loc,
+//							float decode_prob, float corr,
+//							srsran_dci_ul_t* 		dci_ul,
+//							srsran_pusch_grant_t* 	dci_ul_grant);
+//
 
 void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
                                         int i, int j,

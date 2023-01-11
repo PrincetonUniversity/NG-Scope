@@ -54,6 +54,11 @@ int ngscope_read_config(ngscope_config_t* config){
     }
     printf("read remote_enable:%d\n", config->remote_enable);
     
+	if(! config_lookup_bool(cfg, "decode_single_ue", &config->decode_single_ue)){
+        printf("ERROR: reading decode_single_ue\n");
+    }
+    printf("read decode_single_ue:%d\n", config->decode_single_ue);
+
 	long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
 
 //    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){

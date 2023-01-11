@@ -74,6 +74,7 @@ int ngscope_main(ngscope_config_t* config){
 	for(int i=0; i<MAX_NOF_RF_DEV; i++){
 		printf("RF-DEV:%d\n", task_scheduler_closed[i]);
 	}
+
     /* Task scheduler thread */
     pthread_t task_thd[MAX_NOF_RF_DEV];
     for(int i=0; i<nof_rf_dev; i++){
@@ -85,6 +86,7 @@ int ngscope_main(ngscope_config_t* config){
 		prog_args[i].log_ul           = config->dci_log_config.log_ul;
 		prog_args[i].rnti             = (uint16_t)config->rnti;
 		prog_args[i].remote_enable    = config->remote_enable;
+		prog_args[i].decode_single_ue = config->decode_single_ue;
 
         prog_args[i].rf_index      = i;
         prog_args[i].rf_freq       = config->rf_config[i].rf_freq;
@@ -103,6 +105,7 @@ int ngscope_main(ngscope_config_t* config){
     prog_args[0].disable_plots    = config->rf_config[0].disable_plot;
     printf("disable_plots :%d\n", prog_args[0].disable_plots);
 
+	// status tracking thread
     pthread_create(&status_thd, NULL, status_tracker_thread, (void*)(config));
 
     /* Now waiting for those threads to end */

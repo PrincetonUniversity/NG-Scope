@@ -55,6 +55,7 @@
 #include "srsran/phy/utils/vector.h"
 
 #include "srsran/phy/ue/ngscope_st.h"
+//#include "srsran/phy/ue/ngscope_dci.h"
 
 #include "srsran/config.h"
 
@@ -281,7 +282,8 @@ SRSRAN_API int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,
                                  srsran_dl_sf_cfg_t* sf,
                                  srsran_ue_dl_cfg_t* cfg,
                                  srsran_pdsch_cfg_t* pdsch_cfg,
-                                 srsran_dci_search_res_t* dci_res);
+                                 ngscope_dci_per_sub_t* dci_res, 
+								 uint16_t 				targetRNTI);
 
 
 SRSRAN_API void srsran_ue_dl_save_signal(srsran_ue_dl_t* q, srsran_dl_sf_cfg_t* sf, srsran_pdsch_cfg_t* pdsch_cfg);

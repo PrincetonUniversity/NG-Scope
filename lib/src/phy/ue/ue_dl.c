@@ -19,8 +19,7 @@
  *
  */
 
-#include "srsran/phy/ue/ue_dl.h"
-
+//#include "srsran/phy/ue/ue_dl.h"
 #include "srsran/srsran.h"
 #include <string.h>
 
@@ -1764,85 +1763,155 @@ int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
   }
   return ret;
 }
+void copy_single_dl_dci(ngscope_dci_msg_t* 		dci_array,
+						srsran_dci_location_t 	loc,
+                        float 					decode_prob, 
+						float 					corr,
+                        srsran_dci_dl_t* 		dci_dl,
+                        srsran_pdsch_grant_t* 	dci_dl_grant)
+{
+    dci_array->rnti    = dci_dl->rnti;
+    dci_array->prb     = dci_dl_grant->nof_prb;
+    dci_array->harq    = dci_dl->pid;
+    dci_array->nof_tb  = dci_dl_grant->nof_tb;
+    dci_array->dl      = true;
+ 
+    dci_array->decode_prob  = decode_prob;
+    dci_array->corr         = corr;
+
+    dci_array->loc       	= loc;
+   
+    // transport block 1
+    dci_array->tb[0].mcs      = dci_dl_grant->tb[0].mcs_idx;
+    dci_array->tb[0].tbs      = dci_dl_grant->tb[0].tbs;
+    dci_array->tb[0].rv       = dci_dl_grant->tb[0].rv;
+    //dci_array[i][j].tb[0].ndi      = dci_dl_grant->tb[0].ndi;
+    dci_array->tb[0].ndi      = dci_dl->tb[0].ndi;
+
+    if(dci_dl_grant->nof_tb > 1){
+       // transport block 1
+        dci_array->tb[1].mcs      = dci_dl_grant->tb[1].mcs_idx;
+        dci_array->tb[1].tbs      = dci_dl_grant->tb[1].tbs;
+        dci_array->tb[1].rv       = dci_dl_grant->tb[1].rv;
+        //dci_array->tb[1].ndi      = dci_dl_grant->tb[1].ndi;
+    	dci_array->tb[1].ndi      = dci_dl->tb[1].ndi;
+    }
+    return;
+}
+
+
+void copy_single_ul_dci(ngscope_dci_msg_t* 			dci_array,
+							srsran_dci_location_t 	loc,
+							float 					decode_prob, 
+							float 					corr,
+							srsran_dci_ul_t* 		dci_ul,
+							srsran_pusch_grant_t* 	dci_ul_grant)
+{
+    dci_array->rnti    = dci_ul->rnti;
+    dci_array->prb     = dci_ul_grant->L_prb;
+    dci_array->harq    = 0;
+    dci_array->nof_tb  = 1;
+    dci_array->dl      = false;
+
+    // transport block 1
+    dci_array->tb[0].mcs      = dci_ul_grant->tb.mcs_idx;
+    dci_array->tb[0].tbs      = dci_ul_grant->tb.tbs;
+    dci_array->tb[0].rv       = dci_ul_grant->tb.rv;
+    //dci_array->tb[0].ndi      = dci_ul_grant->tb.ndi;
+
+    dci_array->loc       			= loc;
+	
+    dci_array->phich.n_dmrs   		=  dci_ul->n_dmrs;
+    dci_array->phich.n_prb_tilde   	= dci_ul_grant->n_prb_tilde[0];
+
+    dci_array->decode_prob      = decode_prob;
+    dci_array->corr             = corr;
+
+    return;
+}
+
+ 
 
 /* Yaxiong's decode rnti function */
 int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,
                                  srsran_dl_sf_cfg_t* sf,
                                  srsran_ue_dl_cfg_t* cfg,
                                  srsran_pdsch_cfg_t* pdsch_cfg,
-                                 srsran_dci_search_res_t* dci_res)
+								 ngscope_dci_per_sub_t* dci_res,
+								 uint16_t 			targetRNTI)
 {
-  int ret = SRSRAN_ERROR;
+	int ret = SRSRAN_ERROR;
+	if(targetRNTI == 0){
+		//printf("rnti=0\n");
+		return 0;
+	}
+	srsran_dci_dl_t    dci_dl[SRSRAN_MAX_DCI_MSG] = {};
+	srsran_dci_ul_t    dci_ul[SRSRAN_MAX_DCI_MSG] = {};
+	//srsran_pusch_grant_t ul_grant;
 
-  //srsran_dci_dl_t    dci_dl[SRSRAN_MAX_DCI_MSG] = {};
-  //srsran_dci_ul_t    dci_ul[SRSRAN_MAX_DCI_MSG] = {};
-  
-  //srsran_pusch_grant_t ul_grant;
+	srsran_pmch_cfg_t  pmch_cfg;
 
-  srsran_pmch_cfg_t  pmch_cfg;
-  //srsran_pdsch_res_t pdsch_res[SRSRAN_MAX_CODEWORDS];
+	// Use default values for PDSCH decoder
+	ZERO_OBJECT(pmch_cfg);
 
-  // Use default values for PDSCH decoder
-  ZERO_OBJECT(pmch_cfg);
+	uint32_t mi_set_len;
+	if (q->cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) {
+		mi_set_len = 3;
+	} else {
+		mi_set_len = 1;
+	}
 
-  uint32_t mi_set_len;
-  if (q->cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) {
-    mi_set_len = 3;
-  } else {
-    mi_set_len = 1;
-  }
+	// Currently we assume FDD only 
+	srsran_ue_dl_set_mi_auto(q);
 
-  // Blind search PHICH mi value
-  ret = 0;
-  for (uint32_t i = 0; i < mi_set_len && !ret; i++) {
-    if (mi_set_len == 1) {
-      srsran_ue_dl_set_mi_auto(q);
-    } else {
-      srsran_ue_dl_set_mi_manual(q, i);
-    }
+	// Blind search PHICH mi value
+	ret = 0;
+	if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
+		return ret; 
+	}
 
-    if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
-      return ret;
-    }
+	srsran_dci_location_t 	loc = {};
+	/* Downlink dci decoding unpack and translation to grant*/
+	ret = srsran_ue_dl_find_dl_dci(q, sf, cfg, targetRNTI, dci_dl);
+	if (ret == 1) {
+		//printf("FOUND DL DCI: tti:%d rnti:%d format:%d\n", sf->tti, dci_res->dci_dl[0].rnti, dci_res->dci_dl[0].format);
+		if (srsran_ue_dl_dci_to_pdsch_grant_wo_mimo_yx(q, sf, cfg, dci_dl, &pdsch_cfg->grant)) {
+			ERROR("Error unpacking DCI");
+			return SRSRAN_ERROR;
+		}else{
+			//printf("FOUND DL DCI: tti:%d\tnof_prb:%d\tnof_tb:%d\ttbs1:%d\ttbs2:%d\tmcs1:%d\tmcs2:%d\n", sf->tti, pdsch_cfg->grant.nof_prb, 
+		//		pdsch_cfg->grant.nof_tb, pdsch_cfg->grant.tb[0].tbs, pdsch_cfg->grant.tb[1].tbs, pdsch_cfg->grant.tb[0].mcs_idx, pdsch_cfg->grant.tb[1].mcs_idx);
+			/* Copy single dci message */
+			copy_single_dl_dci(&dci_res->dl_msg[dci_res->nof_dl_dci], loc, 0, 0, &dci_dl[0], &pdsch_cfg->grant);
+			dci_res->nof_dl_dci += 1; 
+		}
+	}else{
+		//printf("NO DCI found in dl!\n");
+	}
 
-    ret = srsran_ue_dl_find_dl_dci(q, sf, cfg, pdsch_cfg->rnti, dci_res->dci_dl);
-  }
+	/* Uplink dci decoding, unpack, and translation to grant*/
+	int nof_ul_dci = srsran_ue_dl_find_ul_dci(q, sf, cfg, targetRNTI, dci_ul);
+	if(nof_ul_dci > 0){
+		srsran_ul_sf_cfg_t ul_sf;
+		ZERO_OBJECT(ul_sf);
+		ul_sf.tdd_config = sf->tdd_config;
+		ul_sf.tti        = sf->tti;
+		// set the hopping config
+		srsran_pusch_hopping_cfg_t ul_hopping = {.n_sb = 1, .hopping_offset = 0, .hop_mode = 1};
+		srsran_pusch_grant_t dci_ul_grant;
 
-  if (ret == 1) {
-    //printf("FOUND DL DCI: tti:%d rnti:%d format:%d\n", sf->tti, dci_res->dci_dl[0].rnti, dci_res->dci_dl[0].format);
-    if (srsran_ue_dl_dci_to_pdsch_grant_wo_mimo_yx(q, sf, cfg, dci_res->dci_dl, &pdsch_cfg->grant)) {
-        ERROR("Error unpacking DCI");
-        return SRSRAN_ERROR;
-    }else{
-        dci_res->nof_dl_dci = 1; 
-        printf("FOUND DL DCI: tti:%d\tnof_prb:%d\tnof_tb:%d\ttbs1:%d\ttbs2:%d\tmcs1:%d\tmcs2:%d\n", sf->tti, pdsch_cfg->grant.nof_prb, 
-                pdsch_cfg->grant.nof_tb, pdsch_cfg->grant.tb[0].tbs, pdsch_cfg->grant.tb[1].tbs, pdsch_cfg->grant.tb[0].mcs_idx, pdsch_cfg->grant.tb[1].mcs_idx);
-    }
-  }
-    int nof_ul_dci = srsran_ue_dl_find_ul_dci(q, sf, cfg, pdsch_cfg->rnti, dci_res->dci_ul);
-    if(nof_ul_dci > 0){
-         
-        dci_res->nof_ul_dci = 1; 
-//        //srsran_ue_ul_dci_to_pusch_grant
-//        // Convert DCI to Grant
-//
-//        // set the ul sf 
-//        srsran_ul_sf_cfg_t ul_sf;
-//        ZERO_OBJECT(ul_sf);
-//        ul_sf.tdd_config = sf->tdd_config;
-//        ul_sf.tti        = sf->tti;
-//
-//        // set the hopping config
-//        srsran_pusch_hopping_cfg_t ul_hopping = {.n_sb = 1, .hopping_offset = 0, .hop_mode = 1};
-//
-//        if (srsran_ra_ul_dci_to_grant(&q->cell, &ul_sf, &ul_hopping, dci_res->dci_ul, &ul_grant)) {
-//            return SRSRAN_ERROR; 
-//        } 
-//
-//        printf("FOUND UL DCI: tti:%d hop:%d dmrs:%d\n", sf->tti, dci_res->dci_ul[0].freq_hop_fl, dci_res->dci_ul[0].n_dmrs);
-    }
+		if (srsran_ra_ul_dci_to_grant(&q->cell, &ul_sf, &ul_hopping, dci_ul, &dci_ul_grant)) {
+			//ERROR("Translate UL DCI to uplink grant");
+			return SRSRAN_ERROR;
+		}else{
+			copy_single_ul_dci(&dci_res->ul_msg[dci_res->nof_ul_dci], loc, 0, 0, &dci_ul[0], &dci_ul_grant);
+			dci_res->nof_ul_dci += 1; 
+		}
+		//printf("FOUND UL DCI: tti:%d\tnof_prb:%d\tnof_tb:%d\ttbs1:%d\ttbs2:%d\tmcs1:%d\tmcs2:%d\n", sf->tti, dci_res->ul_msg[0].prb, 
+	//		dci_res->ul_msg[0].nof_tb, dci_res->ul_msg[0].tb[0].tbs, dci_res->ul_msg[0].tb[1].tbs, dci_res->ul_msg[0].tb[0].mcs, dci_res->ul_msg[0].tb[1].tbs);
+	}
 
-  return ret;
+	return ret;
 }
 
 

@@ -49,6 +49,8 @@ typedef struct SRSRAN_API {
 
     ngscope_dci_msg_t  ul_msg[MAX_DCI_PER_SUB];
     uint32_t           nof_ul_dci;
+
+	uint64_t 			timestamp;
 } ngscope_dci_per_sub_t;
 
 int ngscope_format_to_index(srsran_dci_format_t format);

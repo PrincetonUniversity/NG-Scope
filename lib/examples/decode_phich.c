@@ -693,7 +693,8 @@ int main(int argc, char** argv)
   uint64_t sf_cnt          = 0;
   uint32_t sfn             = 0;
   uint32_t last_decoded_tm = 0;
-  srsran_dci_search_res_t dci_res;
+  //srsran_dci_search_res_t dci_res;
+  ngscope_dci_per_sub_t  dci_res;
   while (!go_exit && (sf_cnt < prog_args.nof_subframes || prog_args.nof_subframes == -1)) {
     char input[128];
     PRINT_LINE_INIT();

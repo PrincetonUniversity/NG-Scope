@@ -361,6 +361,7 @@ void* cell_status_thread(void* arg){
             pthread_cond_wait(&cell_stat_ready.cond, &cell_stat_ready.mutex);
         }
 		nof_dci 		= cell_stat_ready.nof_dci;
+
 		//fprintf(fd, "%d\t%d\n", cell_stat_buffer[0].tti, nof_dci);
 		memcpy(dci_buf, cell_stat_buffer, nof_dci * sizeof(ngscope_status_buffer_t));
 
