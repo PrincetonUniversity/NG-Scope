@@ -21,6 +21,7 @@
 #include "ngscope/hdr/dciLib/task_sf_ring_buffer.h"
 #include "ngscope/hdr/dciLib/skip_tti.h"
 #include "ngscope/hdr/dciLib/thread_exit.h"
+#include "ngscope/hdr/dciLib/ue_tracker.h"
 
 extern bool go_exit;
 
@@ -34,6 +35,7 @@ extern bool dci_decoder_up[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
 extern bool task_scheduler_up[MAX_NOF_RF_DEV];
 extern bool task_scheduler_closed[MAX_NOF_RF_DEV];
 extern pthread_mutex_t     scheduler_close_mutex;
+
 /******************* Global buffer for passing subframe IQ  ******************/ 
 ngscope_sf_buffer_t sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER] = 
 {
@@ -69,6 +71,10 @@ pthread_mutex_t     token_mutex[MAX_NOF_RF_DEV] = {PTHREAD_MUTEX_INITIALIZER, PT
 
 pend_ack_list       ack_list;
 pthread_mutex_t     ack_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+ngscope_ue_tracker_t ue_tracker[MAX_NOF_RF_DEV];
+pthread_mutex_t      ue_tracker_mutex[MAX_NOF_RF_DEV] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
+					 								PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 
 
 // This is the container for dci that are not allocated 

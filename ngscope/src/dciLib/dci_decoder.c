@@ -21,6 +21,8 @@
 #include "ngscope/hdr/dciLib/time_stamp.h"
 #include "ngscope/hdr/dciLib/status_plot.h"
 #include "ngscope/hdr/dciLib/thread_exit.h"
+#include "ngscope/hdr/dciLib/ue_tracker.h"
+#include "ngscope/hdr/dciLib/ngscope_util.h"
 
 extern bool                 go_exit;
 
@@ -38,6 +40,10 @@ extern pthread_mutex_t     ack_mutex;
 extern bool dci_decoder_up[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
 extern bool task_scheduler_up[MAX_NOF_RF_DEV];
 
+// for ue tracking
+extern ngscope_ue_tracker_t ue_tracker[MAX_NOF_RF_DEV];
+extern pthread_mutex_t      ue_tracker_mutex[MAX_NOF_RF_DEV];
+	
 pthread_mutex_t dci_plot_mutex[MAX_NOF_RF_DEV] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
 					 								PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 pthread_cond_t 	dci_plot_cond[MAX_NOF_RF_DEV] = {PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER,
@@ -94,7 +100,7 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
 	// test: enable cif 
 	//dci_decoder->ue_dl_cfg.cfg.dci.cif_enabled = true;
 	//dci_decoder->ue_dl_cfg.cfg.dci.cif_present = true;
-	dci_decoder->ue_dl_cfg.cfg.dci.multiple_csi_request_enabled = true;
+	//dci_decoder->ue_dl_cfg.cfg.dci.multiple_csi_request_enabled = true;
 
     /************************* Init pdsch_cfg **************************/
     dci_decoder->pdsch_cfg.meas_evm_en = true;
@@ -110,6 +116,130 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
     return SRSRAN_SUCCESS;
 }
 
+bool loc_rnti_in_topN(uint16_t rnti, ngscope_ue_tracker_t* 	ue_tracker){
+	for(int i=0; i<TOPN; i++){
+		if(rnti == ue_tracker->top_N_ue_rnti[i]){
+			return true;
+		}
+	}
+	return false;
+}
+void prune_based_on_topN(ngscope_tree_t* 		tree,
+						ngscope_ue_tracker_t* 	ue_tracker,
+                       	ngscope_dci_per_sub_t*  dci_per_sub,
+						int loc_idx)
+{
+	for(int i=0; i<MAX_NOF_FORMAT+1; i++){	
+		uint16_t rnti = tree->dci_array[i][loc_idx].rnti;
+		if(rnti <= 0){
+			continue;
+		}
+		// first of all, check if rnti are top N 
+		if(loc_rnti_in_topN(tree->dci_array[i][loc_idx].rnti, ue_tracker)){
+			// push the dci message to the output
+			ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
+
+			// clear the dci array 
+			srsran_ngscope_tree_clear_dciArray_nodes(tree, loc_idx);	
+			printf("We found a top N\n");
+
+			break;
+		}
+	}
+
+}
+void prune_based_on_activeUE(ngscope_tree_t* 		tree,
+						    ngscope_ue_tracker_t* 	ue_tracker,
+                       		ngscope_dci_per_sub_t*  dci_per_sub,
+							int loc_idx)
+{
+	for(int i=0; i<MAX_NOF_FORMAT+1; i++){	
+		// first of all, check if rnti are top N 
+		uint16_t rnti = tree->dci_array[i][loc_idx].rnti;
+		if(rnti <= 0){
+			continue;
+		}
+		if(ue_tracker->active_ue_list[rnti]){
+			// push the dci message to the output
+			ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
+
+			// clear the dci array 
+			srsran_ngscope_tree_clear_dciArray_nodes(tree, loc_idx);	
+			printf("We found a active\n");
+			break;
+		}
+	}
+
+}
+
+void filter_dci_from_tree(ngscope_tree_t* 	tree,
+						   ngscope_ue_tracker_t* 	ue_tracker,
+                           ngscope_dci_per_sub_t*  	dci_per_sub)
+{
+	for(int i=0; i<tree->nof_location; i++){
+		// first of all, check if rnti are top N 
+		prune_based_on_topN(tree, ue_tracker, dci_per_sub, i);
+
+		// second, if we found active ue
+		prune_based_on_activeUE(tree, ue_tracker, dci_per_sub, i);
+	}
+	return;
+}
+
+void update_ue_dci_per_loc(ngscope_tree_t* 			tree,
+						   ngscope_ue_tracker_t* 	ue_tracker,
+						   int 						loc_idx,
+						   uint32_t 				tti)
+{
+	uint16_t rnti_v[MAX_NOF_FORMAT+1];
+	int nof_ue =0;
+	for(int i=0; i<MAX_NOF_FORMAT+1; i++){	
+		uint16_t rnti = tree->dci_array[i][loc_idx].rnti;
+		if(rnti <= 0){
+			continue;
+		}
+		rnti_v[i] = rnti;	
+		nof_ue ++;
+	}
+	for(int i=0; i<MAX_NOF_FORMAT+1; i++){	
+		if(rnti_v[i] != 0){
+			if(nof_ue == 1){
+				bool dl = i==0 ? false:true;
+				ngscope_ue_tracker_enqueue_ue_rnti(ue_tracker, tti, rnti_v[i], dl);
+				break;
+			}else{
+				if(i==0 || i==4){
+					bool dl = i==0 ? false:true;
+					ngscope_ue_tracker_enqueue_ue_rnti(ue_tracker, tti, rnti_v[i], dl);
+				}
+			}
+		}
+	}
+	return;
+}
+					
+void update_ue_dci_per_tti(ngscope_tree_t* 			tree,
+						   ngscope_ue_tracker_t* 	ue_tracker,
+                           ngscope_dci_per_sub_t*  	dci_per_sub,
+						   uint32_t 				tti)
+{
+	//updating the decoded (dci_per_sub) dl dci  
+	for(int i=0; i<dci_per_sub->nof_dl_dci; i++){
+		ngscope_ue_tracker_enqueue_ue_rnti(ue_tracker, tti, dci_per_sub->dl_msg[i].rnti, true);
+	}
+
+	//updating the decoded (dci_per_sub) ul dci  
+	for(int i=0; i<dci_per_sub->nof_ul_dci; i++){
+		ngscope_ue_tracker_enqueue_ue_rnti(ue_tracker, tti, dci_per_sub->ul_msg[i].rnti, false);
+	}
+
+	for(int i=0; i<tree->nof_location; i++){
+		update_ue_dci_per_loc(tree, ue_tracker, i, tti);
+	}
+
+	return;
+}
+
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,
                             uint32_t                sfn,
@@ -123,6 +253,8 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
 	bool decode_single_ue 	= dci_decoder->prog_args.decode_single_ue;
     uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
+
+	int rf_idx 		= dci_decoder->prog_args.rf_index;
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
@@ -174,15 +306,27 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 			n = srsran_ngscope_decode_dci_signleUE_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
 								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, targetRNTI);
 		}else{
-    		n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
-								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, targetRNTI);
-		}
+    		ngscope_tree_t tree;	
+			n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, &tree, targetRNTI);
+           	pthread_mutex_lock(&ue_tracker_mutex[rf_idx]);
 
-		//printf("end of decoding!\n");
-        //t2 = timestamp_us();        
-        //printf("time_spend:%ld (us)\n", t2-t1);
-        //printf("decoder:%d finish decoding. time_spend:%ld (us)\n", dci_decoder->decoder_idx, t2-t1);
-    } 
+			// filter the dci 
+			filter_dci_from_tree(&tree, &ue_tracker[rf_idx], dci_per_sub);
+
+			// update the tti inside the ue_tracker
+			ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
+
+			// update the dci per subframe--> mainly decrease the tti
+			update_ue_dci_per_tti(&tree, &ue_tracker[rf_idx], dci_per_sub, tti);
+
+           	pthread_mutex_unlock(&ue_tracker_mutex[rf_idx]);
+			int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
+			printf("decoder: TTI:%d left %d non-empty nodes found:%d dl_dci %d ul_dci!\n\n", tti, nof_node, \
+						dci_per_sub->nof_dl_dci, dci_per_sub->nof_ul_dci); 
+		}
+	} 
+
 //	if(dci_decoder->decoder_idx == 0){
 //    	t2 = timestamp_us();        
 //    	printf("time_spend:%ld (us)\n", t2-t1);
@@ -196,6 +340,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
     return SRSRAN_SUCCESS;
 }
+
 int get_target_dci(ngscope_dci_msg_t* msg, int nof_msg, uint16_t targetRNTI){
     for(int i=0; i<nof_msg; i++){
         if(msg[i].rnti == targetRNTI){

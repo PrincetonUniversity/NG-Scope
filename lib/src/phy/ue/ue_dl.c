@@ -641,6 +641,7 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
         dci_msg[nof_dci].location = search_space->loc[l];
         dci_msg[nof_dci].format   = search_space->formats[f];
         dci_msg[nof_dci].rnti     = 0;
+
         float decode_prob = 0;
         //if (srsran_pdcch_decode_msg(&q->pdcch, sf, dci_cfg, &dci_msg[nof_dci])) {
         if (srsran_pdcch_decode_msg_yx(&q->pdcch, sf, dci_cfg, &dci_msg[nof_dci], &decode_prob)) {

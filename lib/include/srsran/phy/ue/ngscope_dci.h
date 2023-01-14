@@ -17,6 +17,7 @@
 #include "srsran/phy/phch/regs.h"
 
 #include "srsran/phy/ue/ue_dl.h"
+#include "srsran/phy/ue/ngscope_tree.h"
 
 int srsran_ngscope_unpack_dl_dci_2grant(srsran_ue_dl_t*     q,
                                         srsran_dl_sf_cfg_t* sf,
@@ -63,9 +64,8 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
                                         srsran_pusch_grant_t* dci_ul_grant);
 
 
-SRSRAN_API int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
-                                        srsran_dci_location_t dci_location[MAX_CANDIDATES_ALL],
-                                        uint32_t nof_location, uint32_t nof_cce, uint32_t sf_idx,
+SRSRAN_API int srsran_ngscope_dci_prune(ngscope_tree_t* q,
+                                        uint32_t sf_idx,
                                         ngscope_dci_per_sub_t* dci_per_sub);
 
 int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q);

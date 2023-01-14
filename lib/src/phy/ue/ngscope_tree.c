@@ -238,7 +238,7 @@ int srsran_ngscope_tree_check_nodes(ngscope_tree_t* q,
     check_node(q->dci_location, start_idx, idx_in_tree); 
     return SRSRAN_SUCCESS;
 }
-                                   
+
 /******************************************************** 
 * Clear array nodes, including its child and its parent
 *********************************************************/
@@ -277,7 +277,7 @@ bool clear_dciArray_parent_node(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL
         ZERO_OBJECT(dci_array[i][start_idx + idx_in_tree]); 
     }
     if(idx_in_tree == 0){
-        // if current node is the rrot node return true
+        // if current node is the root node return true
         return true;
     }else{
         // clear parent node
@@ -450,9 +450,12 @@ int ngscope_tree_init(ngscope_tree_t* q){
 			ZERO_OBJECT(q->dci_array[i][j]);
 		}
 	}
+
 	for(int i=0; i<MAX_CANDIDATES_ALL; i++){
 		ZERO_OBJECT(q->dci_location[i]);
 	}
+	q->nof_location = 0;
+	q->nof_cce 		= 0;
 	return 0;
 }
 
@@ -461,6 +464,25 @@ int ngscope_tree_set_locations(ngscope_tree_t* q, srsran_pdcch_t* pdcch, uint32_
 	q->nof_location = srsran_ngscope_search_space_block_yx(pdcch, cfi, q->dci_location);
 	return q->nof_location;
 }
+
+int ngscope_tree_set_cce(ngscope_tree_t* q, int nof_cce){
+	q->nof_cce = nof_cce;
+	return 1;
+}
+int srsran_ngscope_tree_find_rnti_range(ngscope_tree_t* q,
+										int 	 loc_idx,
+										uint16_t rnti_min,
+										uint16_t rnti_max)
+{
+	for(int j=0; j<MAX_NOF_FORMAT+1; j++){
+		if( (q->dci_array[j][loc_idx].rnti >= rnti_min) && 
+				(q->dci_array[j][loc_idx].rnti >= rnti_min)){
+			return j;
+		}
+	}
+    return -1;
+}
+
 
 ngscope_dci_msg_t srsran_ngscope_tree_find_rnti(ngscope_tree_t* q,
 											uint16_t rnti)

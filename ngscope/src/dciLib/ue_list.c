@@ -27,6 +27,7 @@ void enqueue_ue_list_per_rnti(ngscope_ue_list_t* q, uint32_t tti, uint16_t rnti,
     }
     return;
 }
+
 void ngscope_ue_list_enqueue_rnti_per_sf_per_cell(ngscope_ue_list_t q[MAX_NOF_RF_DEV], ngscope_status_buffer_t* dci_buf){
 
 	int cell_idx = dci_buf->cell_idx;	

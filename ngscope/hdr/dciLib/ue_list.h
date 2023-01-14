@@ -24,9 +24,9 @@ extern "C" {
 typedef struct{
   // Yaxiong's Modification: RNTI list
   bool      active_ue_list[65536];
-  uint16_t  ue_cnt[65536];
-  uint16_t  ue_dl_cnt[65536];
-  uint16_t  ue_ul_cnt[65536];
+  uint32_t  ue_cnt[65536];
+  uint32_t  ue_dl_cnt[65536];
+  uint32_t  ue_ul_cnt[65536];
 
   uint32_t  ue_last_active[65536];
   uint32_t  ue_enter_time[65536];

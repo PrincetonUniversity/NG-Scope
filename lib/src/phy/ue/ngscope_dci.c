@@ -206,31 +206,30 @@ int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q)
     return 0;
 }
 
-int srsran_ngscope_dci_prune(ngscope_dci_msg_t dci_array[][MAX_CANDIDATES_ALL],
-                                srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
-                                uint32_t nof_location, uint32_t nof_cce, uint32_t sf_idx,
+int srsran_ngscope_dci_prune(ngscope_tree_t* q,
+								uint32_t sf_idx,
                                 ngscope_dci_per_sub_t* dci_per_sub)
 {
     //printf("nof_location:%d nof_cce:%d sf_idx:%d \n", nof_location, nof_cce, sf_idx);
     uint32_t ncce = 0;
-    for(int i=0; i<nof_location; i++){
-        ncce = dci_location[i].ncce;
+    for(int i=0; i<q->nof_location; i++){
+        ncce = q->dci_location[i].ncce;
         //printf("ncce:%d \n", ncce);
         for(int j=0; j<MAX_NOF_FORMAT+1; j++){
-            uint16_t rnti = dci_array[j][i].rnti;
+            uint16_t rnti = q->dci_array[j][i].rnti;
             if(rnti > 0){// not empty
-                // Rule 1: corr based cuting:
-                if (!isnormal(dci_array[j][i].corr) || dci_array[j][i].corr < 0.5f) {
-                    ZERO_OBJECT(dci_array[j][i]);
+                // Rule 1: corr based cuting: and decode-prob based pruning
+                if (!isnormal(q->dci_array[j][i].corr) || q->dci_array[j][i].corr < 0.5f || q->dci_array[j][i].decode_prob < 75) {
+                    ZERO_OBJECT(q->dci_array[j][i]);
+					continue;
                 }
 
                 // Rule 2: RNTI and its location should match
                 bool loc_match = srsran_ngscope_space_match_yx(rnti,
-                                    nof_cce, sf_idx, ncce, ngscope_index_to_format(j));
-                //uint32_t ncce = 0;
-                //printf("ncce:%d \n", ncce);
+                                    q->nof_cce, sf_idx, ncce, ngscope_index_to_format(j));
                 if(loc_match == false){
-                    //ZERO_OBJECT(dci_array[j][i]);
+                    ZERO_OBJECT(q->dci_array[j][i]);
+					continue;
                 }
             }
         }

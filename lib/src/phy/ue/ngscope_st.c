@@ -37,7 +37,21 @@ int ngscope_format_to_index(srsran_dci_format_t format){
     }
     return -1;
 }
-
+int ngscope_push_dci_to_per_sub(ngscope_dci_per_sub_t* q, ngscope_dci_msg_t* msg){
+	if(msg->dl){
+		// push dl msg to its position, only when we have space
+		if(q->nof_dl_dci < MAX_DCI_PER_SUB){
+			memcpy(&q->dl_msg[q->nof_dl_dci], msg, sizeof(ngscope_dci_msg_t));
+			q->nof_dl_dci++;
+		}
+	}else{
+		if(q->nof_ul_dci < MAX_DCI_PER_SUB){
+			memcpy(&q->ul_msg[q->nof_dl_dci], msg, sizeof(ngscope_dci_msg_t));
+			q->nof_ul_dci++;
+		}
+	}
+	return 0;
+}
 srsran_dci_format_t ngscope_index_to_format(int index){
     switch(index){
         case 0:
