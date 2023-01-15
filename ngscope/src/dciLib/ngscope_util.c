@@ -221,6 +221,12 @@ int tti_distance(uint16_t start, uint16_t end){
 	}
 }
 
+int tti_difference(uint16_t a, uint16_t b){
+	uint16_t array[] = {a, b};		
+	unwrap_tti_array(array, 2);
+	int diff = abs((int) array[0] - (int)array[1]);
+	return diff;
+}
 // tti compare
 bool tti_a_l_b(uint16_t a, uint16_t b){
 	uint16_t array[] = {a, b};
@@ -347,7 +353,7 @@ uint64_t* shift_vec_w_offset(uint64_t* array, int array_size, int offset){
 	return new_array;
 }
 
-void shift_array_uint16(uint16_t* array, int size, int index){
+void shift_array_uint16_right(uint16_t* array, int size, int index){
 	if(index >= size){
 		printf("ERROR: index is larger than size!\n");
 		return;
@@ -355,6 +361,9 @@ void shift_array_uint16(uint16_t* array, int size, int index){
 
 	uint16_t tmp= array[index], tmp1;
 
+	if(index == size-1){
+		return;
+	}
 	for(int i=index; i<size-1; i++){
 		tmp1 			= array[i+1];
 		array[i+1] 		= tmp;
@@ -362,14 +371,33 @@ void shift_array_uint16(uint16_t* array, int size, int index){
 	}
 	return;
 }
-void shift_array_uint32(uint32_t* array, int size, int index){
+
+void shift_array_uint16_left(uint16_t* array, int size, int index){
+	if(index >= size){
+		printf("ERROR: index is larger than size!\n");
+		return;
+	}
+
+	if(index == size-1){
+		return;
+	}
+	for(int i=index; i<size-1; i++){
+		array[i] 		= array[i+1];
+	}
+	return;
+}
+
+
+void shift_array_uint32_right(uint32_t* array, int size, int index){
 	if(index >= size){
 		printf("ERROR: index is larger than size!\n");
 		return;
 	}
 
 	uint32_t tmp= array[index], tmp1;
-
+	if(index == size-1){
+		return;
+	}
 	for(int i=index; i<size-1; i++){
 		tmp1 			= array[i+1];
 		array[i+1] 		= tmp;
@@ -378,4 +406,44 @@ void shift_array_uint32(uint32_t* array, int size, int index){
 	return;
 }
 
+void shift_array_uint32_left(uint32_t* array, int size, int index){
+	if(index >= size){
+		printf("ERROR: index is larger than size!\n");
+		return;
+	}
 
+
+	if(index == size-1){
+		return;
+	}
+	for(int i=index; i<size-1; i++){
+		array[i] 		= array[i+1];
+	}
+	return;
+}
+
+
+void swap_array_uint16(uint16_t* array, int size, int idx1, int idx2){
+	if(idx1 >= size || idx2 >= size){
+		printf("ERROR SWAP ARRAY: size out of bound!\n");
+		return;
+	}
+
+	uint16_t tmp;
+	tmp 		= array[idx2];
+	array[idx2] = array[idx1];
+	array[idx1] = tmp;
+	return;
+}
+void swap_array_uint32(uint32_t* array, int size, int idx1, int idx2){
+	if(idx1 >= size || idx2 >= size){
+		printf("ERROR SWAP ARRAY: size out of bound!\n");
+		return;
+	}
+
+	uint32_t tmp;
+	tmp 		= array[idx2];
+	array[idx2] = array[idx1];
+	array[idx1] = tmp;
+	return;
+}

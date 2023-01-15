@@ -314,16 +314,20 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 			// filter the dci 
 			filter_dci_from_tree(&tree, &ue_tracker[rf_idx], dci_per_sub);
 
-			// update the tti inside the ue_tracker
-			ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
-
 			// update the dci per subframe--> mainly decrease the tti
 			update_ue_dci_per_tti(&tree, &ue_tracker[rf_idx], dci_per_sub, tti);
+
+			// update the ue_tracker at subframe level, mainly remove those inactive UE
+			ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
+
+			// print the tracker info
+			ngscope_ue_tracker_info(&ue_tracker[rf_idx]);
 
            	pthread_mutex_unlock(&ue_tracker_mutex[rf_idx]);
 			int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
 			printf("decoder: TTI:%d left %d non-empty nodes found:%d dl_dci %d ul_dci!\n\n", tti, nof_node, \
 						dci_per_sub->nof_dl_dci, dci_per_sub->nof_ul_dci); 
+
 		}
 	} 
 

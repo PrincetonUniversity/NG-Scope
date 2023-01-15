@@ -58,7 +58,7 @@ void unwrap_tti_array(uint16_t* array, int array_size);
 uint16_t max_tti_in_array(uint16_t* array, int array_size);
 
 int tti_distance(uint16_t start, uint16_t end);
-
+int tti_difference(uint16_t a, uint16_t b);
 
 bool tti_a_l_b(uint16_t a, uint16_t b);
 bool tti_a_le_b(uint16_t a, uint16_t b);
@@ -77,7 +77,17 @@ uint64_t* shift_vec_w_offset(uint64_t* array, int array_size, int offset);
 
 
 // shift the array from index 
-void shift_array_uint16(uint16_t* array, int size, int index);
-void shift_array_uint32(uint32_t* array, int size, int index);
+void shift_array_uint16_right(uint16_t* array, int size, int index);
+void shift_array_uint16_left(uint16_t* array, int size, int index);
+void shift_array_uint32_right(uint32_t* array, int size, int index);
+void shift_array_uint32_left(uint32_t* array, int size, int index);
+
+void swap_array_uint16(uint16_t* array, int size, int idx1, int idx2);
+void swap_array_uint32(uint32_t* array, int size, int idx1, int idx2);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif
