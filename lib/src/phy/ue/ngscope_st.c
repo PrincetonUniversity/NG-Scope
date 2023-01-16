@@ -46,12 +46,13 @@ int ngscope_push_dci_to_per_sub(ngscope_dci_per_sub_t* q, ngscope_dci_msg_t* msg
 		}
 	}else{
 		if(q->nof_ul_dci < MAX_DCI_PER_SUB){
-			memcpy(&q->ul_msg[q->nof_dl_dci], msg, sizeof(ngscope_dci_msg_t));
+			memcpy(&q->ul_msg[q->nof_ul_dci], msg, sizeof(ngscope_dci_msg_t));
 			q->nof_ul_dci++;
 		}
 	}
 	return 0;
 }
+
 srsran_dci_format_t ngscope_index_to_format(int index){
     switch(index){
         case 0:
@@ -74,4 +75,19 @@ srsran_dci_format_t ngscope_index_to_format(int index){
             break;
     }
     return SRSRAN_DCI_FORMAT0;
+}
+
+void srsran_ngscope_print_dci_per_sub(ngscope_dci_per_sub_t* q){
+	printf("DL-> ");
+	for(int i=0; i<q->nof_dl_dci; i++){
+		printf("%d ", q->dl_msg[i].rnti);
+	}
+	printf("UL-> ");
+	for(int i=0; i<q->nof_ul_dci; i++){
+		printf("%d ", q->ul_msg[i].rnti);
+	}
+
+	printf("\n");
+
+	return;
 }

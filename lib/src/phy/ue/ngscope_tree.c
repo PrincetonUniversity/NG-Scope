@@ -295,6 +295,9 @@ int srsran_ngscope_tree_clear_dciArray_nodes(ngscope_tree_t* q, int index)
 {
     int start_idx   = (index / 15) * 15;
     int idx_in_tree = index % 15;
+	for(int i=0; i<MAX_NOF_FORMAT+1;i++){
+        ZERO_OBJECT(q->dci_array[i][index]); 
+    }
     // Clear the child nodes
     clear_dciArray_child_node(q->dci_array, start_idx, idx_in_tree); 
     // Clear the parent nodes

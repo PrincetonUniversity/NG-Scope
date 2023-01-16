@@ -264,9 +264,12 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   //  printf("FOUND RNTI: tti:%d L:%d ncce:%d format:%d\n", sf->tti, ue_dci.loc.L, ue_dci.loc.ncce, ue_dci.format);
   //}
 
-  int nof_node = srsran_ngscope_tree_non_empty_nodes(tree);
-  printf("TTI:%d Searching %d location, found %d dci, left %d non-empty nodes!\n",\
+  srsran_ngscope_dci_prune(tree, sf->tti % 10);
+
+  //int nof_node = srsran_ngscope_tree_non_empty_nodes(tree);
+  //printf("TTI:%d Searching %d location, found %d dci, left %d non-empty nodes!\n",\
   		sf->tti, cnt, found_dci, nof_node);
+  //srsran_ngscope_print_dci_per_sub(dci_per_sub);
 
   //////srsran_ngscope_tree_solo_nodes(dci_array, dci_location, dci_per_sub, nof_location);
   //if(nof_node > 0){
@@ -274,7 +277,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
     //srsran_ngscope_tree_plot_multi(&tree);
   //}
 
-  srsran_ngscope_dci_prune(tree, sf->tti % 10, dci_per_sub);
+  //srsran_ngscope_dci_prune(tree, sf->tti % 10);
   //nof_node = srsran_ngscope_tree_non_empty_nodes(dci_array, nof_location);
   //printf("after pruning, there are %d non-empty nodes!\n\n", nof_node);
 

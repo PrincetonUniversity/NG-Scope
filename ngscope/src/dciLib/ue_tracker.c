@@ -39,15 +39,16 @@ int find_top_n_ue(ngscope_ue_tracker_t* q, int top_n){
 	uint32_t max_v = 0;
 	uint32_t max_freq 	= q->top_N_ue_freq[top_n-1];
 	for(int i=0; i<=65535; i++){
-		if(q->ue_cnt[i] < max_freq && q->ue_cnt[i] > max_v){
+		if( (q->ue_cnt[i] < max_freq) && (q->ue_cnt[i] > max_v) && (q->active_ue_list[i]) ){
 			max_i = i;
 			max_v = q->ue_cnt[i];
 		}
 	}
 	return max_i;
 }
+
 void remove_ue_from_list(ngscope_ue_tracker_t* q, uint16_t rnti){
-	printf("remove %d from the list!\n", rnti);
+	//printf("remove %d from the list!\n", rnti);
 	q->ue_cnt[rnti] 		= 0;
 	q->ue_last_active[rnti] = 0;
 	q->ue_enter_time[rnti] 	= 0;
@@ -67,9 +68,11 @@ void remove_ue_from_list(ngscope_ue_tracker_t* q, uint16_t rnti){
 
 			// find the most freqent rnti except the TOPN
 			int index = find_top_n_ue(q, TOPN-1);
-			q->top_N_ue_rnti[TOPN-1] = (uint16_t)index;
-			q->top_N_ue_freq[TOPN-1] = q->ue_cnt[index];
 
+			if(index > 0){
+				q->top_N_ue_rnti[TOPN-1] = (uint16_t)index;
+				q->top_N_ue_freq[TOPN-1] = q->ue_cnt[index];
+			}
 
 			break;
 		}
@@ -106,19 +109,22 @@ bool update_ue_tracker_topN(ngscope_ue_tracker_t* q, uint16_t rnti){
 		}
 	}
 	// if rnti is not inside TOPN and now we need to delete one in the array
+	// (only happen if we found that the RNTI is active  
 	else{
-		// shift the array and insert new rnti
-		for(int i=0; i<TOPN; i++){
-			if(q->top_N_ue_freq[i] < ue_cnt){
-				// shift the vec and insert the value into the array
-				shift_array_uint32_right(q->top_N_ue_freq, TOPN, i);
-				q->top_N_ue_freq[i] = ue_cnt;
+		if(q->active_ue_list[rnti]){
+			// shift the array and insert new rnti
+			for(int i=0; i<TOPN; i++){
+				if(q->top_N_ue_freq[i] < ue_cnt){
+					// shift the vec and insert the value into the array
+					shift_array_uint32_right(q->top_N_ue_freq, TOPN, i);
+					q->top_N_ue_freq[i] = ue_cnt;
 
-				// shift the vec and insert the value into the array
-				shift_array_uint16_right(q->top_N_ue_rnti, TOPN, i);
-				q->top_N_ue_rnti[i] = rnti;
-				ret = true;
-				break;
+					// shift the vec and insert the value into the array
+					shift_array_uint16_right(q->top_N_ue_rnti, TOPN, i);
+					q->top_N_ue_rnti[i] = rnti;
+					ret = true;
+					break;
+				}
 			}
 		}
 	}
@@ -166,17 +172,20 @@ void ngscope_ue_tracker_enqueue_ue_rnti(ngscope_ue_tracker_t* q, uint32_t tti, u
     }
 
 	// judge whether this ue is active or not
-	if(tti_distance(q->ue_last_active[rnti], tti) < ACTIVE_TTI_T || 
+	if(tti_difference(q->ue_last_active[rnti], tti) < ACTIVE_TTI_T || 
 			q->ue_cnt[rnti] > ACTIVE_UE_CNT_THD){
 		q->active_ue_list[rnti] = true;
+		//printf("tti:%d found active UE: cnt:%d \n", tti, q->ue_cnt[rnti]);
 	}
 		
 	// then we update its last active tti
     q->ue_last_active[rnti] = tti; 
 
 	// check whether we need to update the top N
-	bool updated = update_ue_tracker_topN(q, rnti);
-	printf("TTI:%d enqueue rnti:%d is active:%d ue_cnt:%d updated inside the TopN:%d\n", tti, rnti, q->active_ue_list[rnti], q->ue_cnt[rnti], updated);
+	bool updated; 
+	updated = update_ue_tracker_topN(q, rnti);
+
+	//printf("TTI:%d enqueue rnti:%d is active:%d ue_cnt:%d updated inside the TopN:%d\n", tti, rnti, q->active_ue_list[rnti], q->ue_cnt[rnti], updated);
     return;
 }
 
@@ -187,8 +196,8 @@ void ngscope_ue_tracker_update_per_tti(ngscope_ue_tracker_t* q, uint32_t tti){
 	return;
 }
 
-void ngscope_ue_tracker_info(ngscope_ue_tracker_t* q){
-	printf("Nof active ue:%d ", q->nof_active_ue);
+void ngscope_ue_tracker_info(ngscope_ue_tracker_t* q, uint32_t tti){
+	printf("TTI:%d Nof active ue:%d ", tti, q->nof_active_ue);
 	for(int i=0; i<TOPN; i++){
 		printf("%d|%d ", q->top_N_ue_rnti[i], q->top_N_ue_freq[i]);
 	}

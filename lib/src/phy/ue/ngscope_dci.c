@@ -207,8 +207,7 @@ int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q)
 }
 
 int srsran_ngscope_dci_prune(ngscope_tree_t* q,
-								uint32_t sf_idx,
-                                ngscope_dci_per_sub_t* dci_per_sub)
+								uint32_t sf_idx)
 {
     //printf("nof_location:%d nof_cce:%d sf_idx:%d \n", nof_location, nof_cce, sf_idx);
     uint32_t ncce = 0;
@@ -240,3 +239,5 @@ int srsran_ngscope_dci_prune(ngscope_tree_t* q,
 
     return SRSRAN_SUCCESS;
 }
+
+

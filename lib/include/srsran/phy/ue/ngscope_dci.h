@@ -65,9 +65,7 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
 
 
 SRSRAN_API int srsran_ngscope_dci_prune(ngscope_tree_t* q,
-                                        uint32_t sf_idx,
-                                        ngscope_dci_per_sub_t* dci_per_sub);
+                                        uint32_t sf_idx);
 
 int srsran_ngscope_dci_prune_ret(ngscope_dci_per_sub_t* q);
-
 #endif

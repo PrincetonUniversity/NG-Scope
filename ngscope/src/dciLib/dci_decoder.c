@@ -14,6 +14,7 @@
 #include "srsgui/srsgui.h"
 
 #include "srsran/srsran.h"
+
 #include "ngscope/hdr/dciLib/radio.h"
 #include "ngscope/hdr/dciLib/task_scheduler.h"
 #include "ngscope/hdr/dciLib/dci_decoder.h"
@@ -141,7 +142,7 @@ void prune_based_on_topN(ngscope_tree_t* 		tree,
 
 			// clear the dci array 
 			srsran_ngscope_tree_clear_dciArray_nodes(tree, loc_idx);	
-			printf("We found a top N\n");
+			//printf("We found a top N rnti:%d loc_idx:%d format:%d\n", rnti, loc_idx, i);
 
 			break;
 		}
@@ -165,7 +166,8 @@ void prune_based_on_activeUE(ngscope_tree_t* 		tree,
 
 			// clear the dci array 
 			srsran_ngscope_tree_clear_dciArray_nodes(tree, loc_idx);	
-			printf("We found a active\n");
+
+			//printf("We found a active UE::%d loc_idx:%d format:%d\n", rnti, loc_idx, i);
 			break;
 		}
 	}
@@ -321,12 +323,17 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 			ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
 
 			// print the tracker info
-			ngscope_ue_tracker_info(&ue_tracker[rf_idx]);
+			//ngscope_ue_tracker_info(&ue_tracker[rf_idx], tti);
 
            	pthread_mutex_unlock(&ue_tracker_mutex[rf_idx]);
-			int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
-			printf("decoder: TTI:%d left %d non-empty nodes found:%d dl_dci %d ul_dci!\n\n", tti, nof_node, \
+
+			/*********************   Print decoding result  **********************/
+
+			//int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
+			//printf("decoder: TTI:%d left %d non-empty nodes found:%d dl_dci %d ul_dci!\n", tti, nof_node, \
 						dci_per_sub->nof_dl_dci, dci_per_sub->nof_ul_dci); 
+			//srsran_ngscope_print_dci_per_sub(dci_per_sub);
+			//printf("\n");
 
 		}
 	} 
