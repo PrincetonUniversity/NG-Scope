@@ -488,17 +488,21 @@ void* dci_decoder_thread(void* p){
         //printf("%d-th decoder Get the conditional signal! empty:%d\n", dci_decoder->decoder_idx, empty_sf);
     
  
-		fprintf(fd,"%d\n", tti);
+		//fprintf(fd,"%d\n", tti);
 
         //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
 		// We only decode when the subframe is not empty
 		if(empty_sf){
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
+			fprintf(fd,"%d\t%d\t\n", tti, 0);
 		}else{
 			//usleep(1000);
     		dci_per_sub.timestamp 	= timestamp_us();
+
+			uint64_t t1 = timestamp_us();        
 			dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
-			//t3 = timestamp_us();        
+			uint64_t t2 = timestamp_us();        
+			fprintf(fd,"%d\t%ld\t\n", tti, t2-t1);
 	//--->  Unlock the buffer
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
 
