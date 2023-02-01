@@ -21,6 +21,7 @@ void init_pending_ack(pend_ack_list* ack_list){
         ack_list->pending_ack[i].n_dmrs   = 0;
     }
 }
+
 void phich_reset_pending_ack(pend_ack_list* ack_list, uint32_t tti) {
   ack_list->pending_ack[TTIMOD(tti)].enabled = false;
 }

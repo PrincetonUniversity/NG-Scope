@@ -193,7 +193,7 @@ void update_ue_dci_per_loc(ngscope_tree_t* 			tree,
 						   int 						loc_idx,
 						   uint32_t 				tti)
 {
-	uint16_t rnti_v[MAX_NOF_FORMAT+1];
+	uint16_t rnti_v[MAX_NOF_FORMAT+1] = {0};
 	int nof_ue =0;
 	for(int i=0; i<MAX_NOF_FORMAT+1; i++){	
 		uint16_t rnti = tree->dci_array[i][loc_idx].rnti;
@@ -362,11 +362,13 @@ int get_target_dci(ngscope_dci_msg_t* msg, int nof_msg, uint16_t targetRNTI){
 }
 
 
-int dci_decoder_phich_decode(ngscope_dci_decoder_t*       dci_decoder,
+bool dci_decoder_phich_decode(ngscope_dci_decoder_t*       dci_decoder,
                                   uint32_t                tti,
-                                  ngscope_dci_per_sub_t*  dci_per_sub)
+                                  ngscope_dci_per_sub_t*  dci_per_sub, 
+        						  srsran_phich_res_t*  	  phich_res)
 {
     uint16_t targetRNTI = dci_decoder->prog_args.rnti;
+    bool ack_available = false;
     if(targetRNTI > 0){
         if(dci_per_sub->nof_ul_dci > 0){
             int idx = get_target_dci(dci_per_sub->ul_msg, dci_per_sub->nof_ul_dci, targetRNTI);
@@ -378,11 +380,12 @@ int dci_decoder_phich_decode(ngscope_dci_decoder_t*       dci_decoder,
                 pthread_mutex_unlock(&ack_mutex);
             }
         }
-        srsran_phich_res_t phich_res;
-        bool ack_available = false;
-        ack_available = decode_phich(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, &ack_list, &phich_res);
+        ack_available = decode_phich(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, &ack_list, phich_res);
+		if(ack_available){
+			//printf("TTI:%d ACK:%d distance:%f\n", tti, phich_res->ack_value, phich_res->distance);
+		}
     }
-    return 0;
+    return ack_available;
 }
 
 
@@ -423,7 +426,7 @@ void* dci_decoder_thread(void* p){
 
 	int decoder_idx = dci_decoder->decoder_idx;
     int rf_idx     	= dci_decoder->prog_args.rf_index;
-
+    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	printf("decoder idx :%d \n", decoder_idx);
     ngscope_dci_per_sub_t   dci_per_sub; 
@@ -486,8 +489,6 @@ void* dci_decoder_thread(void* p){
         uint32_t tti    = sfn * 10 + sf_idx;
 		bool   empty_sf = sf_buffer[rf_idx][decoder_idx].empty_sf;
         //printf("%d-th decoder Get the conditional signal! empty:%d\n", dci_decoder->decoder_idx, empty_sf);
-    
- 
 		//fprintf(fd,"%d\n", tti);
 
         //printf("decoder:%d Get the signal! sfn:%d sf_idx:%d tti:%d\n", decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
@@ -530,8 +531,17 @@ void* dci_decoder_thread(void* p){
 
         //printf("End of decoding decoder_idx:%d sfn:%d sf_idx:%d tti:%d\n", 
         //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
-
-//        dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub);
+        srsran_phich_res_t  	  phich_res;
+        if(dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub, &phich_res) && (phich_res.ack_value == 0) ){
+			if(ngscope_rnti_inside_dci_per_sub_ul(&dci_per_sub,targetRNTI) >= 0){
+				printf("Conflict we have both ul dci and ul ack!\n");
+			}else{
+				printf("We insert one ul reTx dci msg: before: %d", dci_per_sub.nof_ul_dci);
+				ngscope_enqueue_ul_reTx_dci_msg(&dci_per_sub, targetRNTI);
+				printf("after: %d | \n", dci_per_sub.nof_ul_dci);
+			}
+			//ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
+		}
 
         dci_ret.dci_per_sub  = dci_per_sub;
         dci_ret.tti          = sfn *10 + sf_idx;

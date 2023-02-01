@@ -53,6 +53,47 @@ int ngscope_push_dci_to_per_sub(ngscope_dci_per_sub_t* q, ngscope_dci_msg_t* msg
 	return 0;
 }
 
+int ngscope_enqueue_ul_reTx_dci_msg(ngscope_dci_per_sub_t* q, uint16_t targetRNTI){
+	ngscope_dci_msg_t msg;
+	msg.rnti 	= targetRNTI;
+	msg.prb		= 0;
+	msg.harq 	= 0;
+	msg.nof_tb 	= 1;
+	msg.dl 		= false;
+	msg.decode_prob 	= 100;
+	msg.corr 	= 1;
+	msg.format 	= 0;
+	msg.tb[0].mcs 	= 0;
+	msg.tb[0].tbs 	= 0;
+	msg.tb[0].rv  	= 1;
+	msg.tb[0].ndi 	= 0;
+
+	ngscope_push_dci_to_per_sub(q, &msg);
+	return 0;
+}
+
+int ngscope_rnti_inside_dci_per_sub_dl(ngscope_dci_per_sub_t* q, uint16_t targetRNTI){
+	if(q->nof_dl_dci > 0){
+		for(int	i=0; i<q->nof_dl_dci; i++){
+			if(q->dl_msg[i].rnti == targetRNTI){
+				return i;	
+			}
+		}
+	}
+	return -1;
+}
+
+int ngscope_rnti_inside_dci_per_sub_ul(ngscope_dci_per_sub_t* q, uint16_t targetRNTI){
+	if(q->nof_dl_dci > 0){
+		for(int	i=0; i<q->nof_ul_dci; i++){
+			if(q->ul_msg[i].rnti == targetRNTI){
+				return i;	
+			}
+		}
+	}
+	return -1;
+}
+
 srsran_dci_format_t ngscope_index_to_format(int index){
     switch(index){
         case 0:
@@ -91,3 +132,5 @@ void srsran_ngscope_print_dci_per_sub(ngscope_dci_per_sub_t* q){
 
 	return;
 }
+
+

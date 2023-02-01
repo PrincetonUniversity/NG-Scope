@@ -55,6 +55,10 @@ typedef struct SRSRAN_API {
 
 int ngscope_push_dci_to_per_sub(ngscope_dci_per_sub_t* q, ngscope_dci_msg_t* msg);
 
+int ngscope_enqueue_ul_reTx_dci_msg(ngscope_dci_per_sub_t* q, uint16_t targetRNTI);
+int ngscope_rnti_inside_dci_per_sub_dl(ngscope_dci_per_sub_t* q, uint16_t targetRNTI);
+int ngscope_rnti_inside_dci_per_sub_ul(ngscope_dci_per_sub_t* q, uint16_t targetRNTI);
+
 int ngscope_format_to_index(srsran_dci_format_t format);
 
 srsran_dci_format_t ngscope_index_to_format(int index);
