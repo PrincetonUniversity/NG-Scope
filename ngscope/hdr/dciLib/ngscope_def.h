@@ -34,7 +34,7 @@ extern "C" {
 
 #define MAX_MSG_PER_SUBF 10
 
-#define MAX_DCI_BUFFER 20
+#define MAX_DCI_BUFFER 30
 
 #define PLOT_SF 10
 
