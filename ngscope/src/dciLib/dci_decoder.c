@@ -302,7 +302,8 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         uint32_t tm = 3;
         dci_decoder->dl_sf.tti                             = tti;
         dci_decoder->dl_sf.sf_type                         = SRSRAN_SF_NORM; //Ingore the MBSFN
-        dci_decoder->ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm;
+		// 'SISO' 'TM1; 'Diversity' 'TM2'; 'MIMO' but no feedback 'TM3'; MIMO and UE feedback from UE (CQI, PMI, RI) is called 'TM4'
+        dci_decoder->ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm; //transmission mode, 'TM3'
         dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = true;
 		if(decode_single_ue){
 			n = srsran_ngscope_decode_dci_signleUE_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
@@ -480,6 +481,7 @@ void* dci_decoder_thread(void* p){
 //--->  Wait the signal 
         //printf("%d-th decoder is waiting for conditional signal!\n", dci_decoder->decoder_idx);
 		//t1 = timestamp_us();        
+		// release lock while wait for cond signal
         pthread_cond_wait(&sf_buffer[rf_idx][decoder_idx].sf_cond, 
                           &sf_buffer[rf_idx][decoder_idx].sf_mutex);
     
