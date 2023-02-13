@@ -153,6 +153,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   }else{
     search_space.nof_formats = MAX_NOF_FORMAT;
   }
+  // mi ??
   uint32_t mi_set_len;
   if (q->cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) {
     mi_set_len = 3;
@@ -162,6 +163,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
     
   // Currently we assume FDD only 
   // Remeber that sf->cfi is set only after calling this function
+  // cfi: number of ofdm symbols for PDCCH
   srsran_ue_dl_set_mi_auto(q);
   if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
     ERROR("ERROR decode FFT\n");
@@ -172,6 +174,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   ngscope_tree_init(tree);
   ngscope_tree_set_locations(tree, &q->pdcch, sf->cfi);
 
+  // 1 CCE = 36 RE's.
   uint32_t nof_cce;
   nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
   ngscope_tree_set_cce(tree, nof_cce);
