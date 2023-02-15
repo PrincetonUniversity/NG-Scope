@@ -479,7 +479,7 @@ int srsran_ngscope_tree_find_rnti_range(ngscope_tree_t* q,
 {
 	for(int j=0; j<MAX_NOF_FORMAT+1; j++){
 		if( (q->dci_array[j][loc_idx].rnti >= rnti_min) && 
-				(q->dci_array[j][loc_idx].rnti >= rnti_min)){
+				(q->dci_array[j][loc_idx].rnti <= rnti_max)){
 			return j;
 		}
 	}
