@@ -30,7 +30,8 @@ uint32_t srsran_ngscope_search_space_all_yx(srsran_pdcch_t* q, uint32_t cfi, srs
     return k;
 }
 
-/*calculate the mean llr */
+/*calculate the absolute mean of llr
+llr: a scalar log-likelihood ratio */
 static float mean_llr(srsran_pdcch_t* q, int ncce, int l){
     float mean = 0;
     for (int j=0;j<PDCCH_FORMAT_NOF_BITS(l);j++) {
@@ -86,7 +87,7 @@ void check_node_based_on_llr(srsran_dci_location_t dci_location[MAX_CANDIDATES_A
 
 /*****************************************************************************************
  * Each block is a combination of 8 CCEs.
- * Depending on the aggregation level L, we have 8 L=0, 4 L=1, 2 L=2, 1 L=8
+ * Depending on the aggregation level L, we have 8 L=0, 4 L=1, 2 L=2, 1 L=3, locations
  * Therefore, each block contains 15 possible locations
 *****************************************************************************************/
 uint32_t srsran_ngscope_search_space_block_yx(srsran_pdcch_t* q, uint32_t cfi, srsran_dci_location_t* c)
