@@ -78,9 +78,9 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
 
     /************************* Init dl_sf **************************/
     if (cell->frame_type == SRSRAN_TDD && prog_args.tdd_special_sf >= 0 && prog_args.sf_config >= 0) {
-        dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
+        dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf; //Special subframe configuration
         //dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
-        dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
+        dci_decoder->dl_sf.tdd_config.sf_config  = 2; //frame configuration downlink/uplink
         dci_decoder->dl_sf.tdd_config.configured = true;
     }
     dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
@@ -264,10 +264,10 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         decode_pdsch = true;
 		if (dci_decoder->cell.frame_type == SRSRAN_TDD) {
 			if (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) {
-				printf("TDD uplink subframe skip\n");
+				//printf("TDD uplink subframe skip\n");
 				decode_pdsch = false;
 			} else {
-				printf("TDD uplink subframe decode\n");
+				//printf("TDD uplink subframe decode\n");
 				decode_pdsch = true;				
 			}
 		}
