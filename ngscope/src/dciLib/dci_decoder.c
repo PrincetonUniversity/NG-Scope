@@ -259,11 +259,18 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 	int rf_idx 		= dci_decoder->prog_args.rf_index;
 
     // Shall we decode the PDSCH of the current subframe?
+	// if rnti is not system rnti:
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
         decode_pdsch = true;
-        if (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) {
-            decode_pdsch = false;
-        }
+		if (dci_decoder->cell.frame_type == SRSRAN_TDD) {
+			if (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) {
+				printf("TDD uplink subframe skip\n");
+				decode_pdsch = false;
+			} else {
+				printf("TDD uplink subframe decode\n");
+				decode_pdsch = true;				
+			}
+		}
     } else {
         /* We are looking for SIB1 Blocks, search only in appropiate places */
         if ((sf_idx == 5 && (sfn % 2) == 0)) {
@@ -276,13 +283,12 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     //if(sf_idx % 1 == 0)    
     //    decode_pdsch = true;
 
-    decode_pdsch = true;
-
-    if ( (dci_decoder->cell.frame_type == SRSRAN_TDD) && 
-        (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) ){
-        printf("TDD uplink subframe skip\n");
-        decode_pdsch = false;
-    }
+    // decode_pdsch = true;
+    // if ( (dci_decoder->cell.frame_type == SRSRAN_TDD) && 
+    //     (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) ){
+    //     printf("TDD uplink subframe skip\n");
+    //     decode_pdsch = false;
+    // }
  
     int n = 0;
 

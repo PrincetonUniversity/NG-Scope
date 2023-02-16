@@ -135,7 +135,7 @@ int srsran_ue_mib_decode(srsran_ue_mib_t* q,
   /* Run FFT for the slot symbols */
   srsran_ofdm_rx_sf(&q->fft);
 
-  // sf_idx is always 0 in MIB
+  // sf_idx is always 0 in MIB, (MIB is transmitted in subframe 0)
   srsran_dl_sf_cfg_t sf_cfg;
   ZERO_OBJECT(sf_cfg);
 
