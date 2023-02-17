@@ -539,7 +539,7 @@ void* dci_decoder_thread(void* p){
 
         //printf("End of decoding decoder_idx:%d sfn:%d sf_idx:%d tti:%d\n", 
         //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
-        srsran_phich_res_t  	  phich_res;
+        // srsran_phich_res_t  	  phich_res;
         // if(dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub, &phich_res) && (phich_res.ack_value == 0) ){
 		// 	if(ngscope_rnti_inside_dci_per_sub_ul(&dci_per_sub,targetRNTI) >= 0){
 		// 		printf("Conflict we have both ul dci and ul ack!\n");
