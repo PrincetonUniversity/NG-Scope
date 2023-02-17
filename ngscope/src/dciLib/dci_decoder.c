@@ -540,16 +540,16 @@ void* dci_decoder_thread(void* p){
         //printf("End of decoding decoder_idx:%d sfn:%d sf_idx:%d tti:%d\n", 
         //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
         srsran_phich_res_t  	  phich_res;
-        if(dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub, &phich_res) && (phich_res.ack_value == 0) ){
-			if(ngscope_rnti_inside_dci_per_sub_ul(&dci_per_sub,targetRNTI) >= 0){
-				printf("Conflict we have both ul dci and ul ack!\n");
-			}else{
-				printf("We insert one ul reTx dci msg: before: %d", dci_per_sub.nof_ul_dci);
-				ngscope_enqueue_ul_reTx_dci_msg(&dci_per_sub, targetRNTI);
-				printf("after: %d | \n", dci_per_sub.nof_ul_dci);
-			}
-			//ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
-		}
+        // if(dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub, &phich_res) && (phich_res.ack_value == 0) ){
+		// 	if(ngscope_rnti_inside_dci_per_sub_ul(&dci_per_sub,targetRNTI) >= 0){
+		// 		printf("Conflict we have both ul dci and ul ack!\n");
+		// 	}else{
+		// 		printf("We insert one ul reTx dci msg: before: %d", dci_per_sub.nof_ul_dci);
+		// 		ngscope_enqueue_ul_reTx_dci_msg(&dci_per_sub, targetRNTI);
+		// 		printf("after: %d | \n", dci_per_sub.nof_ul_dci);
+		// 	}
+		// 	//ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
+		// }
 
         dci_ret.dci_per_sub  = dci_per_sub;
         dci_ret.tti          = sfn *10 + sf_idx;
