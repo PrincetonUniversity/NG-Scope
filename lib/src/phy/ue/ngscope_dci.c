@@ -35,7 +35,7 @@ void srsran_ngscope_dci_into_array_dl(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].dl      = true;
  
     dci_array[i][j].decode_prob      = decode_prob;
-    dci_array[j][j].corr             = corr;
+    dci_array[i][j].corr             = corr;
 
    
     // transport block 1
@@ -106,7 +106,7 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].phich.n_prb_tilde   = dci_ul_grant->n_prb_tilde[0];
 
     dci_array[i][j].decode_prob      = decode_prob;
-    dci_array[j][j].corr             = corr;
+    dci_array[i][j].corr             = corr;
 
     return;
 }
