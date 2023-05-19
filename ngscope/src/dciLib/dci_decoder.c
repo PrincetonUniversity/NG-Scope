@@ -279,8 +279,9 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
             decode_pdsch = false;
         }
     }
+	
 
-    //if(sf_idx % 1 == 0)    
+    // if(sf_idx % 1 == 0)    
     //    decode_pdsch = true;
 
     // decode_pdsch = true;
