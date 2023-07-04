@@ -1,0 +1,17 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/yaxiong/research/ngscope_related/srsRAN_4G-release_23_04/srsgnb/src/stack/mac/test/sched_nr_sch_test.cc"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"sched",
+			"nr"
+		],
+		"name" : "sched_nr_sch_test"
+	}
+}

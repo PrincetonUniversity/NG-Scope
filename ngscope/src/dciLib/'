@@ -1,0 +1,353 @@
+#include <assert.h>
+#include <math.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+
+#include "srsran/srsran.h"
+
+#include "ngscope/hdr/dciLib/socket.h"
+
+extern bool go_exit;
+extern client_list_t clien_list;
+
+bool same_sock_addr(struct sockaddr_in* a, struct sockaddr_in* b){
+	if(a->sin_family == b->sin_family && a->sin_port == b->sin_port){
+		if(a->sin_addr.s_addr == b->sin_addr.s_addr){
+			for(int i=0; i<8; i++){
+				if(a->sin_zero[i] == b->sin_zero[i]){
+
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void init_client_list(client_list_t* q){
+	for(int i=0; i<MAX_CLIENT; i++){
+		memset(&q->client_addr[i], 0, sizeof(struct sockaddr_in));
+	}
+	q->nof_client 	= 0;
+	q->mutex = PTHREAD_MUTEX_INITIALIZER,
+	return;
+}
+
+//set sock in non-block mode
+void setnonblocking(int sockfd) {
+    int flag = fcntl(sockfd, F_GETFL, 0);
+    if (flag < 0) {
+        perror("fcntl F_GETFL fail");
+        return;
+    }
+
+    if (fcntl(sockfd, F_SETFL, flag | O_NONBLOCK) < 0) {
+        perror("fcntl F_SETFL fail");
+    }
+	return;
+}
+
+int connectServer(){
+    int client_sockfd;
+    struct sockaddr_in remote_addr; //服务器端网络地址结构体
+    memset(&remote_addr,0,sizeof(remote_addr)); //数据初始化--清零
+    remote_addr.sin_family=AF_INET; //设置为IP通信
+   // if(masterIP == NULL){
+   //     remote_addr.sin_addr.s_addr=inet_addr("192.168.2.20");//服务器IP地址
+   // }else{
+   //     remote_addr.sin_addr.s_addr=inet_addr( masterIP );//服务器IP地址
+   // }
+    remote_addr.sin_addr.s_addr=inet_addr("127.0.0.1");//服务器IP地址
+    //remote_addr.sin_addr.s_addr=inet_addr("192.168.1.10");//服务器IP地址
+    remote_addr.sin_port=htons(6767); //服务器端口号
+
+    printf("\n\n\n\n\n");
+    printf("we are configure the socket inside WebRTC\n");
+    printf("\n\n\n\n\n");
+
+    /*创建客户端套接字--IPv4协议，面向连接通信，TCP协议*/
+    if((client_sockfd=socket(PF_INET,SOCK_STREAM,0))<0)
+    {
+        perror("socket error");
+        return 0;
+    }
+    int prioriety = 7;
+    int ret = setsockopt(client_sockfd, SOL_SOCKET, SO_PRIORITY, (void *)&prioriety, sizeof(int));
+    if(ret == -1){
+        printf("SET socket prioriety failed! ERRNO:%s\n", strerror(errno));
+    }
+	// non-blocking
+	setnonblocking(client_sockfd);
+
+    /*将套接字绑定到服务器的网络地址上*/
+    if(connect(client_sockfd,(struct sockaddr *)&remote_addr,sizeof(struct sockaddr))<0)
+    {
+        perror("connect error");
+        return 0;
+    }
+    return client_sockfd;
+}
+
+int connectServer_udp(){
+	int sockfd;
+    char buffer[1400];
+    struct sockaddr_in servaddr;
+   	int PORT = 6767; 
+
+    // Create UDP socket
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Set server address
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(PORT);
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");//服务器IP地址
+ 
+	buffer[0] = (char)0xCC;	buffer[1] = (char)0xCC;	
+	buffer[2] = (char)0xCC;	buffer[3] = (char)0xCC;	
+
+	sendto(sockfd, (char *)buffer, 4, 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+	sendto(sockfd, (char *)buffer, 4, 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+
+	int nof_serv_pkt = 0;
+	while(!go_exit){
+		unsigned int len =  sizeof(servaddr);
+		int recvLen = recvfrom(sockfd, (char *)buffer, 1400, 0, (struct sockaddr *) &servaddr, &len);
+		if(recvLen > 0){
+			if(buffer[0] == (char)0xAA && buffer[1] == (char)0xAA && \
+				buffer[2] == (char)0xAA &&	buffer[3] == (char)0xAA){
+				nof_serv_pkt++;
+			}	
+			if(nof_serv_pkt >= 2){
+				break;
+			}
+		}
+		usleep(100000);
+	}
+
+    printf("Message sent.\n");
+	return sockfd;
+}
+
+int closeServer_udp(int sockfd){
+    char buffer[1400];
+    struct sockaddr_in servaddr;
+   	int PORT = 6767; 
+
+
+    // Set server address
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(PORT);
+    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");//服务器IP地址
+  
+	buffer[0] = (char)0xFF;	buffer[1] = (char)0xFF;	
+	buffer[2] = (char)0xFF;	buffer[3] = (char)0xFF;	
+
+	sendto(sockfd, (char *)buffer, 4, 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+	sendto(sockfd, (char *)buffer, 4, 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+	sendto(sockfd, (char *)buffer, 4, 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+
+	return 0;
+}
+
+int accept_slave_connect(int* server_fd, int* client_fd_vec, int portNum){
+    int server_sockfd;//服务器端套接字
+    int client_sockfd;//客户端套接字
+    int nof_sock = 0;
+    struct sockaddr_in my_addr;   //服务器网络地址结构体
+    struct sockaddr_in remote_addr; //客户端网络地址结构体
+    unsigned int sin_size;
+    memset(&my_addr,0,sizeof(my_addr)); //数据初始化--清零
+    my_addr.sin_family=AF_INET; //设置为IP通信
+    my_addr.sin_addr.s_addr=INADDR_ANY;//服务器IP地址--允许连接到所有本地地址上
+    //my_addr.sin_port=htons(6767); //服务器端口号
+    my_addr.sin_port=htons(portNum); //服务器端口号
+
+    /*创建服务器端套接字--IPv4协议，面向连接通信，TCP协议*/
+    if((server_sockfd=socket(PF_INET,SOCK_STREAM,0))<0)
+    {
+        perror("socket error");
+        return 0;
+    }
+
+    *server_fd = server_sockfd;
+    //int flags = fcntl(server_sockfd, F_GETFL, 0);
+    //fcntl(server_sockfd, F_SETFL, flags | O_NONBLOCK);
+
+    /*将套接字绑定到服务器的网络地址上*/
+    if(bind(server_sockfd,(struct sockaddr *)&my_addr,sizeof(struct sockaddr))<0)
+    {
+        perror("bind error");
+        return 0;
+    }
+
+    int option = 1;
+    if(setsockopt(server_sockfd, SOL_SOCKET, (SO_REUSEPORT | SO_REUSEADDR),(char*)&option,sizeof(option)) < 0)
+    {
+        perror("set sock error");
+        return 0;
+    }
+   /*监听连接请求--监听队列长度为5*/
+    if(listen(server_sockfd,5)<0)
+    {
+        perror("listen error");
+        return 0;
+    };
+
+    sin_size=sizeof(struct sockaddr_in);
+    printf("Waiting for client!\n");
+    client_sockfd=accept(server_sockfd,(struct sockaddr *)&remote_addr, &sin_size);
+    if(client_sockfd > 0){
+        printf("accept client %s\n",inet_ntoa(remote_addr.sin_addr));
+        client_fd_vec[nof_sock] = client_sockfd;
+        nof_sock += 1;
+    }else{
+        printf("Cannot find any clients!\n");
+    }
+
+    //int start = time(NULL);
+    //int ellaps = 0;
+    //while (true){
+    //    /*等待客户端连接请求到达*/
+    //    client_sockfd=accept(server_sockfd,(struct sockaddr *)&remote_addr, &sin_size);
+    //    if(client_sockfd > 0){
+    //        printf("accept client %s\n",inet_ntoa(remote_addr.sin_addr));
+    //        client_fd_vec[nof_sock] = client_sockfd;
+    //        nof_sock += 1;
+    //        break;
+    //    }
+    //    //ellaps = time(NULL);
+    //    //if( (ellaps - start > MAX_WAIT_TIME_S) || (nof_sock >= MAX_USRP_NUM ))
+    //     //   break;
+    //}
+    return nof_sock;
+}
+
+/* Here is the thread for accepting connections from clients
+ * For accepting the client we use port 6767
+ * Here we assume that max nof client is 5
+ */
+
+void update_client_list_addr(struct sockaddr_in* addr){
+    pthread_mutex_lock(&client_list.mutex);
+	// if the vectoris full, return
+	if(nof_client >= MAX_CLIENT){
+    	pthread_mutex_unlock(&client_list.mutex);
+		return;
+	}
+
+	// check if the addr is already inside the vector
+	for(int i=0; i< client_list.nof_client; i++){
+		if(client_list.client_addr[i] == *addr){
+			// the client address is already inside the vector
+    		pthread_mutex_unlock(&client_list.mutex);
+			return;
+		}
+	}
+
+	// copy the addr to the vector
+	memcpy(&client_list.client_addr[nof_client], addr, sizeof(struct sockaddr_in));
+
+	// update the client number
+	client_list.nof_client++;
+
+    pthread_mutex_lock(&client_list.mutex);
+
+}
+void push_client_to_vec(struct sockaddr_in client_addr[MAX_CLIENT], struct sockaddr_in* addr, int nof_client){
+	// if the vectoris full, return
+	if(nof_client >= MAX_CLIENT)
+		return;
+
+	// check if the addr is already inside the vector
+	for(int i=0; i< nof_client; i++){
+		if(client_addr[i] == *addr){
+			// the client address is already inside the vector
+			return;
+		}
+	}
+
+	// copy the addr to the vector
+	memcpy(&client_addr[nof_client], addr, sizeof(struct sockaddr_in));
+	
+	nof_client++;
+
+	//TODO update the global parameter
+
+	return;
+}
+void* socket_server_thread(void* p){
+	struct sockaddr_in servaddr, client_addr[MAX_CLIENT], cliaddr;
+    int sockfd;
+	int PORT = 6767, nof_client = 0;
+    char recvBuf[1400];
+	// Create UDP socket
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+	
+	// non-blocking
+	setnonblocking(sockfd);
+
+	// Set server address
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_port = htons(PORT);
+    
+    // Bind socket to server address
+    if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+	// Receive message from client
+    unsigned int len = 0;
+	int n;
+    len = sizeof(cliaddr);
+	// we try to build the connection first: wati for the client to send the connection request to us
+	while(!go_exit){
+		// recv data from client and get the client address
+		n = recvfrom(sockfd, (char *)recvBuf, 1400, MSG_WAITALL, (struct sockaddr*) &cliaddr, &len);
+		if(n > 0){
+			printf("recv len:%d \n", n);
+			if( recvBuf[0] == (char)0xCC && recvBuf[1] == (char)0xCC && \
+				recvBuf[2] == (char)0xCC && recvBuf[3] == (char)0xCC ){
+			}
+		}
+
+		// push the client to the vecotr
+		push_client_to_vec(client_addr, &cliaddr, nof_client);
+	
+		// tell the client that we recevied their request
+		recvBuf[0] = (char)0xAA;recvBuf[1] = (char)0xAA;
+		recvBuf[2] = (char)0xAA;recvBuf[3] = (char)0xAA;
+
+		printf("CONNECTION BUILD!\n");
+		sendto(sockfd, (char *)recvBuf, 4, MSG_CONFIRM, (const struct sockaddr *) &cliaddr, len);
+		sendto(sockfd, (char *)recvBuf, 4, MSG_CONFIRM, (const struct sockaddr *) &cliaddr, len);
+
+		//sleep
+		usleep(10000);
+	}
+
+    return NULL;
+}

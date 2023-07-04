@@ -1,0 +1,2 @@
+/usr/bin/ar qc libric_e2.a CMakeFiles/ric_e2.dir/e2sm_kpm_v2.cpp.o CMakeFiles/ric_e2.dir/e2ap.cpp.o CMakeFiles/ric_e2.dir/e2sm.cpp.o
+/usr/bin/ranlib libric_e2.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libsrsgnb_ric.a CMakeFiles/srsgnb_ric.dir/e2_agent.cc.o CMakeFiles/srsgnb_ric.dir/e2ap_ric_subscription.cc.o CMakeFiles/srsgnb_ric.dir/e2ap.cc.o CMakeFiles/srsgnb_ric.dir/e2sm_kpm_common.cc.o CMakeFiles/srsgnb_ric.dir/e2sm_kpm.cc.o CMakeFiles/srsgnb_ric.dir/e2sm_kpm_report_service.cc.o
+/usr/bin/ranlib libsrsgnb_ric.a
