@@ -1,2 +1,0 @@
-/usr/bin/ar qc libtest_helpers.a CMakeFiles/test_helpers.dir/test_helpers.cc.o
-/usr/bin/ranlib libtest_helpers.a

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libsystem.a CMakeFiles/system.dir/sys_metrics_processor.cc.o
-/usr/bin/ranlib libsystem.a

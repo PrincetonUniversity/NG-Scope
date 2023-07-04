@@ -1,5 +1,0 @@
-# Directory labels
- sched
- nr
-# Source files and their labels
-/home/yaxiong/research/ngscope_related/srsRAN_4G-release_23_04/srsgnb/src/stack/mac/test/sched_nr_rar_test.cc
