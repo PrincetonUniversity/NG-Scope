@@ -196,7 +196,7 @@ int srsran_ra_dl_grant_to_grant_prb_allocation(const srsran_dci_dl_t* dci,
     case SRSRAN_RA_ALLOC_TYPE1:
       // Make sure the rbg_subset is valid
       if (dci->type1_alloc.rbg_subset >= P) {
-        ERROR("Invalid RBG subset=%d for nof_prb=%d where P=%d", dci->type1_alloc.rbg_subset, nof_prb, P);
+        //ERROR("Invalid RBG subset=%d for nof_prb=%d where P=%d", dci->type1_alloc.rbg_subset, nof_prb, P);
         return SRSRAN_ERROR;
       }
       n_rb_type1    = srsran_ra_type1_N_rb(nof_prb);
@@ -217,7 +217,7 @@ int srsran_ra_dl_grant_to_grant_prb_allocation(const srsran_dci_dl_t* dci,
             grant->prb_idx[0][idx] = true;
             grant->nof_prb++;
           } else {
-            ERROR("Invalid idx=%d in Type1 RA, nof_prb=%d", idx, nof_prb);
+            //ERROR("Invalid idx=%d in Type1 RA, nof_prb=%d", idx, nof_prb);
             return SRSRAN_ERROR;
           }
         }
