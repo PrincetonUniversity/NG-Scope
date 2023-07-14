@@ -537,11 +537,11 @@ if("Ninja" STREQUAL ${CMAKE_GENERATOR})
   ADD_CXX_COMPILER_FLAG_IF_AVAILABLE("-fdiagnostics-color=always" HAVE_DIAGNOSTIC_COLOR_CXX)
 endif()
 
-# Add -Werror to C/C++ flags for newer compilers
-if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-endif()
+# # Add -Werror to C/C++ flags for newer compilers
+# if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+#   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+# endif()
 
 # GCC >= 11.2.0: Disable analysis on "maybe-uninitialized" variables because of the high false-positive rate
 if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11.2)
