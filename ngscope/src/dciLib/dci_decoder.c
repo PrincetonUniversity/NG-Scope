@@ -11,7 +11,9 @@
 #include <unistd.h>
 #include <stdint.h>
 
+#ifdef ENABLE_GUI
 #include "srsgui/srsgui.h"
+#endif
 
 #include "srsran/srsran.h"
 
@@ -440,6 +442,7 @@ void* dci_decoder_thread(void* p){
 //                           sf_buffer[decoder_idx].IQ_buffer, rx_softbuffers, decoder_idx);
 //    pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);
 
+#ifdef ENABLE_GUI
 	int nof_pdcch_sample = 36 * dci_decoder->ue_dl.pdcch.nof_cce[0];
 	int nof_prb = dci_decoder->cell.nof_prb;
 	int sz = srsran_symbol_sz(nof_prb);
@@ -458,6 +461,7 @@ void* dci_decoder_thread(void* p){
 			plot_init_pdcch_thread(&plot_thread, &decoder_plot);
 		}
 	}
+#endif
 //    uint64_t t1=0, t2=0, t3=0, t4=0;  
 	char fileName[100];
 	sprintf(fileName,"decoder_%d.txt", decoder_idx);
@@ -509,7 +513,7 @@ void* dci_decoder_thread(void* p){
 			fprintf(fd,"%d\t%ld\t\n", tti, t2-t1);
 	//--->  Unlock the buffer
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
-
+#ifdef ENABLE_GUI
 			if(enable_plot){
 				if(decoder_idx == 0){
 					pthread_mutex_lock(&dci_plot_mutex[rf_idx]);    
@@ -529,6 +533,7 @@ void* dci_decoder_thread(void* p){
 					pthread_mutex_unlock(&dci_plot_mutex[rf_idx]);    
 				}
 			}
+#endif
 		}
         //t4 = timestamp_us();        
 
@@ -577,6 +582,7 @@ void* dci_decoder_thread(void* p){
     //srsran_ue_dl_free(&dci_decoder->ue_dl);
 	
     printf("Going to Close %d-th DCI decoder!\n",decoder_idx);
+#ifdef ENABLE_GUI
 	if(enable_plot){
 		if(decoder_idx == 0){
 			pthread_cond_signal(&dci_plot_cond[rf_idx]);
@@ -584,6 +590,7 @@ void* dci_decoder_thread(void* p){
 			free(pdcch_buf[rf_idx]);
 		}
 	}
+#endif
 	fclose(fd);
 	dci_decoder_up[rf_idx][decoder_idx] = false;
 
