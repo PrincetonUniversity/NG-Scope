@@ -62,9 +62,9 @@ configure_file(
 ########################################################################
 # Options
 ########################################################################
-option(ENABLE_SRSUE          "Build srsUE application"                  ON)
-option(ENABLE_SRSENB         "Build srsENB application"                 ON)
-option(ENABLE_SRSEPC         "Build srsEPC application"                 ON)
+option(ENABLE_SRSUE          "Build srsUE application"                  OFF)
+option(ENABLE_SRSENB         "Build srsENB application"                 OFF)
+option(ENABLE_SRSEPC         "Build srsEPC application"                 OFF)
 option(ENABLE_NGSCOPE        "Build NG-Scope application"               ON)
 option(DISABLE_SIMD          "Disable SIMD instructions"                OFF)
 option(AUTO_DETECT_ISA       "Autodetect supported ISA extensions"      ON)
@@ -181,6 +181,19 @@ else(USE_MKL)
     message(STATUS "FFT_LIBRARIES: " ${FFT_LIBRARIES})
   endif(FFTW3F_FOUND)
 endif(USE_MKL)
+
+# Support for ASN1 decoding of SIB messages
+find_library(LIBASN1DEC
+    NAMES libasn1dec.so
+    PATHS /usr/lib/x86_64-linux-gnu/
+)
+if (LIBASN1DEC)
+  message(STATUS "asn1dec found: ${LIBASN1DEC}.")
+  set(LIBASN1DEC_LIBRARY "-lasn1dec")
+  add_definitions(-DENABLE_ASN1DEC)
+else (LIBASN1DEC)
+  message(WARNING "libasn1dec not found. SIB decoding won't be supported by NG-Scope")
+endif (LIBASN1DEC)
 
 # Crypto
 find_package(MbedTLS REQUIRED)

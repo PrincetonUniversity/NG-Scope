@@ -23,6 +23,7 @@ add_subdirectory(dciLib)
 # Link libstdc++ and libgcc
 if(BUILD_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+  set(LIBCONFIGPP_LIBRARIES "${LIBCONFIGPP_STATIC_LIBRARY_PATH}")
 endif(BUILD_STATIC)
 
 if (RPATH)
@@ -38,7 +39,8 @@ add_executable(remote_server remote_server.c)
 set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_radio srsran_gtpu  srsran_rlc srsran_pdcp rrc_asn1 srslog support system)
 set(SRSRAN_SOURCES ${SRSRAN_SOURCES} ngscope_dci rrc_nr_asn1 ngap_nr_asn1)
 
-target_link_libraries(ngscope   ${SRSRAN_SOURCES}
+target_link_libraries(ngscope ${LIBASN1DEC_LIBRARY}
+                              ${SRSRAN_SOURCES}
                               ${CMAKE_THREAD_LIBS_INIT}
                               ${Boost_LIBRARIES}
                               ${LIBCONFIG_LIBRARY}

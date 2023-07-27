@@ -23,12 +23,11 @@ bool containsDuplicate(long long* nums, int numsSize){
     return false;
 }
 
-int ngscope_read_config(ngscope_config_t* config){
+int ngscope_read_config(ngscope_config_t* config, char * path){
     config_t* cfg = (config_t *)malloc(sizeof(config_t));
     config_init(cfg);
 
-    printf("read config!\n");
-    if(! config_read_file(cfg, "./config.cfg")){
+    if(! config_read_file(cfg, path)){
         fprintf(stderr, "%s:%d - %s\n", config_error_file(cfg),
                 config_error_line(cfg), config_error_text(cfg));
         config_destroy(cfg);

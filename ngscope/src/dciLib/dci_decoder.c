@@ -431,7 +431,7 @@ void* dci_decoder_thread(void* p){
 
 	int decoder_idx = dci_decoder->decoder_idx;
     int rf_idx     	= dci_decoder->prog_args.rf_index;
-    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
+    //uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	printf("decoder idx :%d \n", decoder_idx);
     ngscope_dci_per_sub_t   dci_per_sub; 

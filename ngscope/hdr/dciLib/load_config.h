@@ -30,6 +30,6 @@ typedef struct{
     rf_dev_config_t     rf_config[MAX_NOF_RF_DEV];
 }ngscope_config_t;
 
-int ngscope_read_config(ngscope_config_t* config);
+int ngscope_read_config(ngscope_config_t* config, char * path);
 bool ngscope_config_check_log(ngscope_config_t* config);
 #endif
