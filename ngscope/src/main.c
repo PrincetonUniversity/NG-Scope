@@ -16,10 +16,7 @@
 #include "ngscope/hdr/dciLib/dci_decoder.h"
 #include "ngscope/hdr/dciLib/load_config.h"
 #include "ngscope/hdr/dciLib/ngscope_main.h"
-
-#ifdef ENABLE_ASN1DEC
-#include <libasn1dec.h>
-#endif
+#include "ngscope/hdr/dciLib/asn_decoder.h"
 
 
 bool go_exit = false;
@@ -27,6 +24,9 @@ bool go_exit = false;
 void sig_int_handler(int signo)
 {
   printf("SIGINT received. Exiting...\n");
+  /* Terminate ASN decoder */
+  terminate_asn_decoder();
+
   if (signo == SIGINT) {
     go_exit = true;
   } else if (signo == SIGSEGV) {
@@ -42,10 +42,7 @@ int main(int argc, char** argv){
       return 1;
     }
 
-#ifdef ENABLE_ASN1DEC
-    uint8_t payload[] = {0, 6, 72, 131, 56, 93, 127, 113, 18, 128, 2, 255, 254, 38, 17, 128, 0, 0};
-    bcch_dl_sch_decode(payload, 18);
-#endif
+    init_asn_decoder("jon.sib");
 
     /* Signal handlers */
     srsran_debug_handle_crash(argc, argv);
