@@ -107,6 +107,7 @@ int main(int argc, char** argv){
     else
       printf("DCI logs folder: %s\n", sib_path);
 
+    /* INitialize ASN1 decoder for SIB decoding */
     init_asn_decoder(sib_path);
 
     /* Signal handlers */
@@ -120,6 +121,8 @@ int main(int argc, char** argv){
 
     /* Load the configurations */
     ngscope_read_config(&config, config_path);
+    /* Set DCI logs output folder path  */
+    config.dci_logs_path = out_path;
 
     ngscope_main(&config);
     return 1;

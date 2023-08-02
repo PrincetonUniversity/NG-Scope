@@ -20,6 +20,7 @@ struct _Node
     Node * next;
     uint8_t * payload;
     int len;
+    uint32_t tti;
 };
 
 typedef struct _ASNDecoder
@@ -89,10 +90,9 @@ void * asn_processor(void * args)
             usleep(MSG_QUEUE_POLL_TIME); /* Sleep 10 ms */
             continue; /* Continue if queue is empty */
         }
+        fprintf(decoder.file, "\nTTI (%d):\n", node->tti);
 #ifdef ENABLE_ASN1DEC
         bcch_dl_sch_decode(decoder.file, node->payload, node->len);
-        //uint8_t payload[] = {0, 6, 72, 131, 56, 93, 127, 113, 18, 128, 2, 255, 254, 38, 17, 128, 0, 0};
-        //bcch_dl_sch_decode(decoder.file, payload, 18);
         /* Free Node and payload */
         free(node->payload);
         free(node);
@@ -128,7 +128,7 @@ int init_asn_decoder(const char * path)
     return 0;
 }
 
-int push_asn_payload(uint8_t * payload, int len)
+int push_asn_payload(uint8_t * payload, int len, uint32_t tti)
 {
     Node * node;
 
@@ -147,6 +147,7 @@ int push_asn_payload(uint8_t * payload, int len)
     /* Fill message data */
     memcpy(node->payload, payload, len);
     node->len = len;
+    node->tti = tti;
     node->next = NULL;
     /* Push message into the queue */
     queue_push(node);

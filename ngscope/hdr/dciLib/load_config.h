@@ -26,6 +26,7 @@ typedef struct{
     int                 remote_enable;
 	int 				decode_single_ue;
 	int 				decode_SIB;
+    const char *        dci_logs_path;
 
     dci_log_config_t    dci_log_config;
     rf_dev_config_t     rf_config[MAX_NOF_RF_DEV];

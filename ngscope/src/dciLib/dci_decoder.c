@@ -26,6 +26,7 @@
 #include "ngscope/hdr/dciLib/thread_exit.h"
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
+#include "ngscope/hdr/dciLib/asn_decoder.h"
 
 extern bool                 go_exit;
 
@@ -357,10 +358,10 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         	for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
             	if (dci_decoder->pdsch_cfg.grant.tb[tb].enabled) {
                 	if (acks[tb]) {
-						printf("TTI:%d SIB decoded successfully TB:%d !\n", tti, tb);
-						// NOTE BY YX: for the length, I am not so sure. Let me know if it doesn't work
 						int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
 						uint8_t* payload 	= data[tb];
+						if(push_asn_payload(payload, len, tti))
+							printf("Error pushing SIB message to decoder\n");
 					}
 				}
 			}
