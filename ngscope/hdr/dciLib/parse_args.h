@@ -46,6 +46,7 @@ typedef struct {
 
   int      remote_enable;
   int 	   decode_single_ue;
+  int 	   decode_SIB;
 
   float    rf_gain;
   int      net_port;

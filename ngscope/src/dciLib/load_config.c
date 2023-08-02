@@ -60,6 +60,12 @@ int ngscope_read_config(ngscope_config_t* config, char * path){
     }
     printf("read decode_single_ue:%d\n", config->decode_single_ue);
 
+	if(! config_lookup_bool(cfg, "decode_SIB", &config->decode_SIB)){
+        printf("ERROR: reading decode_SIB\n");
+    }
+    printf("read decode_single_ue:%d\n", config->decode_SIB);
+
+
 	long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
 
 //    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){

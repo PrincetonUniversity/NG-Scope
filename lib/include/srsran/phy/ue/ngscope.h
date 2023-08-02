@@ -20,6 +20,7 @@
 
 #include "srsran/phy/ue/ngscope_tree.h"
 #include "srsran/phy/ue/ngscope_st.h"
+#include "srsran/phy/ue/ue_dl.h"
 
 /* Yaxiong's dci search function */
 //SRSRAN_API int srsran_ngscope_search_all_space_yx(srsran_ue_dl_t*     q,
@@ -57,5 +58,12 @@ SRSRAN_API int srsran_ngscope_decode_dci_singleUE_yx(srsran_ue_dl_t*     q,
 													 srsran_pdsch_cfg_t* pdsch_cfg,
 													 ngscope_dci_per_sub_t* dci_per_sub,
 													 uint16_t targetRNTI);
+
+SRSRAN_API int srsran_ngscope_decode_SIB_yx(srsran_ue_dl_t*     	q,
+											 srsran_dl_sf_cfg_t* dl_sf,
+											 srsran_ue_dl_cfg_t* ue_dl_cfg,
+											 srsran_pdsch_cfg_t* pdsch_cfg,
+											 bool           	 acks[SRSRAN_MAX_CODEWORDS],
+											 uint8_t* 			 data[SRSRAN_MAX_CODEWORDS]);
 
 #endif

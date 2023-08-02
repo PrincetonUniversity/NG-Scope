@@ -1711,6 +1711,7 @@ int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
     // Convert DCI message to DL grant
     if (srsran_ue_dl_dci_to_pdsch_grant(q, sf, cfg, &dci_dl[0], &pdsch_cfg->grant)) {
       ERROR("Error unpacking DCI");
+      printf("Error unpacking DCI");
       return SRSRAN_ERROR;
     }
 
@@ -1753,6 +1754,7 @@ int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
     for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
       if (pdsch_cfg->grant.tb[tb].enabled) {
         acks[tb] = pdsch_res[tb].crc;
+		//printf("TB:%d ACK :%d \n", tb, pdsch_res[tb].crc);
       }
     }
   }
