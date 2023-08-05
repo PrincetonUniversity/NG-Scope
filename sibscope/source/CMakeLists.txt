@@ -18,17 +18,13 @@
 # and at http://www.gnu.org/licenses/.
 #
 
-# Link libstdc++ and libgcc
-if(BUILD_STATIC)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-  set(LIBCONFIGPP_LIBRARIES "${LIBCONFIGPP_STATIC_LIBRARY_PATH}")
-endif(BUILD_STATIC)
+file(GLOB_RECURSE SOURCES "*.c")
 
 if (RPATH)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 endif (RPATH)
 
-add_executable(sibscope main.c)
+add_executable(sibscope ${SOURCES})
 
 set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_radio srslog support system)
 
@@ -37,9 +33,9 @@ target_link_libraries(sibscope ${SRSRAN_SOURCES}
                               ${LIBCONFIG_LIBRARY}
                               ${ATOMIC_LIBS})
 
-if (LIBASN1DEC)
-    target_link_libraries(sibscope ${LIBASN1DEC_LIBRARY})
-endif(LIBASN1DEC)
+if (LIBASN4G)
+    target_link_libraries(sibscope ${LIBASN4G_LIBRARY})
+endif(LIBASN4G)
                             
 
 

@@ -184,17 +184,17 @@ else(USE_MKL)
 endif(USE_MKL)
 
 # Support for ASN1 decoding of SIB messages
-find_library(LIBASN1DEC
-    NAMES libasn1dec.so
+find_library(LIBASN4G
+    NAMES libasn4g.so
     PATHS /usr/lib/x86_64-linux-gnu/
 )
-if (LIBASN1DEC)
-  message(STATUS "asn1dec found: ${LIBASN1DEC}.")
-  set(LIBASN1DEC_LIBRARY "-lasn1dec")
-  add_definitions(-DENABLE_ASN1DEC)
-else (LIBASN1DEC)
-  message(WARNING "libasn1dec not found. SIB decoding won't be supported by NG-Scope")
-endif (LIBASN1DEC)
+if (LIBASN4G)
+  message(STATUS "libasn1 found: ${LIBASN4G}.")
+  set(LIBASN4G_LIBRARY "-lasn4g")
+  add_definitions(-DENABLE_ASN4G)
+else (LIBASN4G)
+  message(WARNING "libasn4g not found. 4G SIB and MIB decoding won't be supported by NG-Scope")
+endif (LIBASN4G)
 
 # Crypto
 find_package(MbedTLS REQUIRED)

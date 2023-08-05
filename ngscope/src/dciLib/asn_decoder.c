@@ -5,8 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 #include "ngscope/hdr/dciLib/asn_decoder.h"
-#ifdef ENABLE_ASN1DEC
-#include <libasn1dec.h>
+#ifdef ENABLE_ASN4G
+#include <libasn4g.h>
 #endif
 
 #define MSG_QUEUE_POLL_TIME 10000
@@ -91,13 +91,13 @@ void * asn_processor(void * args)
             continue; /* Continue if queue is empty */
         }
         fprintf(decoder.file, "\nTTI (%d):\n", node->tti);
-#ifdef ENABLE_ASN1DEC
-        bcch_dl_sch_decode(decoder.file, node->payload, node->len);
+#ifdef ENABLE_ASN4G
+        sib_decode_4g(decoder.file, node->payload, node->len);
         /* Free Node and payload */
         free(node->payload);
         free(node);
 #else
-        fprintf(decoder.file, "SIB message cannot be decoded: libasn1dec is not installed\n");
+        fprintf(decoder.file, "SIB message cannot be decoded: libasn4g is not installed\n");
 #endif
     }
 
