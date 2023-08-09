@@ -450,6 +450,7 @@ void* task_scheduler_thread(void* p){
     for (int j = 0; j < task_scheduler.prog_args.rf_nof_rx_ant; j++) {
         sync_buffer[j] = srsran_vec_cf_malloc(max_num_samples);
     }
+
     // Set the buffer for ue_sync
     for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
         buffers[p] = sync_buffer[p];

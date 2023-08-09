@@ -48,6 +48,7 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,
                             uint32_t                sfn,
+							uint8_t*                data[SRSRAN_MAX_CODEWORDS],
                             ngscope_dci_per_sub_t*  dci_per_sub);
 
 void* dci_decoder_thread(void* p);

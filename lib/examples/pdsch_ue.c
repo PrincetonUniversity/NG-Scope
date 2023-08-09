@@ -789,6 +789,7 @@ int main(int argc, char** argv)
 
             n = 0;
             for (uint32_t tm = 0; tm < 4 && !n; tm++) {
+			  //printf("TM:%d \n\n", tm);
               dl_sf.tti                             = tti;
               dl_sf.sf_type                         = sf_type;
               ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm;

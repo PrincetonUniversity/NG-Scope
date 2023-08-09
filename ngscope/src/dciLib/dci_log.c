@@ -199,22 +199,23 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
 {
 
 	int nof_rf_dev = config->nof_rf_dev;
+	char str[1024];
     // create the folder
-    system("mkdir ./dci_log");
-    char fileName[128];
+	sprintf(str, "mkdir -p %s", config->dci_logs_path);
+    system(str);
     for(int i=0; i<nof_rf_dev; i++){
         if(config->rf_config[i].log_dl){
-            sprintf(fileName, "./dci_log/dci_raw_log_dl_freq_%lld.dciLog", config->rf_config[i].rf_freq);
-            fd_dl[i] = fopen(fileName, "w+");
-             if(fd_dl[i] == NULL){
+            sprintf(str, "%s/dci_raw_log_dl_freq_%lld.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq);
+            fd_dl[i] = fopen(str, "w+");
+            if(fd_dl[i] == NULL){
                 printf("ERROR: fail to open log file!\n");
                 exit(0);
             }
         }
 
         if(config->rf_config[i].log_ul){
-            sprintf(fileName, "./dci_log/dci_raw_log_ul_freq_%lld.dciLog", config->rf_config[i].rf_freq);
-            fd_ul[i] = fopen(fileName, "w+");
+            sprintf(str, "%s/dci_raw_log_ul_freq_%lld.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq);
+            fd_ul[i] = fopen(str, "w+");
              if(fd_ul[i]== NULL){
                 printf("ERROR: fail to open log file!\n");
                 exit(0);

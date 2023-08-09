@@ -12,7 +12,9 @@
 #include <stdint.h>
 
 /* We force to use srsgui */
+#ifdef ENABLE_GUI
 #include "srsgui/srsgui.h"
+#endif
 #include "ngscope/hdr/dciLib/status_plot.h"
 
 #define NOF_PLOT_SF 500
@@ -146,6 +148,8 @@ void left_shift_vec(float* vec){
 
 void* plot_thread_run(void* arg)
 {
+
+#ifdef ENABLE_GUI
     int nof_prb;
     int nof_sub;
 
@@ -267,6 +271,7 @@ void* plot_thread_run(void* arg)
         } 
         pthread_mutex_unlock(&plot_mutex);    
     }
+#endif
     return NULL;
 }
 void  plot_init_thread(pthread_t* plot_thread){
@@ -285,6 +290,7 @@ void  plot_init_thread(pthread_t* plot_thread){
 
 void* plot_pdcch_run(void* arg)
 {
+#ifdef ENABLE_GUI
 	printf("init 0!\n");
 	decoder_plot_t* q = (decoder_plot_t*)arg;
 	//int decoder_idx 		= q->decoder_idx; 
@@ -318,6 +324,7 @@ void* plot_pdcch_run(void* arg)
       	plot_real_setNewData(&csi, csi_amp, size);
         pthread_mutex_unlock(&dci_plot_mutex);    
 	}
+#endif
 
 	return NULL;
 }

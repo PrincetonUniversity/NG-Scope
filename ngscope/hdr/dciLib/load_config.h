@@ -25,11 +25,13 @@ typedef struct{
     int                 rnti;
     int                 remote_enable;
 	int 				decode_single_ue;
+	int 				decode_SIB;
+    const char *        dci_logs_path;
 
     dci_log_config_t    dci_log_config;
     rf_dev_config_t     rf_config[MAX_NOF_RF_DEV];
 }ngscope_config_t;
 
-int ngscope_read_config(ngscope_config_t* config);
+int ngscope_read_config(ngscope_config_t* config, char * path);
 bool ngscope_config_check_log(ngscope_config_t* config);
 #endif

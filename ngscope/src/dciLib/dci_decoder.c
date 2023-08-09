@@ -11,7 +11,9 @@
 #include <unistd.h>
 #include <stdint.h>
 
+#ifdef ENABLE_GUI
 #include "srsgui/srsgui.h"
+#endif
 
 #include "srsran/srsran.h"
 
@@ -24,6 +26,7 @@
 #include "ngscope/hdr/dciLib/thread_exit.h"
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
+#include "ngscope/hdr/dciLib/asn_decoder.h"
 
 extern bool                 go_exit;
 
@@ -80,13 +83,14 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
     if (cell->frame_type == SRSRAN_TDD && prog_args.tdd_special_sf >= 0 && prog_args.sf_config >= 0) {
         dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
         //dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
-        dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
+        //dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
         dci_decoder->dl_sf.tdd_config.configured = true;
     }
-    dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
-    //dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
-    dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
-    dci_decoder->dl_sf.tdd_config.configured = true;
+
+    //dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
+    ////dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
+    //dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
+    //dci_decoder->dl_sf.tdd_config.configured = true;
 
     /************************* Init ue_dl_cfg **************************/
     srsran_chest_dl_cfg_t chest_pdsch_cfg = {};
@@ -245,6 +249,7 @@ void update_ue_dci_per_tti(ngscope_tree_t* 			tree,
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,
                             uint32_t                sfn,
+							uint8_t*                data[SRSRAN_MAX_CODEWORDS],
                             //ngscope_dci_msg_t       dci_array[][MAX_CANDIDATES_ALL],
                             //srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                             ngscope_dci_per_sub_t*  dci_per_sub)
@@ -254,9 +259,10 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     bool decode_pdsch = false;
 
 	bool decode_single_ue 	= dci_decoder->prog_args.decode_single_ue;
+	bool decode_SIB 		= dci_decoder->prog_args.decode_SIB;
     uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
-	int rf_idx 		= dci_decoder->prog_args.rf_index;
+	int rf_idx 				= dci_decoder->prog_args.rf_index;
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
@@ -289,7 +295,6 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
  
     int n = 0;
 
-    //decode_pdsch = false;
 //	uint64_t t1=0, t2=0;
 
 	//char fileName[100];
@@ -303,10 +308,12 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     // Now decode the PDSCH
     if(decode_pdsch){
         uint32_t tm = 3;
+
         dci_decoder->dl_sf.tti                             = tti;
         dci_decoder->dl_sf.sf_type                         = SRSRAN_SF_NORM; //Ingore the MBSFN
         dci_decoder->ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm;
         dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = true;
+
 		if(decode_single_ue){
 			n = srsran_ngscope_decode_dci_singleUE_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
 								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, targetRNTI);
@@ -340,6 +347,26 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
 		}
 	} 
+
+	// Here is the SIB decoding 
+	if(decode_SIB){
+        dci_decoder->dl_sf.tti          = tti;
+		bool acks[SRSRAN_MAX_CODEWORDS] = {false};
+ 		int n = srsran_ngscope_decode_SIB_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, acks, data);
+		if(n > 0){
+        	for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
+            	if (dci_decoder->pdsch_cfg.grant.tb[tb].enabled) {
+                	if (acks[tb]) {
+						int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
+						uint8_t* payload 	= data[tb];
+						if(push_asn_payload(payload, len, tti))
+							printf("Error pushing SIB message to decoder\n");
+					}
+				}
+			}
+		}
+	}
 
 //	if(dci_decoder->decoder_idx == 0){
 //    	t2 = timestamp_us();        
@@ -429,7 +456,7 @@ void* dci_decoder_thread(void* p){
 
 	int decoder_idx = dci_decoder->decoder_idx;
     int rf_idx     	= dci_decoder->prog_args.rf_index;
-    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
+    //uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	printf("decoder idx :%d \n", decoder_idx);
     ngscope_dci_per_sub_t   dci_per_sub; 
@@ -440,6 +467,7 @@ void* dci_decoder_thread(void* p){
 //                           sf_buffer[decoder_idx].IQ_buffer, rx_softbuffers, decoder_idx);
 //    pthread_mutex_unlock(&sf_buffer[decoder_idx].sf_mutex);
 
+#ifdef ENABLE_GUI
 	int nof_pdcch_sample = 36 * dci_decoder->ue_dl.pdcch.nof_cce[0];
 	int nof_prb = dci_decoder->cell.nof_prb;
 	int sz = srsran_symbol_sz(nof_prb);
@@ -458,6 +486,7 @@ void* dci_decoder_thread(void* p){
 			plot_init_pdcch_thread(&plot_thread, &decoder_plot);
 		}
 	}
+#endif
 //    uint64_t t1=0, t2=0, t3=0, t4=0;  
 	char fileName[100];
 	sprintf(fileName,"decoder_%d.txt", decoder_idx);
@@ -465,6 +494,15 @@ void* dci_decoder_thread(void* p){
 
     printf("Decoder thread idx:%d\n\n\n",decoder_idx);
 
+	uint8_t* data[SRSRAN_MAX_CODEWORDS];
+  	for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+		data[i] = srsran_vec_u8_malloc(2000 * 8);
+		if (!data[i]) {
+			ERROR("Allocating data");
+			go_exit = true;
+		}
+    }
+	
     while(!go_exit){
                 
 		//empty_dci_array(dci_array, dci_location, &dci_per_sub);
@@ -504,12 +542,12 @@ void* dci_decoder_thread(void* p){
     		dci_per_sub.timestamp 	= timestamp_us();
 
 			uint64_t t1 = timestamp_us();        
-			dci_decoder_decode(dci_decoder, sf_idx, sfn, &dci_per_sub);
+			dci_decoder_decode(dci_decoder, sf_idx,  sfn, data, &dci_per_sub);
 			uint64_t t2 = timestamp_us();        
 			fprintf(fd,"%d\t%ld\t\n", tti, t2-t1);
 	//--->  Unlock the buffer
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
-
+#ifdef ENABLE_GUI
 			if(enable_plot){
 				if(decoder_idx == 0){
 					pthread_mutex_lock(&dci_plot_mutex[rf_idx]);    
@@ -529,6 +567,7 @@ void* dci_decoder_thread(void* p){
 					pthread_mutex_unlock(&dci_plot_mutex[rf_idx]);    
 				}
 			}
+#endif
 		}
         //t4 = timestamp_us();        
 
@@ -577,6 +616,7 @@ void* dci_decoder_thread(void* p){
     //srsran_ue_dl_free(&dci_decoder->ue_dl);
 	
     printf("Going to Close %d-th DCI decoder!\n",decoder_idx);
+#ifdef ENABLE_GUI
 	if(enable_plot){
 		if(decoder_idx == 0){
 			pthread_cond_signal(&dci_plot_cond[rf_idx]);
@@ -584,6 +624,13 @@ void* dci_decoder_thread(void* p){
 			free(pdcch_buf[rf_idx]);
 		}
 	}
+#endif
+  	for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+      if (data[i]) {
+        free(data[i]);
+      }
+    }
+
 	fclose(fd);
 	dci_decoder_up[rf_idx][decoder_idx] = false;
 

@@ -62,10 +62,11 @@ configure_file(
 ########################################################################
 # Options
 ########################################################################
-option(ENABLE_SRSUE          "Build srsUE application"                  ON)
-option(ENABLE_SRSENB         "Build srsENB application"                 ON)
-option(ENABLE_SRSEPC         "Build srsEPC application"                 ON)
+option(ENABLE_SRSUE          "Build srsUE application"                  OFF)
+option(ENABLE_SRSENB         "Build srsENB application"                 OFF)
+option(ENABLE_SRSEPC         "Build srsEPC application"                 OFF)
 option(ENABLE_NGSCOPE        "Build NG-Scope application"               ON)
+option(ENABLE_SIBSCOPE        "Build SIB-Scope application"             ON)
 option(DISABLE_SIMD          "Disable SIMD instructions"                OFF)
 option(AUTO_DETECT_ISA       "Autodetect supported ISA extensions"      ON)
 
@@ -74,9 +75,9 @@ option(ENABLE_RF_PLUGINS     "Enable RF plugins"                        ON)
 option(ENABLE_UHD            "Enable UHD"                               ON)
 option(ENABLE_BLADERF        "Enable BladeRF"                           ON)
 option(ENABLE_SOAPYSDR       "Enable SoapySDR"                          ON)
-option(ENABLE_SKIQ           "Enable Sidekiq SDK"                       ON)
-option(ENABLE_ZEROMQ         "Enable ZeroMQ"                            ON)
-option(ENABLE_HARDSIM        "Enable support for SIM cards"             ON)
+option(ENABLE_SKIQ           "Enable Sidekiq SDK"                       OFF)
+option(ENABLE_ZEROMQ         "Enable ZeroMQ"                            OFF)
+option(ENABLE_HARDSIM        "Enable support for SIM cards"             OFF)
 
 option(ENABLE_TTCN3          "Enable TTCN3 test binaries"               OFF)
 option(ENABLE_ZMQ_TEST       "Enable ZMQ based E2E tests"               OFF)
@@ -181,6 +182,19 @@ else(USE_MKL)
     message(STATUS "FFT_LIBRARIES: " ${FFT_LIBRARIES})
   endif(FFTW3F_FOUND)
 endif(USE_MKL)
+
+# Support for ASN1 decoding of SIB messages
+find_library(LIBASN4G
+    NAMES libasn4g.so
+    PATHS /usr/lib/x86_64-linux-gnu/
+)
+if (LIBASN4G)
+  message(STATUS "libasn1 found: ${LIBASN4G}.")
+  set(LIBASN4G_LIBRARY "-lasn4g")
+  add_definitions(-DENABLE_ASN4G)
+else (LIBASN4G)
+  message(WARNING "libasn4g not found. 4G SIB and MIB decoding won't be supported by NG-Scope")
+endif (LIBASN4G)
 
 # Crypto
 find_package(MbedTLS REQUIRED)
@@ -688,6 +702,13 @@ if(RF_FOUND)
   else(ENABLE_NGSCOPE)
     message(STATUS "NG-Scope build disabled")
   endif(ENABLE_NGSCOPE)
+
+  if(ENABLE_SIBSCOPE)
+    message(STATUS "Building with SIB-Scope")
+    add_subdirectory(sibscope)
+  else(ENABLE_SIBSCOPE)
+    message(STATUS "SIB-Scope build disabled")
+  endif(ENABLE_SIBSCOPE)
 
 else(RF_FOUND)
   message(STATUS "srsUE and srsENB/srsGNB builds disabled due to missing RF driver")

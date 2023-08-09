@@ -234,7 +234,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
 		//printf("we enter normal dci message decoding !\n");
 		// Now we search for the normal dci messages 
-  		dci_cfg.multiple_csi_request_enabled 	= false;
+  		dci_cfg.multiple_csi_request_enabled 	= true;
 
 		// Search all the formats in this location
 		int nof_dci = srsran_ngscope_search_in_space_yx(q, sf, &search_space, &dci_cfg, dci_msg);
@@ -455,3 +455,33 @@ int srsran_ngscope_decode_dci_singleUE_yx(srsran_ue_dl_t*        	q,
 	return 1;	
 }
 
+/* Decoding SIB messages */
+int srsran_ngscope_decode_SIB_yx(srsran_ue_dl_t*        	q,
+                                             srsran_dl_sf_cfg_t*    dl_sf,
+                                             srsran_ue_dl_cfg_t*    ue_dl_cfg,
+                                             srsran_pdsch_cfg_t*    pdsch_cfg,
+											 bool           		acks[SRSRAN_MAX_CODEWORDS],
+											 uint8_t* 				data[SRSRAN_MAX_CODEWORDS])
+{
+	int n = 0;
+	int tm_tmp = ue_dl_cfg->cfg.tm;
+	bool enable_256qam = ue_dl_cfg->cfg.pdsch.use_tbs_index_alt;
+	bool csi_request_enabled = ue_dl_cfg->cfg.dci.multiple_csi_request_enabled;
+	uint16_t rnti = pdsch_cfg->rnti;
+
+	// Adjust the configurations for decoding SIB messages
+	ue_dl_cfg->cfg.tm = 1;
+	ue_dl_cfg->cfg.pdsch.use_tbs_index_alt = false;
+	ue_dl_cfg->cfg.dci.multiple_csi_request_enabled = false;
+	pdsch_cfg->rnti = SRSRAN_SIRNTI;
+
+	n = srsran_ue_dl_find_and_decode(q, dl_sf, ue_dl_cfg, pdsch_cfg, data, acks);
+
+	// Restore the configurations 
+	ue_dl_cfg->cfg.tm = tm_tmp;
+	ue_dl_cfg->cfg.pdsch.use_tbs_index_alt = enable_256qam;
+	ue_dl_cfg->cfg.dci.multiple_csi_request_enabled = csi_request_enabled;
+	pdsch_cfg->rnti = rnti;
+
+	return n;
+} 

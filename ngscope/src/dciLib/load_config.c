@@ -23,12 +23,11 @@ bool containsDuplicate(long long* nums, int numsSize){
     return false;
 }
 
-int ngscope_read_config(ngscope_config_t* config){
+int ngscope_read_config(ngscope_config_t* config, char * path){
     config_t* cfg = (config_t *)malloc(sizeof(config_t));
     config_init(cfg);
 
-    printf("read config!\n");
-    if(! config_read_file(cfg, "./config.cfg")){
+    if(! config_read_file(cfg, path)){
         fprintf(stderr, "%s:%d - %s\n", config_error_file(cfg),
                 config_error_line(cfg), config_error_text(cfg));
         config_destroy(cfg);
@@ -60,6 +59,12 @@ int ngscope_read_config(ngscope_config_t* config){
         printf("ERROR: reading decode_single_ue\n");
     }
     printf("read decode_single_ue:%d\n", config->decode_single_ue);
+
+	if(! config_lookup_bool(cfg, "decode_SIB", &config->decode_SIB)){
+        printf("ERROR: reading decode_SIB\n");
+    }
+    printf("read decode_single_ue:%d\n", config->decode_SIB);
+
 
 	long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
 
