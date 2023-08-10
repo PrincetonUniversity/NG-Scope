@@ -36,8 +36,8 @@
 #endif
 
 /* Local libs */
-#include "sibscope/headers/cpu.h"
-#include "sibscope/headers/cell_scan.h"
+#include "jonscope/headers/cpu.h"
+#include "jonscope/headers/cell_scan.h"
 
 /* SRS libs */
 #include "srsran/common/crash_handler.h"
@@ -377,7 +377,7 @@ uint32_t pkt_errors = 0, pkt_total = 0, nof_detected = 0, pmch_pkt_errors = 0, p
 /********/
 int main(int argc, char** argv)
 {
-    int ret;
+    int ret, i;
     srsran_rf_t rf; /* RF structure */
     struct cells scanned_cells[MAX_SCAN_CELLS]; /* List of available cells */
     float search_cell_cfo = 0;
@@ -402,26 +402,9 @@ int main(int argc, char** argv)
         generate_mcch_table(mch_table, prog_args.mbsfn_sf_mask);
     }
 
-    /* CPU pinning */
-    if(pin_thread(4))
-        printf("Error pinning to CPU\n");
-
-    if (prog_args.cpu_affinity > -1) {
-      cpu_set_t cpuset;
-      pthread_t thread;
-
-      thread = pthread_self();
-      for (int i = 0; i < 8; i++) {
-        if (((prog_args.cpu_affinity >> i) & 0x01) == 1) {
-          printf("Setting pdsch_ue with affinity to core %d\n", i);
-          CPU_SET((size_t)i, &cpuset);
-        }
-        if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset)) {
-          ERROR("Error setting main thread affinity to %d", prog_args.cpu_affinity);
-          exit(-1);
-        }
-      }
-    }
+    /* Pin current thread to list of cpus */
+    //if(pin_thread(4))
+    //    printf("Error pinning to CPU\n");
 
 
     /* Initialize radio */
@@ -456,62 +439,40 @@ int main(int argc, char** argv)
     srsran_rf_set_rx_freq(&rf, prog_args.rf_nof_rx_ant, prog_args.rf_freq + prog_args.file_offset_freq);
     
 
+    printf("Scanning for cells in band %d...\n", 2);
     /* Scan for cells in the selected band */
     ret = cell_scan(&rf, &cell_detect_config, scanned_cells, MAX_SCAN_CELLS, 2);
-    if(ret < 0)
+    if(ret < 0) {
         printf("Error scanning for cells");
-    else
-        printf("Critical error during cell scan");
+        exit(1);
+    }
+    else if(ret == 0) {
+        printf("0 cell found. Try in a different location.\n");
+        return 1;
+    }
 
-    printf("\n\nFound %d cells\n", ret);
-    for (int i = 0; i < ret; i++) {
-        printf("Found CELL %.1f MHz, EARFCN=%d, PHYID=%d, %d PRB, %d ports, PSS power=%.1f dBm\n",
-            scanned_cells[i].freq,
-            scanned_cells[i].dl_earfcn,
+    printf("\n\nFound %d cells:\n", ret);
+    for (i = 0; i < ret; i++) {
+        printf("CELL %d:\n\tCell ID: %d\n\tEARFCN(DL): %d\n\tFreq: %.1f MHz\n\tPRBs: %d\n\tPSS Power: %.1f dBm\n",
+            i+1,
             scanned_cells[i].cell.id,
+            scanned_cells[i].dl_earfcn,
+            scanned_cells[i].freq,
             scanned_cells[i].cell.nof_prb,
-            scanned_cells[i].cell.nof_ports,
             srsran_convert_power_to_dB(scanned_cells[i].power));
     }
 
-    exit(0);
-
-
-    /* Cell search and MIB decoding */
-    uint32_t ntrial = 0;
     do {
-        ret = rf_search_and_decode_mib(
-            &rf, prog_args.rf_nof_rx_ant, &cell_detect_config, prog_args.force_N_id_2, &cell, &search_cell_cfo);
-        if (ret < 0) {
-            ERROR("Error searching for cell");
-            exit(-1);
-        } else if (ret == 0 && !go_exit) {
-            printf("Cell not found after [%4d] attempts. Trying again... (Ctrl+C to exit)\n", ntrial++);
-        }
-    } while (ret == 0 && !go_exit);
+        printf("Select a Cell index: ");
+        scanf("%d", &i);
+    } while(i < 1 && i > (ret+1));
 
-    do {
-        ret = rf_cell_search(&rf, prog_args.rf_nof_rx_ant, &cell_detect_config, prog_args.force_N_id_2, &cell, &search_cell_cfo);
-        if (ret < 0) {
-            ERROR("Error searching for cell");
-            exit(-1);
-        } else if (ret == 0 && !go_exit) {
-            printf("Cell not found after [%4d] attempts. Trying again... (Ctrl+C to exit)\n", ntrial++);
-        }
-    } while (ret == 0 && !go_exit);
-    // cell.nof_prb = SRSRAN_CS_NOF_PRB;
-
-    printf("Number of PRBs: %d\n", cell.nof_prb);
+    memcpy(&cell, &(scanned_cells[i-1].cell), sizeof(srsran_cell_t));
+    printf("Selected Cell:\n");
     srsran_cell_fprint(stdout, &cell, 0);
 
-    if (go_exit) {
-        srsran_rf_close(&rf);
-        exit(0);
-    }
-
-    /* set sampling frequency */
-    //int srate = srsran_sampling_freq_hz(cell.nof_prb);
-    int srate = srsran_sampling_freq_hz(SRSRAN_UE_MIB_NOF_PRB);
+    /* Set sampling rate base on the number of PRBs of the selected cell */
+    int srate = srsran_sampling_freq_hz(cell.nof_prb);
     if (srate != -1) {
         printf("Setting rx sampling rate %.2f MHz\n", (float)srate / 1000000);
         float srate_rf = srsran_rf_set_rx_srate(&rf, (double)srate);
@@ -525,21 +486,14 @@ int main(int argc, char** argv)
     }
 
 
-    int decimate = 0;
-    if (prog_args.decimate) {
-        if (prog_args.decimate > 4 || prog_args.decimate < 0) {
-            printf("Invalid decimation factor, setting to 1 \n");
-        } else {
-            decimate = prog_args.decimate;
-        }
-    }
+    /* Initialize sync struct for syncing with the cell */
     if (srsran_ue_sync_init_multi_decim(&ue_sync,
                                         cell.nof_prb,
-                                        cell.id == 1000,
+                                        false,
                                         srsran_rf_recv_wrapper,
                                         prog_args.rf_nof_rx_ant,
                                         (void*)&rf,
-                                        decimate)) {
+                                        0)) {
         ERROR("Error initiating ue_sync");
         exit(-1);
     }
