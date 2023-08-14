@@ -360,8 +360,8 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                 	if (acks[tb]) {
 						int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
 						uint8_t* payload 	= data[tb];
-						if(push_asn_payload(payload, len, tti))
-							printf("Error pushing SIB message to decoder\n");
+						if(push_asn_payload(payload, len, SIB_4G, tti))
+							printf("Error pushing 4G SIB message to decoder\n");
 					}
 				}
 			}
