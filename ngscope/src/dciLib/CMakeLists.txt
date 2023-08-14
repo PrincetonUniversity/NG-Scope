@@ -9,6 +9,10 @@ if (LIBASN4G)
   target_link_libraries(ngscope_dci ${LIBASN4G_LIBRARY})
 endif(LIBASN4G)
 
+if (LIBASN5G)
+  target_link_libraries(ngscope_dci ${LIBASN5G_LIBRARY})
+endif(LIBASN5G)
+
 if(ENABLE_GUI AND SRSGUI_FOUND)
   target_link_libraries(ngscope_dci ${SRSGUI_LIBRARIES})
 endif()

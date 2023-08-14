@@ -20,6 +20,7 @@ struct _Node
     Node * next;
     uint8_t * payload;
     int len;
+    PayloadType type;
     uint32_t tti;
 };
 
@@ -91,14 +92,52 @@ void * asn_processor(void * args)
             continue; /* Continue if queue is empty */
         }
         fprintf(decoder.file, "\nTTI (%d):\n", node->tti);
+        switch (node->type) {
+            case MIB_4G:
 #ifdef ENABLE_ASN4G
-        sib_decode_4g(decoder.file, node->payload, node->len);
-        /* Free Node and payload */
-        free(node->payload);
-        free(node);
+                mib_decode_4g(decoder.file, node->payload, node->len);
+                /* Free Node and payload */
+                free(node->payload);
+                free(node);
 #else
-        fprintf(decoder.file, "SIB message cannot be decoded: libasn4g is not installed\n");
+                fprintf(decoder.file, "4G MIB message cannot be decoded: libasn4g is not installed\n");
 #endif
+                break;
+            case SIB_4G:
+#ifdef ENABLE_ASN4G
+                sib_decode_4g(decoder.file, node->payload, node->len);
+                /* Free Node and payload */
+                free(node->payload);
+                free(node);
+#else
+                fprintf(decoder.file, "4G SIB message cannot be decoded: libasn4g is not installed\n");
+#endif
+                break;
+            case MIB_5G:
+#ifdef ENABLE_ASN5G
+                mib_decode_5g(decoder.file, node->payload, node->len);
+                /* Free Node and payload */
+                free(node->payload);
+                free(node);
+#else
+                fprintf(decoder.file, "5G MIB message cannot be decoded: libasn5g is not installed\n");
+#endif
+                break;
+            case SIB_5G:
+#ifdef ENABLE_ASN5G
+                sib_decode_5g(decoder.file, node->payload, node->len);
+                /* Free Node and payload */
+                free(node->payload);
+                free(node);
+#else
+                fprintf(decoder.file, "5G SIB message cannot be decoded: libasn5g is not installed\n");
+#endif
+                break;
+            
+            default:
+                printf("Invalid ASN1 payload type (%d)\n", node->type);
+                break;
+        }
     }
 
     return NULL;
@@ -128,7 +167,7 @@ int init_asn_decoder(const char * path)
     return 0;
 }
 
-int push_asn_payload(uint8_t * payload, int len, uint32_t tti)
+int push_asn_payload(uint8_t * payload, int len, PayloadType type, uint32_t tti)
 {
     Node * node;
 
@@ -148,6 +187,7 @@ int push_asn_payload(uint8_t * payload, int len, uint32_t tti)
     memcpy(node->payload, payload, len);
     node->len = len;
     node->tti = tti;
+    node->type = type;
     node->next = NULL;
     /* Push message into the queue */
     queue_push(node);
