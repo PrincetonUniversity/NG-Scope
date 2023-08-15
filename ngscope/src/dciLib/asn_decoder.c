@@ -138,6 +138,7 @@ void * asn_processor(void * args)
                 printf("Invalid ASN1 payload type (%d)\n", node->type);
                 break;
         }
+        fflush(decoder.file);
     }
 
     return NULL;
