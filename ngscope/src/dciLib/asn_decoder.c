@@ -96,7 +96,6 @@ void * asn_processor(void * args)
             case MIB_4G:
 #ifdef ENABLE_ASN4G
                 mib_decode_4g(decoder.file, node->payload, node->len);
-                fflush(decoder.file);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
@@ -107,7 +106,6 @@ void * asn_processor(void * args)
             case SIB_4G:
 #ifdef ENABLE_ASN4G
                 sib_decode_4g(decoder.file, node->payload, node->len);
-                fflush(decoder.file);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
@@ -118,7 +116,6 @@ void * asn_processor(void * args)
             case MIB_5G:
 #ifdef ENABLE_ASN5G
                 mib_decode_5g(decoder.file, node->payload, node->len);
-                fflush(decoder.file);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
@@ -129,7 +126,6 @@ void * asn_processor(void * args)
             case SIB_5G:
 #ifdef ENABLE_ASN5G
                 sib_decode_5g(decoder.file, node->payload, node->len);
-                fflush(decoder.file);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
@@ -142,6 +138,7 @@ void * asn_processor(void * args)
                 printf("Invalid ASN1 payload type (%d)\n", node->type);
                 break;
         }
+        fflush(decoder.file);
     }
 
     return NULL;
