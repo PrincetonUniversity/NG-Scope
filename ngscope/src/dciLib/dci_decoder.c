@@ -26,7 +26,6 @@
 #include "ngscope/hdr/dciLib/thread_exit.h"
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
-#include "ngscope/hdr/dciLib/asn_decoder.h"
 
 extern bool                 go_exit;
 
@@ -61,10 +60,12 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
                         srsran_cell_t*          cell,
                         cf_t*                   sf_buffer[SRSRAN_MAX_PORTS],
                         srsran_softbuffer_rx_t* rx_softbuffers,
-                        int                     decoder_idx){
+                        int                     decoder_idx,
+						ASNDecoder * 			decoder){
     // Init the args
     dci_decoder->prog_args  = prog_args;
     dci_decoder->cell       = *cell;
+	dci_decoder->decoder = decoder;
 
     if (srsran_ue_dl_init(&dci_decoder->ue_dl, sf_buffer, cell->nof_prb, prog_args.rf_nof_rx_ant)) {
         ERROR("Error initiating UE downlink processing module");
@@ -360,7 +361,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                 	if (acks[tb]) {
 						int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
 						uint8_t* payload 	= data[tb];
-						if(push_asn_payload(payload, len, SIB_4G, tti))
+						if(push_asn_payload(dci_decoder->decoder, payload, len, SIB_4G, tti))
 							printf("Error pushing 4G SIB message to decoder\n");
 					}
 				}
@@ -456,7 +457,8 @@ void* dci_decoder_thread(void* p){
 
 	int decoder_idx = dci_decoder->decoder_idx;
     int rf_idx     	= dci_decoder->prog_args.rf_index;
-    //uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
+    //uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;
+	
 
 	printf("decoder idx :%d \n", decoder_idx);
     ngscope_dci_per_sub_t   dci_per_sub; 

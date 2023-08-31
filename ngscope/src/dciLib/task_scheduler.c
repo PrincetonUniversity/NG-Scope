@@ -428,6 +428,8 @@ void* task_scheduler_thread(void* p){
     ngscope_task_scheduler_t task_scheduler;
     task_scheduler_init(&task_scheduler, *prog_args);
 
+    ASNDecoder * decoder;
+
     int ret;
     int nof_decoder = task_scheduler.prog_args.nof_decoder;
     int rf_idx      = task_scheduler.prog_args.rf_index;
@@ -478,6 +480,13 @@ void* task_scheduler_thread(void* p){
 		
 	//cell_args_t 		cell_args[MAX_NOF_DCI_DECODER];
 
+    /* Initialize ASN decoder */
+    decoder = init_asn_decoder(prog_args->sib_logs, prog_args->rf_freq);
+	if(decoder == NULL) {
+		printf("Error initializing ASN decoder for frequency %lf\n", prog_args->rf_freq);
+		return NULL;
+	}
+
   	srsran_softbuffer_rx_t 	rx_softbuffers[SRSRAN_MAX_CODEWORDS];
 
     for(int i=0;i<nof_decoder;i++){
@@ -487,7 +496,7 @@ void* task_scheduler_thread(void* p){
         }
 
 		dci_decoder_init(&dci_decoder[i], task_scheduler.prog_args, &task_scheduler.cell, \
-                           sf_buffer[rf_idx][i].IQ_buffer, rx_softbuffers, i);
+                           sf_buffer[rf_idx][i].IQ_buffer, rx_softbuffers, i, decoder);
 
         //mib_init_imp(&ue_mib[i], sf_buffer[rf_idx][i].IQ_buffer, &task_scheduler->cell);
         pthread_create( &dci_thd[i], NULL, dci_decoder_thread, (void*)&dci_decoder[i]);

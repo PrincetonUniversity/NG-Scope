@@ -19,7 +19,7 @@
 #include "ngscope/hdr/dciLib/ngscope_main.h"
 #include "ngscope/hdr/dciLib/asn_decoder.h"
 
-#define DEFAULT_SIB_OUTPUT "decoded_sibs.out"
+#define DEFAULT_SIB_OUTPUT "decoded_sibs"
 #define DEFAULT_DCI_OUTPUT "dci_output"
 
 
@@ -28,8 +28,6 @@ bool go_exit = false;
 void sig_int_handler(int signo)
 {
   printf("SIGINT received. Exiting...\n");
-  /* Terminate ASN decoder */
-  terminate_asn_decoder();
 
   if (signo == SIGINT) {
     go_exit = true;
@@ -105,10 +103,7 @@ int main(int argc, char** argv){
       printf("DCI logs folder not specified (using '%s')\n", out_path);
     }
     else
-      printf("DCI logs folder: %s\n", sib_path);
-
-    /* INitialize ASN1 decoder for SIB decoding */
-    init_asn_decoder(sib_path);
+      printf("DCI logs folder: %s\n", out_path);
 
     /* Signal handlers */
     srsran_debug_handle_crash(argc, argv);
@@ -123,6 +118,7 @@ int main(int argc, char** argv){
     ngscope_read_config(&config, config_path);
     /* Set DCI logs output folder path  */
     config.dci_logs_path = out_path;
+    config.sib_logs_path = sib_path;
 
     ngscope_main(&config);
     return 1;

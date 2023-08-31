@@ -10,6 +10,7 @@
 #endif
 
 #define MSG_QUEUE_POLL_TIME 10000
+#define SIBS_PER_FILE 50000
 
 /*************************/
 /* Structure definitions */
@@ -24,56 +25,84 @@ struct _Node
     uint32_t tti;
 };
 
-typedef struct _ASNDecoder
+struct _ASNDecoder
 {
+    char * log_path;
+    double freq;
+    int frag;
     FILE * file;
     Node * first;
     Node * last;
-    pthread_mutex_t mux;
-} ASNDecoder;
-/* Global decoder used by the functions in this module */
-ASNDecoder decoder;
+    pthread_mutex_t queue_mux;
+    pthread_mutex_t file_mux;
+};
 
 
 /***************************/
 /* Message queue functions */
 /***************************/
-void queue_push(Node * node)
+void queue_push(ASNDecoder * decoder, Node * node)
 {
-    pthread_mutex_lock(&(decoder.mux));
+    pthread_mutex_lock(&(decoder->queue_mux));
     /* The queue is empty */
-    if(decoder.last == NULL) {
-        decoder.first = node;
-        decoder.last = node;
+    if(decoder->last == NULL) {
+        decoder->first = node;
+        decoder->last = node;
     }
     else { 
-        decoder.last->next = node;
-        decoder.last = node;
+        decoder->last->next = node;
+        decoder->last = node;
     }
-    pthread_mutex_unlock(&(decoder.mux));
+    pthread_mutex_unlock(&(decoder->queue_mux));
     return;
 }
 
-Node * queue_pop()
+Node * queue_pop(ASNDecoder * decoder)
 {
     Node * node = NULL;
-    pthread_mutex_lock(&(decoder.mux));
+    pthread_mutex_lock(&(decoder->queue_mux));
     /* The queue is emty */
-    if(decoder.first == NULL)
+    if(decoder->first == NULL)
         goto exit;
     /* Only one message in the queue */
-    if(decoder.first == decoder.last) {
-        node = decoder.first;
-        decoder.first = NULL;
-        decoder.last = NULL;
+    if(decoder->first == decoder->last) {
+        node = decoder->first;
+        decoder->first = NULL;
+        decoder->last = NULL;
         goto exit;
     }
     /* Multiple messages in the queue */
-    node = decoder.first;
-    decoder.first = node->next;
+    node = decoder->first;
+    decoder->first = node->next;
 exit:
-    pthread_mutex_unlock(&(decoder.mux));
+    pthread_mutex_unlock(&(decoder->queue_mux));
     return node;
+}
+
+void open_next_log(ASNDecoder * decoder)
+{
+    char path[1024];
+
+    /* Close previous file descriptor */
+    if(decoder->file != NULL) {
+        fclose(decoder->file);
+        decoder->file = NULL;
+    }
+
+    /* Assemble new path */
+    bzero(path, 1024);
+    sprintf(path, "%s/%d/sibs%d.dump", decoder->log_path, (int) decoder->freq, decoder->frag);
+
+    printf("Openning %s...\n", path);
+
+    if((decoder->file = fopen(path, "w")) == NULL) {
+        decoder->file = NULL;
+        printf("Error openning SIB log file %s (%d): %s\n", path, errno, strerror(errno));
+        return;
+    }
+    decoder->frag += 1;
+
+    return;
 }
 
 
@@ -83,54 +112,67 @@ exit:
 void * asn_processor(void * args)
 {
     Node * node;
+    ASNDecoder * decoder;
+    int msg_counter = SIBS_PER_FILE;
+
+    decoder = (ASNDecoder *) args;
 
     /* Loop that polls the message queue */
     while(1) {
         /* Get node from the queue */
-        if((node = queue_pop()) == NULL) {
+        if((node = queue_pop(decoder)) == NULL) {
             usleep(MSG_QUEUE_POLL_TIME); /* Sleep 10 ms */
             continue; /* Continue if queue is empty */
         }
-        fprintf(decoder.file, "\nTTI (%d):\n", node->tti);
+
+        pthread_mutex_lock(&(decoder->file_mux));
+        /* Log fragmentation */
+        if(msg_counter >= SIBS_PER_FILE) {
+            open_next_log(decoder);
+            msg_counter = 0;
+        }
+        msg_counter++;
+
+        fprintf(decoder->file, "\nTTI (%d):\n", node->tti);
         switch (node->type) {
             case MIB_4G:
 #ifdef ENABLE_ASN4G
-                mib_decode_4g(decoder.file, node->payload, node->len);
+                mib_decode_4g(decoder->file, node->payload, node->len);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
 #else
-                fprintf(decoder.file, "4G MIB message cannot be decoded: libasn4g is not installed\n");
+                fprintf(decoder->file, "4G MIB message cannot be decoded: libasn4g is not installed\n");
 #endif
                 break;
             case SIB_4G:
 #ifdef ENABLE_ASN4G
-                sib_decode_4g(decoder.file, node->payload, node->len);
+                sib_decode_4g(decoder->file, node->payload, node->len);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
 #else
-                fprintf(decoder.file, "4G SIB message cannot be decoded: libasn4g is not installed\n");
+                fprintf(decoder->file, "4G SIB message cannot be decoded: libasn4g is not installed\n");
 #endif
                 break;
             case MIB_5G:
 #ifdef ENABLE_ASN5G
-                mib_decode_5g(decoder.file, node->payload, node->len);
+                mib_decode_5g(decoder->file, node->payload, node->len);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
 #else
-                fprintf(decoder.file, "5G MIB message cannot be decoded: libasn5g is not installed\n");
+                fprintf(decoder->file, "5G MIB message cannot be decoded: libasn5g is not installed\n");
 #endif
                 break;
             case SIB_5G:
 #ifdef ENABLE_ASN5G
-                sib_decode_5g(decoder.file, node->payload, node->len);
+                sib_decode_5g(decoder->file, node->payload, node->len);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
 #else
-                fprintf(decoder.file, "5G SIB message cannot be decoded: libasn5g is not installed\n");
+                fprintf(decoder->file, "5G SIB message cannot be decoded: libasn5g is not installed\n");
 #endif
                 break;
             
@@ -138,6 +180,7 @@ void * asn_processor(void * args)
                 printf("Invalid ASN1 payload type (%d)\n", node->type);
                 break;
         }
+        pthread_mutex_unlock(&(decoder->file_mux));
     }
 
     return NULL;
@@ -148,32 +191,42 @@ void * asn_processor(void * args)
 /* Public functions */
 /********************/
 
-int init_asn_decoder(const char * path)
+ASNDecoder * init_asn_decoder(char * path, double freq)
 {
     pthread_t processor;
+    ASNDecoder * decoder;
+    char cmd[1024];
 
-    if((decoder.file = fopen(path, "w")) == NULL) {
-        decoder.file = NULL;
-        printf("Error openning SIB log file %s (%d): %s\n", path, errno, strerror(errno));
-        return 1;
-    }
+    decoder = (ASNDecoder *) calloc(1, sizeof(ASNDecoder));
+    if(decoder == NULL)
+        return NULL;
 
-    if(pthread_create(&processor, NULL, &asn_processor, NULL) > 0) {
+    decoder->file = NULL;
+    decoder->first = NULL;
+    decoder->last = NULL;
+    decoder->freq = freq;
+    decoder->log_path = path;
+    decoder->frag = 0;
+    pthread_mutex_init(&(decoder->queue_mux), NULL);
+    pthread_mutex_init(&(decoder->file_mux), NULL);
+
+    /* Create folders */
+    sprintf(cmd, "mkdir -p %s/", decoder->log_path);
+    system(cmd);
+    sprintf(cmd, "mkdir -p %s/%d/", path, (int) freq);
+    system(cmd);
+
+    if(pthread_create(&processor, NULL, &asn_processor, (void *) decoder) > 0) {
         printf("Error creating SIB processing thread\n");
-        fclose(decoder.file);
-        decoder.file = NULL;
-        return 1;
+        return NULL;
     }
-    return 0;
+
+    return decoder;
 }
 
-int push_asn_payload(uint8_t * payload, int len, PayloadType type, uint32_t tti)
+int push_asn_payload(ASNDecoder * decoder, uint8_t * payload, int len, PayloadType type, uint32_t tti)
 {
     Node * node;
-
-    /* If the decoder initialization has failed, this fucntion does nothing and returns error */
-    if(decoder.file == NULL)
-        return 1;
 
     /* Allocate memory for a new Node in the message queue */
     if((node = (Node *) malloc(sizeof(Node))) == NULL)
@@ -190,17 +243,6 @@ int push_asn_payload(uint8_t * payload, int len, PayloadType type, uint32_t tti)
     node->type = type;
     node->next = NULL;
     /* Push message into the queue */
-    queue_push(node);
+    queue_push(decoder, node);
     return 0;
-}
-
-void terminate_asn_decoder()
-{   
-    /* Lock the mutex to ensure the file is not closed durin a write */
-    pthread_mutex_lock(&(decoder.mux));
-    /* Close SIB log file*/
-    if(decoder.file)
-        fclose(decoder.file);
-    pthread_mutex_unlock(&(decoder.mux));
-    return;
 }
