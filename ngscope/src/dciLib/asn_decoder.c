@@ -180,6 +180,7 @@ void * asn_processor(void * args)
                 printf("Invalid ASN1 payload type (%d)\n", node->type);
                 break;
         }
+        fflush(decoder->file);
         pthread_mutex_unlock(&(decoder->file_mux));
     }
 
