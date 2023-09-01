@@ -211,7 +211,7 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
 
 	t1	= time(NULL);
 	newtime = localtime(&t1);
-	strftime(fileName, 128, "%Y_%m_%d_%H_%M_%S",newtime);
+	strftime(local_time_str, 128, "%Y_%m_%d_%H_%M_%S",newtime);
 	
     for(int i=0; i<nof_rf_dev; i++){
         if(config->rf_config[i].log_dl){
@@ -343,9 +343,10 @@ void* dci_log_thread(void* p){
 
 		if(log_interval > 0){
 			curr_time = timestamp_ms();
+			//printf("log_interval:%d distance:%ld \n", log_interval, curr_time - last_time);
 			if( (curr_time - last_time) > log_interval * 1000){
 				// clean and reset the file_descriptor
-				fill_file_descriptor(dci_log_config.fd_dl,  dci_log_config.fd_ul, config);
+				fill_file_descriptor(dci_log_config.fd_dl,  dci_log_config.fd_ul, &(log_config->config));
 				last_time = curr_time;
 			}
 		}
