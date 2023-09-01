@@ -144,10 +144,14 @@ int ngscope_read_config(ngscope_config_t* config, char * path){
     if(! config_lookup_bool(cfg, "dci_log_config.log_dl", &config->dci_log_config.log_dl)){
         printf("ERROR: reading log_ul_flag\n");
     }
+
     if(! config_lookup_bool(cfg, "dci_log_config.log_ul", &config->dci_log_config.log_ul)){
         printf("ERROR: reading log_ul_flag\n");
     }
 
+	if(! config_lookup_int(cfg, "dci_log_config.log_interval", &config->dci_log_config.log_interval)){
+        printf("ERROR: reading log_interval\n");
+    }
 
     return 0;
 }

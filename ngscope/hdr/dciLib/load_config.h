@@ -17,6 +17,9 @@ typedef struct{
     int     nof_cell;
     int     log_ul;
     int     log_dl; 
+
+	// Any value larger than 0 indicates the log files will be separated into multiple files
+	int 	log_interval; // in seconds
 }dci_log_config_t;
 
 

@@ -16,6 +16,7 @@
 #include "ngscope/hdr/dciLib/socket.h"
 #include "ngscope/hdr/dciLib/parse_args.h"
 #include "ngscope/hdr/dciLib/thread_exit.h"
+#include "ngscope/hdr/dciLib/time_stamp.h"
 
 extern bool go_exit;
 //extern ngscope_cell_dci_ring_buffer_t 	cell_status[MAX_NOF_RF_DEV];
@@ -197,15 +198,27 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
                           FILE* fd_ul[MAX_NOF_RF_DEV],
 						  ngscope_config_t* config)
 {
-
 	int nof_rf_dev = config->nof_rf_dev;
 	char str[1024];
+    time_t  t1;
+    struct tm *newtime;
+
     // create the folder
 	sprintf(str, "mkdir -p %s", config->dci_logs_path);
     system(str);
+	
+    char local_time_str[128];
+
+	t1	= time(NULL);
+	newtime = localtime(&t1);
+	strftime(fileName, 128, "%Y_%m_%d_%H_%M_%S",newtime);
+	
     for(int i=0; i<nof_rf_dev; i++){
         if(config->rf_config[i].log_dl){
-            sprintf(str, "%s/dci_raw_log_dl_freq_%lld.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq);
+			if(fd_dl[i] != NULL){
+				fclose(fd_dl[i]);
+			}
+            sprintf(str, "%s/dci_raw_log_dl_freq_%lld_%s.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq, local_time_str);
             fd_dl[i] = fopen(str, "w+");
             if(fd_dl[i] == NULL){
                 printf("ERROR: fail to open log file!\n");
@@ -214,7 +227,10 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
         }
 
         if(config->rf_config[i].log_ul){
-            sprintf(str, "%s/dci_raw_log_ul_freq_%lld.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq);
+			if(fd_ul[i] != NULL){
+				fclose(fd_ul[i]);
+			}
+            sprintf(str, "%s/dci_raw_log_ul_freq_%lld_%s.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq, local_time_str);
             fd_ul[i] = fopen(str, "w+");
              if(fd_ul[i]== NULL){
                 printf("ERROR: fail to open log file!\n");
@@ -269,6 +285,8 @@ void* dci_log_thread(void* p){
 
 	int buf_size = DCI_LOGGER_RING_BUF_SIZE;
 
+	int log_interval = log_config->config.dci_log_config.log_interval;
+
 	ngscope_cell_dci_ring_buffer_t 		cell_status[MAX_NOF_RF_DEV];
 	CA_status_t   						ca_status;
 
@@ -289,6 +307,9 @@ void* dci_log_thread(void* p){
 	for(int i=0; i<dci_log_config.nof_cell; i++){
 		dci_ring_buffer_init(&cell_status[i], dci_log_config.targetRNTI, log_config->cell_prb[i], i, buf_size);
 	}
+	
+	uint64_t last_time = timestamp_ms();
+	uint64_t curr_time = last_time;
 
 	while(true){
         if(go_exit) break;
@@ -319,6 +340,15 @@ void* dci_log_thread(void* p){
 		}
 		CA_status_update_header(&ca_status, cell_status);
 		log_multi_cell(cell_status,  &dci_log_config, cell_status, &ca_status);
+
+		if(log_interval > 0){
+			curr_time = timestamp_ms();
+			if( (curr_time - last_time) > log_interval * 1000){
+				// clean and reset the file_descriptor
+				fill_file_descriptor(dci_log_config.fd_dl,  dci_log_config.fd_ul, config);
+				last_time = curr_time;
+			}
+		}
 		fprintf(fd, "%d\t%d\t\n", cell_status[0].cell_header, dci_log_config.curr_header[0]);
 	} 
 	fclose(fd);
