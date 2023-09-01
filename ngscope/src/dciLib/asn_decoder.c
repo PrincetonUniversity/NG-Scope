@@ -10,7 +10,7 @@
 #endif
 
 #define MSG_QUEUE_POLL_TIME 10000
-#define SIBS_PER_FILE 50000
+#define SIBS_PER_FILE 10000
 
 /*************************/
 /* Structure definitions */
