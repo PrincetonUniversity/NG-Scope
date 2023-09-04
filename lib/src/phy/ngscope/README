@@ -1,0 +1,22 @@
+Here is some coding notes during the develop of the NGScope
+
+1, Naming Specifications
+  for naming the API that should be called inside the library, we should use srsran_ngscope_
+
+  for naming the functions that only be called inside the NGS-Scope, we should use ngscope_
+
+  for naming the other functions, exclude both
+
+
+Coding Progress
+  1, ngscope_dci  
+      we have finished change the name of the functions
+      we also finished remove the depedency on ue_dl
+
+  2, ngscope_search_space
+      we have finished change the name of the functions
+      we also finished remove the depedency on ue_dl
+
+  3, ngscope_st
+      we didn't finish the name of the functions yet, since we don't know whether we need to call those functions outside of NG-Scope
+
