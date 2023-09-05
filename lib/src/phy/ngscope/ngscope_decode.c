@@ -1,24 +1,19 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "srsran/phy/ue/ngscope.h"
-#include "srsran/phy/ue/ngscope_dci.h"
-#include "srsran/phy/ue/ngscope_search_space.h"
-#include "srsran/phy/ue/ngscope_st.h"
-#include "srsran/phy/ue/ngscope_tree.h"
-#include "srsran/phy/ue/ue_dl.h"
-/*  Container of the DCI messages
- *  Format   loc
- */
+#include "srsran/phy/ngscope/ngscope.h"
+#include "srsran/phy/ngscope/ngscope_dci.h"
+#include "srsran/phy/ngscope/ngscope_search_space.h"
+#include "srsran/phy/ngscope/ngscope_st.h"
+#include "srsran/phy/ngscope/ngscope_tree.h"
+#include "srsran/phy/ngscope/ue_dl.h"
 
 /* Yaxiong's dci search function */
-int srsran_ngscope_search_all_space_array_yx(srsran_pdcch_t*     q,
-                                             srsran_cell_t*      cell,
-                                             srsran_dl_sf_cfg_t* sf,
-                                             srsran_ue_dl_cfg_t* cfg,
-                                             srsran_pdsch_cfg_t* pdsch_cfg,
-                                             // ngscope_dci_msg_t      dci_array[][MAX_CANDIDATES_ALL],
-                                             // srsran_dci_location_t  dci_location[MAX_CANDIDATES_ALL],
+int srsran_ngscope_search_all_space_array_yx(srsran_pdcch_t*        q,
+                                             srsran_cell_t*         cell,
+                                             srsran_dl_sf_cfg_t*    sf,
+                                             srsran_ue_dl_cfg_t*    cfg,
+                                             srsran_pdsch_cfg_t*    pdsch_cfg,
                                              ngscope_dci_per_sub_t* dci_per_sub,
                                              ngscope_tree_t*        tree,
                                              uint16_t               targetRNTI)
@@ -42,10 +37,11 @@ int srsran_ngscope_search_all_space_array_yx(srsran_pdcch_t*     q,
   ZERO_OBJECT(search_space);
 
   // search_space.formats[0] = SRSRAN_DCI_FORMAT0;
-  search_space.formats[0]    = SRSRAN_DCI_FORMAT1;
-  search_space.formats[1]    = SRSRAN_DCI_FORMAT1A;
-  search_space.formats[2]    = SRSRAN_DCI_FORMAT1C;
-  search_space.formats[3]    = SRSRAN_DCI_FORMAT2;
+  search_space.formats[0] = SRSRAN_DCI_FORMAT1;
+  search_space.formats[1] = SRSRAN_DCI_FORMAT1A;
+  search_space.formats[2] = SRSRAN_DCI_FORMAT1C;
+  search_space.formats[3] = SRSRAN_DCI_FORMAT2;
+
   search_space.nof_locations = 1;
 
   if (cell.nof_ports == 1) {
@@ -54,23 +50,6 @@ int srsran_ngscope_search_all_space_array_yx(srsran_pdcch_t*     q,
   } else {
     search_space.nof_formats = MAX_NOF_FORMAT;
   }
-
-  // Previously, we need UE dl to decode the sf, but now, we assume that we already get the pdcch
-  //
-  /* uint32_t mi_set_len; */
-  /* if (cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) { */
-  /*   mi_set_len = 3; */
-  /* } else { */
-  /*   mi_set_len = 1; */
-  /* } */
-  /**/
-  /* // Currently we assume FDD only */
-  /* // Remeber that sf->cfi is set only after calling this function */
-  /* srsran_ue_dl_set_mi_auto(q); */
-  /* if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) { */
-  /*   ERROR("ERROR decode FFT\n"); */
-  /*   return 0; */
-  /* } */
 
   // ngscope_tree_t tree;
   ngscope_tree_init(tree);
@@ -112,7 +91,6 @@ int srsran_ngscope_search_all_space_array_yx(srsran_pdcch_t*     q,
 
       // Search for the paging information first, the dci_cfg for the
       // paging messages and normal dci messages are entirely different
-
       if (search_space.loc[0].ncce == 0) {
         // first search for the paging
         dci_cfg.multiple_csi_request_enabled = false;
