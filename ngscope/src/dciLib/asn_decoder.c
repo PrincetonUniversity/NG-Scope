@@ -91,7 +91,7 @@ void open_next_log(ASNDecoder * decoder)
 
     /* Assemble new path */
     bzero(path, 1024);
-    sprintf(path, "%s/%d_sibs%d.dump", decoder->log_path, (int) decoder->freq, decoder->frag);
+    sprintf(path, "%s/%lf_sibs%d.dump", decoder->log_path, decoder->freq, decoder->frag);
 
     printf("Openning %s...\n", path);
 
