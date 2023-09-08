@@ -91,7 +91,7 @@ void open_next_log(ASNDecoder * decoder)
 
     /* Assemble new path */
     bzero(path, 1024);
-    sprintf(path, "%s/%d/sibs%d.dump", decoder->log_path, (int) decoder->freq, decoder->frag);
+    sprintf(path, "%s/%d_sibs%d.dump", decoder->log_path, (int) decoder->freq, decoder->frag);
 
     printf("Openning %s...\n", path);
 
@@ -213,8 +213,6 @@ ASNDecoder * init_asn_decoder(char * path, double freq)
 
     /* Create folders */
     sprintf(cmd, "mkdir -p %s/", decoder->log_path);
-    system(cmd);
-    sprintf(cmd, "mkdir -p %s/%d/", path, (int) freq);
     system(cmd);
 
     if(pthread_create(&processor, NULL, &asn_processor, (void *) decoder) > 0) {
