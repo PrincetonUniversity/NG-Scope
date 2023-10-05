@@ -90,8 +90,8 @@ srsran_cell_t      cell;
 
 #define MAX_SCAN_CELLS 128
 
-int bands_length = 21;
-int bands[] = {21, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 65, 66, 67, 68, 69, 70, 71};
+int bands_length = 57;
+int bands[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 65, 66, 67, 68, 69, 70, 71};
 
 /********/
 /* Main */
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
 
     fprintf(file, "band,cell_id,dl_earfcn,freq_mhz,prbs,pss_power_dbm\n");
     /* Scanning loop */
-    for(j=0; j < SRSRAN_NOF_LTE_BANDS; j++) {
+    for(j=0; j < bands_length; j++) {
       band = bands[j];
 
       printf("Searching in band %d\n", band);
