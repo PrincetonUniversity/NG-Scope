@@ -1,6 +1,6 @@
 #include <pthread.h>
 #include <stdarg.h>
-#include "jonscope/headers/cpu.h"
+#include "cellscanner/headers/cpu.h"
 
 
 int _pin_thread(int num_cpus, ...)

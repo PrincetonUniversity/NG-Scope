@@ -24,23 +24,23 @@ if (RPATH)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 endif (RPATH)
 
-add_executable(jonscope ${SOURCES})
+add_executable(cellscanner ${SOURCES})
 
 set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_radio srslog support system)
 
-target_link_libraries(jonscope ${SRSRAN_SOURCES}
+target_link_libraries(cellscanner ${SRSRAN_SOURCES}
                               ${CMAKE_THREAD_LIBS_INIT}
                               ${LIBCONFIG_LIBRARY}
                               ${ATOMIC_LIBS})
 
 if (LIBASN4G)
-    target_link_libraries(jonscope ${LIBASN4G_LIBRARY})
+    target_link_libraries(cellscanner ${LIBASN4G_LIBRARY})
 endif(LIBASN4G)
                             
 
 
 if (RPATH)
-  set_target_properties(jonscope PROPERTIES INSTALL_RPATH ".")
+  set_target_properties(cellscanner PROPERTIES INSTALL_RPATH ".")
 endif (RPATH)
 
 install(TARGETS ngscope DESTINATION ${RUNTIME_DIR})

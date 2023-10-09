@@ -10,7 +10,7 @@
 #include "srsran/srsran.h"
 #include "srsran/common/crash_handler.h"
 #include "srsran/phy/rf/rf.h"
-#include "jonscope/headers/cell_scan.h"
+#include "cellscanner/headers/cell_scan.h"
 
 #define MHZ 1000000
 #define SAMP_FREQ 1920000

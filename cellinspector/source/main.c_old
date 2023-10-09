@@ -36,8 +36,7 @@
 #endif
 
 /* Local libs */
-#include "jonscope/headers/cpu.h"
-#include "jonscope/headers/cell_scan.h"
+#include "cellscanner/headers/cell_scan.h"
 
 /* SRS libs */
 #include "srsran/common/crash_handler.h"
