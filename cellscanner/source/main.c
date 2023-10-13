@@ -103,8 +103,8 @@ int main(int argc, char** argv)
     FILE * file;
 
 
-    if(argc != 2) {
-      printf("USAGE: %s <Output file>\n", argv[0]);
+    if(argc < 2 || argc > 3) {
+      printf("USAGE: %s <Output file> <USRP Args (Optional)>\n", argv[0]);
       exit(1);
     }
 
@@ -119,10 +119,19 @@ int main(int argc, char** argv)
     srsran_use_standard_symbol_size(true);
 
     /* Initialize radio */
-    printf("Opening RF device with %d RX antennas...\n", 1);
-    if (srsran_rf_open_devname(&rf, "", "", 1)) {
-        fprintf(stderr, "Error opening rf\n");
-        exit(-1);
+    if(argc == 2) {
+      printf("Opening RF device with 1 RX antennas...\n");
+      if (srsran_rf_open_devname(&rf, "", "", 1)) {
+          fprintf(stderr, "Error opening rf\n");
+          exit(-1);
+      }
+    }
+    else {
+      printf("Opening RF device with 1 RX antennas and \"%s\" as arguments...\n", argv[2]);
+      if (srsran_rf_open_devname(&rf, "", argv[2], 1)) {
+          fprintf(stderr, "Error opening rf\n");
+          exit(-1);
+      }
     }
 
     
