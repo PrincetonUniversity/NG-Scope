@@ -90,31 +90,56 @@ srsran_cell_t      cell;
 #define MAX_SCAN_CELLS 128
 
 // ALL BANDS
-//int bands_length = 57;
-//int bands[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 65, 66, 67, 68, 69, 70, 71};
+int all_bands_length = 57;
+int all_bands[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 65, 66, 67, 68, 69, 70, 71};
 
 // NORTH AMERICA BANDS
-int bands_length = 35;
-int bands[] = {1, 2, 3, 4, 5, 8, 10, 12, 13, 14, 17, 23, 24, 25, 26, 27, 29, 30, 35, 36, 37, 41, 42, 43, 46, 47, 48, 49, 50, 51, 52, 65, 66, 70, 71};
+int na_bands_length = 35;
+int na_bands[] = {1, 2, 3, 4, 5, 8, 10, 12, 13, 14, 17, 23, 24, 25, 26, 27, 29, 30, 35, 36, 37, 41, 42, 43, 46, 47, 48, 49, 50, 51, 52, 65, 66, 70, 71};
+
+int eu_bands_length = 8;
+int eu_bands[] = {7, 20, 22, 28, 68, 72, 87, 88};
+
+
+
 
 /********/
 /* Main */
 /********/
 int main(int argc, char** argv)
 {
-    int ret, i, band, j;
+    int ret, i, band, j, region, bands_length;
+    int * bands;
     srsran_rf_t rf; /* RF structure */
     struct cells scanned_cells[MAX_SCAN_CELLS]; /* List of available cells */
     FILE * file;
 
 
-    if(argc < 2 || argc > 3) {
-      printf("USAGE: %s <Output file> <USRP Args (Optional)>\n", argv[0]);
+    if(argc < 2 || argc > 4) {
+      printf("USAGE: %s <Output file> <Region (0: All, 1: North America, 2: Europe)> <USRP Args (Optional)>\n", argv[0]);
       exit(1);
     }
 
     if((file = fopen(argv[1], "w")) == NULL) {
       printf("Error openning %s\n", argv[1]);
+      exit(1);
+    }
+
+    region = atoi(argv[2]);
+    if(region == 0) {
+      bands_length = all_bands_length;
+      bands = all_bands;
+    }
+    else if(region == 1) {
+      bands_length = na_bands_length;
+      bands = na_bands;
+    }
+    else if(region == 2) {
+      bands_length = eu_bands_length;
+      bands = eu_bands;
+    }
+    else {
+      printf("Invalid region value. 0: All, 1: North America, 2: Europe\n");
       exit(1);
     }
     
@@ -132,8 +157,8 @@ int main(int argc, char** argv)
       }
     }
     else {
-      printf("Opening RF device with 1 RX antennas and \"%s\" as arguments...\n", argv[2]);
-      if (srsran_rf_open_devname(&rf, "", argv[2], 1)) {
+      printf("Opening RF device with 1 RX antennas and \"%s\" as arguments...\n", argv[3]);
+      if (srsran_rf_open_devname(&rf, "", argv[3], 1)) {
           fprintf(stderr, "Error opening rf\n");
           exit(-1);
       }
