@@ -129,14 +129,17 @@ int main(int argc, char** argv)
     if(region == 0) {
       bands_length = all_bands_length;
       bands = all_bands;
+      printf("Using All bands...\n");
     }
     else if(region == 1) {
       bands_length = na_bands_length;
       bands = na_bands;
+      printf("Using North America bands...\n");
     }
     else if(region == 2) {
       bands_length = eu_bands_length;
       bands = eu_bands;
+      printf("Using Europe bands...\n");
     }
     else {
       printf("Invalid region value. 0: All, 1: North America, 2: Europe\n");
