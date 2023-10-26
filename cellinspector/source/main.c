@@ -31,13 +31,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#ifdef ENABLE_ASN4G
-#include <libasn4g.h>
-#endif
-
 /* Local libs */
 #include "cellinspector/headers/cpu.h"
-#include "cellinspector/headers/cell_scan.h"
+#include "cellinspector/headers/asn_decoder.h"
 
 /* SRS libs */
 #include "srsran/common/crash_handler.h"
@@ -46,6 +42,10 @@
 #include "srsran/srsran.h"
 #include "srsran/phy/rf/rf.h"
 #include "srsran/phy/rf/rf_utils.h"
+
+#ifdef ENABLE_ASN4G
+#include <libasn4g.h>
+#endif
 
 #define ENABLE_AGC_DEFAULT
 
@@ -68,55 +68,27 @@ char* output_file_name;
  *  Program arguments processing
  ***********************************************************************/
 typedef struct {
-  int      nof_subframes;
-  int      cpu_affinity;
-  bool     disable_plots;
-  bool     disable_plots_except_constellation;
-  bool     disable_cfo;
-  uint32_t time_offset;
-  int      force_N_id_2;
-  uint16_t rnti;
-  char*    input_file_name;
-  int      file_offset_time;
-  float    file_offset_freq;
-  uint32_t file_nof_prb;
-  uint32_t file_nof_ports;
-  uint32_t file_cell_id;
-  bool     enable_cfo_ref;
-  char*    estimator_alg;
-  char*    rf_dev;
-  char*    rf_args;
+  char *   rf_args;
   uint32_t rf_nof_rx_ant;
   double   rf_freq;
-  float    rf_gain;
-  int      net_port;
-  char*    net_address;
-  int      net_port_signal;
-  char*    net_address_signal;
-  int      decimate;
-  int32_t  mbsfn_area_id;
-  uint8_t  non_mbsfn_region;
-  uint8_t  mbsfn_sf_mask;
-  int      tdd_special_sf;
-  int      sf_config;
-  int      verbose;
-  bool     enable_256qam;
-  bool     use_standard_lte_rate;
+  char *   output;
 } prog_args_t;
 
 void args_default(prog_args_t* args)
 {
-  args->rf_args                            = "";
-  args->rf_freq                            = -1.0;
-  args->rf_nof_rx_ant                      = 1;
+  args->rf_args        = "";
+  args->rf_freq        = -1.0;
+  args->rf_nof_rx_ant  = 1;
+  args->output         = ".";
 }
 
 void usage(prog_args_t* args, char* prog)
 {
   printf("Usage: %s [afA]\n", prog);
+  printf("\t-o Output folder\n");
   printf("\t-a RF args [Default %s]\n", args->rf_args);
   printf("\t-f rx_frequency (in Hz)\n");
-  printf("\t-A Number of RX antennas [Default %d]\n", args->rf_nof_rx_ant);
+  printf("\t-n Number of RX antennas [Default %d]\n", args->rf_nof_rx_ant);
 }
 
 void parse_args(prog_args_t* args, int argc, char** argv)
@@ -124,17 +96,23 @@ void parse_args(prog_args_t* args, int argc, char** argv)
   int opt;
   args_default(args);
 
-  while ((opt = getopt(argc, argv, "af")) != -1) {
+  while ((opt = getopt(argc, argv, "afon")) != -1) {
     switch (opt) {
-      case 'a':
-        args->rf_args = argv[optind];
-        break;
-      case 'f':
-        args->rf_freq = strtod(argv[optind], NULL);
-        break;
-      default:
-        usage(args, argv[0]);
-        exit(-1);
+        case 'a':
+            args->rf_args = argv[optind];
+            break;
+        case 'f':
+            args->rf_freq = strtod(argv[optind], NULL);
+            break;
+        case 'o':
+            args->output = argv[optind];
+            break;
+        case 'n':
+            args->rf_nof_rx_ant = atoi(argv[optind]);
+            break;
+        default:
+            usage(args, argv[0]);
+            exit(-1);
     }
   }
   if (args->rf_freq < 0) {
@@ -178,8 +156,6 @@ static SRSRAN_AGC_CALLBACK(srsran_rf_set_rx_gain_th_wrapper_)
 
 extern float mean_exec_time;
 
-enum receiver_state { DECODE_MIB, DECODE_PDSCH } state;
-
 srsran_cell_t      cell;
 srsran_ue_dl_t     ue_dl;
 srsran_ue_dl_cfg_t ue_dl_cfg;
@@ -200,12 +176,17 @@ int main(int argc, char** argv)
     int ret;
     srsran_rf_t rf; /* RF structure */
     float search_cell_cfo = 0;
+    ASNDecoder * decoder;
 
     srsran_debug_handle_crash(argc, argv);
 
+    /* Parse command line arguments */
     parse_args(&prog_args, argc, argv);
 
-    srsran_use_standard_symbol_size(prog_args.use_standard_lte_rate);
+    /* Start ASN decoder */
+    decoder = init_asn_decoder(prog_args.output, prog_args.rf_freq);
+
+    srsran_use_standard_symbol_size(false);
 
     for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
         data[i] = srsran_vec_u8_malloc(2000 * 8);
@@ -213,12 +194,6 @@ int main(int argc, char** argv)
             ERROR("Allocating data");
             go_exit = true;
         }
-    }
-
-    uint8_t mch_table[10];
-    bzero(&mch_table[0], sizeof(uint8_t) * 10);
-    if (prog_args.mbsfn_area_id > -1) {
-        generate_mcch_table(mch_table, prog_args.mbsfn_sf_mask);
     }
 
     /* Pin current thread to list of cpus */
@@ -389,9 +364,6 @@ int main(int argc, char** argv)
 
     printf("Entering main loop...\n");
 
-    // Variables for measurements
-    bool decode_pdsch = false;
-
     /* Main loop */
     uint64_t sf_cnt          = 0;
     uint32_t sfn             = 0;
@@ -404,16 +376,12 @@ int main(int argc, char** argv)
             buffers[p] = sf_buffer[p];
         }
         ret = srsran_ue_sync_zerocopy(&ue_sync, buffers, max_num_samples);
+
         if (ret < 0) {
             ERROR("Error calling srsran_ue_sync_work()");
         }
-
-        /* srsran_ue_sync_zerocopy returns 1 if successfully read 1 aligned subframe */
-        if (ret == 0) {
-            printf("Finding PSS... Peak: %8.1f, FrameCnt: %d, State: %d\r",
-                srsran_sync_get_peak_value(&ue_sync.sfind),
-                ue_sync.frame_total_cnt,
-                ue_sync.state);
+        else if (ret == 0) { /* srsran_ue_sync_zerocopy returns 1 if successfully read 1 aligned subframe */
+            printf("Finding PSS... Peak: %8.1f, FrameCnt: %d, State: %d\n", srsran_sync_get_peak_value(&ue_sync.sfind), ue_sync.frame_total_cnt, ue_sync.state);
         }
         else if (ret == 1) {
             bool acks[SRSRAN_MAX_CODEWORDS] = {false};
@@ -432,73 +400,45 @@ int main(int argc, char** argv)
                     exit(-1);
                 } else if (n == SRSRAN_UE_MIB_FOUND) {
                     srsran_pbch_mib_unpack(bch_payload, &cell, &sfn);
-                    srsran_cell_fprint(stdout, &cell, sfn);
-                    printf("Decoded MIB. SFN: %d, offset: %d\n", sfn, sfn_offset);
                     sfn   = (sfn + sfn_offset) % 1024;
-                    state = DECODE_PDSCH;
-                }
-            }
-
-
-            /* DECODE PDSCH (SIBS) */
-            if (prog_args.rnti != SRSRAN_SIRNTI) {
-                decode_pdsch = true;
-                if (srsran_sfidx_tdd_type(dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) {
-                    decode_pdsch = false;
-                }
-            } else {
-                /* We are looking for SIB1 Blocks, search only in appropiate places */
-                if ((sf_idx == 5 && (sfn % 2) == 0) || mch_table[sf_idx] == 1) {
-                    decode_pdsch = true;
-                } else {
-                    decode_pdsch = false;
+                    if(push_asn_payload(decoder, bch_payload, SRSRAN_BCH_PAYLOAD_LEN, MIB_4G, sfn * 10 + sf_idx)) {
+                        printf("Error pushing SIB payload\n");
+                    }
                 }
             }
 
             uint32_t tti = sfn * 10 + sf_idx;
 
-            if (decode_pdsch) {
-                srsran_sf_t sf_type;
-                /* Check if this is a MBSFN subframe (Multicast Broadcase Single Frequency Network) */
-                if (mch_table[sf_idx] == 0 || prog_args.mbsfn_area_id < 0) { // Not an MBSFN subframe
-                    sf_type = SRSRAN_SF_NORM;
-                    // Set PDSCH channel estimation
-                    ue_dl_cfg.chest_cfg = chest_pdsch_cfg;
-                } else {
-                    sf_type = SRSRAN_SF_MBSFN;
-                    // Set MBSFN channel estimation
-                    ue_dl_cfg.chest_cfg = chest_mbsfn_cfg;
-                }
 
-                n = 0;
-                for (uint32_t tm = 0; tm < 4 && !n; tm++) {
-                    dl_sf.tti                             = tti;
-                    dl_sf.sf_type                         = sf_type;
-                    ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm; /* Transmission mode */
-                    ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = false; /*enable_256qam*/
-
-                    if ((ue_dl_cfg.cfg.tm == SRSRAN_TM1 && cell.nof_ports == 1) ||
-                        (ue_dl_cfg.cfg.tm > SRSRAN_TM1 && cell.nof_ports > 1)) {
-                        n = srsran_ue_dl_find_and_decode(&ue_dl, &dl_sf, &ue_dl_cfg, &pdsch_cfg, data, acks);
-                        if (n > 0) {
-                            for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
-                                if (pdsch_cfg.grant.tb[tb].enabled) {
-                                    if (acks[tb]) { 
-                                        int len = pdsch_cfg.grant.tb[tb].tbs;
-                                        uint8_t* payload 	= data[tb];
-#ifdef ENABLE_ASN4G
-                                        sib_decode_4g(stdout, payload, len);
-#endif
+            /* Decode PDSHC */
+            n = 0;
+            for (uint32_t tm = 0; tm < 4 && !n; tm++) {
+                dl_sf.tti                             = tti;
+                dl_sf.sf_type                         = SRSRAN_SF_NORM;
+                ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm; /* Transmission mode */
+                ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = false; /*enable_256qam*/
+                ue_dl_cfg.chest_cfg = chest_pdsch_cfg; /* Set PDSCH channel estimation */
+                if ((ue_dl_cfg.cfg.tm == SRSRAN_TM1 && cell.nof_ports == 1) ||
+                    (ue_dl_cfg.cfg.tm > SRSRAN_TM1 && cell.nof_ports > 1)) {
+                    n = srsran_ue_dl_find_and_decode(&ue_dl, &dl_sf, &ue_dl_cfg, &pdsch_cfg, data, acks);
+                    if (n > 0) {
+                        for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
+                            if (pdsch_cfg.grant.tb[tb].enabled) {
+                                if (acks[tb]) { 
+                                    int len = pdsch_cfg.grant.tb[tb].tbs;
+                                    uint8_t* payload 	= data[tb];
+                                    if(push_asn_payload(decoder, payload, len, SIB_4G, tti)) {
+                                        printf("Error pushing SIB payload\n");
                                     }
                                 }
                             }
                         }
                     }
                 }
-                // Feed-back ue_sync with chest_dl CFO estimation
-                if (sf_idx == 5 && false) {
-                    srsran_ue_sync_set_cfo_ref(&ue_sync, ue_dl.chest_res.cfo);
-                }
+            }
+            // Feed-back ue_sync with chest_dl CFO estimation
+            if (sf_idx == 5 && false) {
+                srsran_ue_sync_set_cfo_ref(&ue_sync, ue_dl.chest_res.cfo);
             }
 
 
@@ -514,8 +454,10 @@ int main(int argc, char** argv)
         sf_cnt++;
     } // Main loop
 
+    terminate_asn_decoder(decoder);
     srsran_ue_dl_free(&ue_dl);
     srsran_ue_sync_free(&ue_sync);
+
     for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
       if (data[i]) {
         free(data[i]);
@@ -526,10 +468,10 @@ int main(int argc, char** argv)
         free(sf_buffer[i]);
       }
     }
-    if (!prog_args.input_file_name) {
-      srsran_ue_mib_free(&ue_mib);
-      srsran_rf_close(&rf);
-    }
+    
+    srsran_ue_mib_free(&ue_mib);
+    
+    srsran_rf_close(&rf);
 
     printf("\nBye\n");
     exit(0);
