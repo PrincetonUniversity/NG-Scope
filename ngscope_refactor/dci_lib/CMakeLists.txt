@@ -18,6 +18,24 @@
 # and at http://www.gnu.org/licenses/.
 #
 
-add_subdirectory(src)
+#add_subdirectory(src)
 
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+#file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
+add_library(NGScopeDCI STATIC ${SOURCES})
+target_include_directories(NGScopeDCI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/hdr/)
+
+target_link_libraries(NGScopeDCI config)
+
+if (LIBASN4G)
+  target_link_libraries(NGScopeDCI ${LIBASN4G_LIBRARY})
+endif(LIBASN4G)
+
+if (LIBASN5G)
+  target_link_libraries(NGScopeDCI ${LIBASN5G_LIBRARY})
+endif(LIBASN5G)
+
+if(ENABLE_GUI AND SRSGUI_FOUND)
+  target_link_libraries(NGScopeDCI ${SRSGUI_LIBRARIES})
+endif()
