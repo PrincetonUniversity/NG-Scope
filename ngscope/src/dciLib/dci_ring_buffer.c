@@ -174,7 +174,8 @@ int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int re
   for (int i = 0; i < nof_ul_msg; i++) {
     if (q->ul_msg[i].rnti == targetRNTI) {
       ngscope_dci_msg_t dci_msg = q->ul_msg[i];
-      ue_dci.ul_tbs             = dci_msg.tb[0].tbs + dci_msg.tb[1].tbs;
+      printf("ul tbs: %d", dci_msg.tb[0].tbs);
+      ue_dci.ul_tbs = dci_msg.tb[0].tbs + dci_msg.tb[1].tbs;
       if (dci_msg.tb[0].rv > 0 || dci_msg.tb[1].rv > 0) {
         ue_dci.ul_reTx = 1;
       } else {
