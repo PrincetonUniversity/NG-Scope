@@ -148,7 +148,6 @@ int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int re
     return -1;
   }
   ue_dci_t ue_dci;
-  BZERO(ue_dci);
   ue_dci.cell_idx   = cell_idx;
   ue_dci.time_stamp = q->timestamp_us;
   ue_dci.tti        = q->tti;
