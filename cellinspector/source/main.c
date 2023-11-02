@@ -30,6 +30,7 @@
 #include <strings.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <libconfig.h>
 
 /* Local libs */
 #include "cellinspector/headers/cpu.h"
@@ -73,6 +74,7 @@ typedef struct {
   char *   rf_freq;
   char *   output;
   char *   input;
+  char *   cell;
 } prog_args_t;
 
 void args_default(prog_args_t* args)
@@ -81,6 +83,7 @@ void args_default(prog_args_t* args)
   args->rf_freq        = NULL;
   args->output         = ".";
   args->input          = NULL;
+  args->cell           = NULL;
 }
 
 void usage(prog_args_t* args, char* prog)
@@ -88,6 +91,7 @@ void usage(prog_args_t* args, char* prog)
   printf("Usage: %s [oiafn]\n", prog);
   printf("\t-o Output folder\n");
   printf("\t-i Input file (cannot use with -f)\n");
+  printf("\t-c Cell info file (use with -i)\n");
   printf("\t-a RF args [Default %s]\n", args->rf_args);
   printf("\t-f rx_frequency (in Hz)\n");
 }
@@ -97,7 +101,7 @@ void parse_args(prog_args_t* args, int argc, char** argv)
   int opt;
   args_default(args);
 
-  while ((opt = getopt(argc, argv, "afoi")) != -1) {
+  while ((opt = getopt(argc, argv, "hafoci")) != -1) {
     switch (opt) {
         case 'a':
             args->rf_args = argv[optind];
@@ -111,12 +115,20 @@ void parse_args(prog_args_t* args, int argc, char** argv)
         case 'i':
             args->input = argv[optind];
             break;
+        case 'c':
+            args->cell = argv[optind];
+            break;
+        case 'h':
+            usage(args, argv[0]);
+            exit(0);
         default:
             usage(args, argv[0]);
             exit(-1);
     }
   }
-  if ((args->rf_freq == NULL && args->input == NULL) || (args->rf_freq != NULL && args->input != NULL)) {
+  if ((args->rf_freq == NULL && args->input == NULL) ||
+        (args->rf_freq != NULL && args->input != NULL) ||
+        (args->input != NULL && args->cell == NULL)) {
     usage(args, argv[0]);
     exit(-1);
   }
@@ -164,7 +176,43 @@ srsran_dl_sf_cfg_t dl_sf;
 srsran_pdsch_cfg_t pdsch_cfg;
 srsran_ue_sync_t   ue_sync;
 prog_args_t        prog_args;
-/* Useful macros for printing lines which will disappear */
+
+
+int read_cell_from_file(char * file, srsran_cell_t * cell)
+{
+    config_t cfg;
+
+    config_init(&cfg);
+    /* Read the file. If there is an error, report it and exit. */
+    if(! config_read_file(&cfg, file))
+    {
+        fprintf(stdout, "%s:%d - %s\n", config_error_file(&cfg),
+                config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return 1;
+    }
+    /* Read cell values */
+    config_lookup_int(&cfg, "cell.id", (int *) &(cell->id));
+    config_lookup_int(&cfg, "cell.nof_prb", (int *) &(cell->nof_prb));
+    config_lookup_int(&cfg, "cell.nof_ports", (int *) &(cell->nof_ports));
+    config_lookup_int(&cfg, "cell.cp", (int *) &(cell->cp));
+    config_lookup_int(&cfg, "cell.phich_length", (int *) &(cell->phich_length));
+    config_lookup_int(&cfg, "cell.phich_resources", (int *) &(cell->phich_resources));
+    config_lookup_int(&cfg, "cell.frame_type", (int *) &(cell->frame_type));
+    /* Free config struct */
+    config_destroy(&cfg);
+
+    printf("CELL Struct: cell.id=%d, cell.nof_prb=%d, cell.nof_ports=%d, cell.cp=%d, cell.phich_length=%d, cell.phich_resources=%d, cell.frame_type=%d\n",
+                            cell->id,
+                            cell->nof_prb,
+                            cell->nof_ports,
+                            cell->cp,
+                            cell->phich_length,
+                            cell->phich_resources,
+                            cell->frame_type);
+    
+    return 0;
+}
 
 
 #define MAX_SCAN_CELLS 128
@@ -292,13 +340,17 @@ int main(int argc, char** argv)
     }
     else {
         /* preset cell configuration */
-        cell.id              = 67; /* Placeholder */
-        cell.nof_prb         = 100; /* Placeholder */
-        cell.nof_ports       = 2; /* Placeholder */
-        cell.cp              = SRSRAN_CP_NORM;
-        cell.phich_length    = SRSRAN_PHICH_NORM;
-        cell.phich_resources = SRSRAN_PHICH_R_1;
-        cell.frame_type      = SRSRAN_FDD;
+        //cell.id              = 67; /* Placeholder */
+        //cell.nof_prb         = 100; /* Placeholder */
+        //cell.nof_ports       = 2; /* Placeholder */
+        //cell.cp              = SRSRAN_CP_NORM;
+        //cell.phich_length    = SRSRAN_PHICH_NORM;
+        //cell.phich_resources = SRSRAN_PHICH_R_1;
+        //cell.frame_type      = SRSRAN_FDD;
+
+        if(read_cell_from_file(prog_args.cell, &cell)) {
+            exit(1);
+        }
 
         if (srsran_ue_sync_init_file_multi(&ue_sync,
                                         cell.nof_prb,

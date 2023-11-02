@@ -104,7 +104,6 @@ void parse_args(prog_args_t* args, int argc, char** argv)
         case 'h':
             usage(argv[0]);
             exit(0);
-            break;
       default:
         usage(argv[0]);
         exit(-1);
@@ -133,6 +132,46 @@ static SRSRAN_AGC_CALLBACK(srsran_rf_set_rx_gain_th_wrapper_)
 
 
 prog_args_t prog_args;
+
+void dump_cell(srsran_cell_t * cell, char * path)
+{
+  char output[1024];
+  FILE * out = NULL;
+
+  sprintf(output, "%s.cell", path);
+  printf("Writing cell information to %s\n", output);
+
+  if((out = fopen(output, "w")) == NULL ) {
+    printf("Error duimping cell information\n");
+    printf("CELL Struct: cell.id=%d, cell.nof_prb=%d, cell.nof_ports=%d, cell.cp=%d, cell.phich_length=%d, cell.phich_resources=%d, cell.frame_type=%d\n",
+                            cell->id,
+                            cell->nof_prb,
+                            cell->nof_ports,
+                            cell->cp,
+                            cell->phich_length,
+                            cell->phich_resources,
+                            cell->frame_type);
+    return;
+  }
+
+  /* Dump Cell info */
+  fprintf(out, "cell =\n");
+  fprintf(out, "{\n");
+  fprintf(out, "\tid = %d;\n", cell->id);
+  fprintf(out, "\tnof_prb = %d;\n", cell->nof_prb);
+  fprintf(out, "\tnof_ports = %d;\n", cell->nof_ports);
+  fprintf(out, "\tcp = %d;\n", cell->cp);
+  fprintf(out, "\tphich_length = %d;\n", cell->phich_length);
+  fprintf(out, "\tphich_resources = %d;\n", cell->phich_resources);
+  fprintf(out, "\tframe_type = %d;\n", cell->frame_type);
+  fprintf(out, "};\n");
+
+
+  /* Close cell */
+  fclose(out);
+
+  return;
+}
 
 
 int main(int argc, char** argv)
@@ -194,14 +233,9 @@ int main(int argc, char** argv)
   } while (ret == 0);
 
   srsran_cell_fprint(stdout, &cell, 0);
-  printf("CELL Struct: cell.id %d, cell.nof_prb %d, cell.nof_ports %d, cell.cp %d, cell.phich_length %d, cell.phich_resources %d, cell.frame_type %d\n",
-                            cell.id,
-                            cell.nof_prb,
-                            cell.nof_ports,
-                            cell.cp,
-                            cell.phich_length,
-                            cell.phich_resources,
-                            cell.frame_type);
+
+  /* Dump cell info */
+  dump_cell(&cell, prog_args.output);
   
 
   /* Set sampling rate base on the number of PRBs of the selected cell */

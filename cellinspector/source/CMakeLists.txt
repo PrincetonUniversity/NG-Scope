@@ -31,7 +31,8 @@ set(SRSRAN_SOURCES srsran_common srsran_mac srsran_phy srsran_radio srslog suppo
 target_link_libraries(cellinspector ${SRSRAN_SOURCES}
                               ${CMAKE_THREAD_LIBS_INIT}
                               ${LIBCONFIG_LIBRARY}
-                              ${ATOMIC_LIBS})
+                              ${ATOMIC_LIBS}
+                              config)
 
 if (LIBASN4G)
     target_link_libraries(cellinspector ${LIBASN4G_LIBRARY})
