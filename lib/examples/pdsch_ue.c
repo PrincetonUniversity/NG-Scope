@@ -752,6 +752,9 @@ int main(int argc, char** argv)
               sfn   = (sfn + sfn_offset) % 1024;
               state = DECODE_PDSCH;
             }
+            else {
+              printf("Error decoding the MIB\n");
+            }
           }
           break;
         case DECODE_PDSCH:

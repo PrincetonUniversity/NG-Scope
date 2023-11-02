@@ -1711,7 +1711,6 @@ int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
     // Convert DCI message to DL grant
     if (srsran_ue_dl_dci_to_pdsch_grant(q, sf, cfg, &dci_dl[0], &pdsch_cfg->grant)) {
       ERROR("Error unpacking DCI");
-      printf("Error unpacking DCI");
       return SRSRAN_ERROR;
     }
 

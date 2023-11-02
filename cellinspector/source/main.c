@@ -47,8 +47,9 @@
 #include <libasn4g.h>
 #endif
 
-#define ENABLE_AGC_DEFAULT
 
+#define DEFAULT_NOF_RX_ANTENNAS 1
+#define MIB_SEARCH_MAX_ATTEMPTS 15
 #define MAX_SRATE_DELTA 2 // allowable delta (in Hz) between requested and actual sample rate
 
 cell_search_cfg_t cell_detect_config = {.max_frames_pbch      = SRSRAN_DEFAULT_MAX_FRAMES_PBCH,
@@ -69,26 +70,26 @@ char* output_file_name;
  ***********************************************************************/
 typedef struct {
   char *   rf_args;
-  uint32_t rf_nof_rx_ant;
-  double   rf_freq;
+  char *   rf_freq;
   char *   output;
+  char *   input;
 } prog_args_t;
 
 void args_default(prog_args_t* args)
 {
   args->rf_args        = "";
-  args->rf_freq        = -1.0;
-  args->rf_nof_rx_ant  = 1;
+  args->rf_freq        = NULL;
   args->output         = ".";
+  args->input          = NULL;
 }
 
 void usage(prog_args_t* args, char* prog)
 {
-  printf("Usage: %s [afA]\n", prog);
+  printf("Usage: %s [oiafn]\n", prog);
   printf("\t-o Output folder\n");
+  printf("\t-i Input file (cannot use with -f)\n");
   printf("\t-a RF args [Default %s]\n", args->rf_args);
   printf("\t-f rx_frequency (in Hz)\n");
-  printf("\t-n Number of RX antennas [Default %d]\n", args->rf_nof_rx_ant);
 }
 
 void parse_args(prog_args_t* args, int argc, char** argv)
@@ -96,26 +97,26 @@ void parse_args(prog_args_t* args, int argc, char** argv)
   int opt;
   args_default(args);
 
-  while ((opt = getopt(argc, argv, "afon")) != -1) {
+  while ((opt = getopt(argc, argv, "afoi")) != -1) {
     switch (opt) {
         case 'a':
             args->rf_args = argv[optind];
             break;
         case 'f':
-            args->rf_freq = strtod(argv[optind], NULL);
+            args->rf_freq = argv[optind];
             break;
         case 'o':
             args->output = argv[optind];
             break;
-        case 'n':
-            args->rf_nof_rx_ant = atoi(argv[optind]);
+        case 'i':
+            args->input = argv[optind];
             break;
         default:
             usage(args, argv[0]);
             exit(-1);
     }
   }
-  if (args->rf_freq < 0) {
+  if ((args->rf_freq == NULL && args->input == NULL) || (args->rf_freq != NULL && args->input != NULL)) {
     usage(args, argv[0]);
     exit(-1);
   }
@@ -184,7 +185,12 @@ int main(int argc, char** argv)
     parse_args(&prog_args, argc, argv);
 
     /* Start ASN decoder */
-    decoder = init_asn_decoder(prog_args.output, prog_args.rf_freq);
+    if(prog_args.rf_freq) {
+        decoder = init_asn_decoder(prog_args.output, basename(prog_args.rf_freq));
+    }
+    else {
+        decoder = init_asn_decoder(prog_args.output, basename(prog_args.input));
+    }
 
     srsran_use_standard_symbol_size(false);
 
@@ -201,81 +207,113 @@ int main(int argc, char** argv)
     //    printf("Error pinning to CPU\n");
 
 
-    /* Initialize radio */
-    printf("Opening RF device with %d RX antennas...\n", prog_args.rf_nof_rx_ant);
-    if (srsran_rf_open_devname(&rf, "", prog_args.rf_args, prog_args.rf_nof_rx_ant)) {
-        fprintf(stderr, "Error opening rf\n");
-        exit(-1);
-    }
-    /* Start Automatic Gain Control thread */
-    printf("Starting AGC thread...\n");
-    if (srsran_rf_start_gain_thread(&rf, false)) {
-        ERROR("Error opening rf");
-        exit(-1);
-    }
-    srsran_rf_set_rx_gain(&rf, srsran_rf_get_rx_gain(&rf));
-    cell_detect_config.init_agc = srsran_rf_get_rx_gain(&rf);
-
-
-    /* Set signal handler */
-    sigset_t sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGINT);
-    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-    signal(SIGINT, sig_int_handler);
-
-    /* set receiver frequency */
-    printf("Tuning receiver to %.3f MHz\n", (prog_args.rf_freq) / 1000000);
-    srsran_rf_set_rx_freq(&rf, prog_args.rf_nof_rx_ant, prog_args.rf_freq);
-    
-
-    uint32_t ntrial = 0;
-    do {
-      ret = rf_search_and_decode_mib(
-          &rf, prog_args.rf_nof_rx_ant, &cell_detect_config, -1, &cell, &search_cell_cfo);
-      if (ret < 0) {
-        ERROR("Error searching for cell");
-        exit(-1);
-      } else if (ret == 0 && !go_exit) {
-        printf("Cell not found after [%4d] attempts. Trying again... (Ctrl+C to exit)\n", ntrial++);
-      }
-    } while (ret == 0 && !go_exit);
-
-    srsran_cell_fprint(stdout, &cell, 0);
-
-    /* Set sampling rate base on the number of PRBs of the selected cell */
-    int srate = srsran_sampling_freq_hz(cell.nof_prb);
-    if (srate != -1) {
-        printf("Setting rx sampling rate %.2f MHz\n", (float)srate / 1000000);
-        float srate_rf = srsran_rf_set_rx_srate(&rf, (double)srate);
-        if (abs(srate - (int)srate_rf) > MAX_SRATE_DELTA) {
-            ERROR("Could not set rx sampling rate : wanted %d got %f", srate, srate_rf);
+    /* Using RF */
+    if(!prog_args.input) {
+        /* Initialize radio */
+        printf("Opening RF device with %d RX antennas...\n", DEFAULT_NOF_RX_ANTENNAS);
+        if (srsran_rf_open_devname(&rf, "", prog_args.rf_args, DEFAULT_NOF_RX_ANTENNAS)) {
+            fprintf(stderr, "Error opening rf\n");
             exit(-1);
         }
-    } else {
-        ERROR("Invalid number of PRB %d", cell.nof_prb);
-        exit(-1);
+        /* Start Automatic Gain Control thread */
+        printf("Starting AGC thread...\n");
+        if (srsran_rf_start_gain_thread(&rf, false)) {
+            ERROR("Error opening rf");
+            exit(-1);
+        }
+        srsran_rf_set_rx_gain(&rf, srsran_rf_get_rx_gain(&rf));
+        cell_detect_config.init_agc = srsran_rf_get_rx_gain(&rf);
+
+
+        /* Set signal handler */
+        sigset_t sigset;
+        sigemptyset(&sigset);
+        sigaddset(&sigset, SIGINT);
+        sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+        signal(SIGINT, sig_int_handler);
+
+        /* set receiver frequency */
+        printf("Tuning receiver to %.3f MHz\n", (strtod(prog_args.rf_freq, NULL)) / 1000000);
+        srsran_rf_set_rx_freq(&rf, DEFAULT_NOF_RX_ANTENNAS, strtod(prog_args.rf_freq, NULL));
+        
+
+        uint32_t ntrial = 0;
+        do {
+        ret = rf_search_and_decode_mib(
+            &rf, DEFAULT_NOF_RX_ANTENNAS, &cell_detect_config, -1, &cell, &search_cell_cfo);
+        if (ret < 0) {
+            ERROR("Error searching for cell");
+            exit(-1);
+        } else if (ret == 0 && !go_exit) {
+            printf("Cell not found after [%4d] attempts. Trying again... (Ctrl+C to exit)\n", ntrial++);
+        }
+        } while (ret == 0 && !go_exit);
+
+        srsran_cell_fprint(stdout, &cell, 0);
+
+        printf("cell.id %d, cell.nof_prb %d, cell.nof_ports %d, cell.cp %d, cell.phich_length %d, cell.phich_resources %d, cell.frame_type %d\n",
+                            cell.id,
+                            cell.nof_prb,
+                            cell.nof_ports,
+                            cell.cp,
+                            cell.phich_length,
+                            cell.phich_resources,
+                            cell.frame_type);
+
+        /* Set sampling rate base on the number of PRBs of the selected cell */
+        int srate = srsran_sampling_freq_hz(cell.nof_prb);
+        if (srate != -1) {
+            printf("Setting rx sampling rate %.2f MHz\n", (float)srate / 1000000);
+            float srate_rf = srsran_rf_set_rx_srate(&rf, (double)srate);
+            if (abs(srate - (int)srate_rf) > MAX_SRATE_DELTA) {
+                ERROR("Could not set rx sampling rate : wanted %d got %f", srate, srate_rf);
+                exit(-1);
+            }
+        } else {
+            ERROR("Invalid number of PRB %d", cell.nof_prb);
+            exit(-1);
+        }
+
+        /* Initialize sync struct for syncing with the cell */
+        if (srsran_ue_sync_init_multi_decim(&ue_sync,
+                                            cell.nof_prb,
+                                            false,
+                                            srsran_rf_recv_wrapper,
+                                            DEFAULT_NOF_RX_ANTENNAS,
+                                            (void*)&rf,
+                                            0)) {
+            ERROR("Error initiating ue_sync");
+            exit(-1);
+        }
+        if (srsran_ue_sync_set_cell(&ue_sync, cell)) {
+            ERROR("Error initiating ue_sync");
+            exit(-1);
+        }
     }
+    else {
+        /* preset cell configuration */
+        cell.id              = 67; /* Placeholder */
+        cell.nof_prb         = 100; /* Placeholder */
+        cell.nof_ports       = 2; /* Placeholder */
+        cell.cp              = SRSRAN_CP_NORM;
+        cell.phich_length    = SRSRAN_PHICH_NORM;
+        cell.phich_resources = SRSRAN_PHICH_R_1;
+        cell.frame_type      = SRSRAN_FDD;
 
-
-    /* Initialize sync struct for syncing with the cell */
-    if (srsran_ue_sync_init_multi_decim(&ue_sync,
+        if (srsran_ue_sync_init_file_multi(&ue_sync,
                                         cell.nof_prb,
-                                        false,
-                                        srsran_rf_recv_wrapper,
-                                        prog_args.rf_nof_rx_ant,
-                                        (void*)&rf,
-                                        0)) {
-        ERROR("Error initiating ue_sync");
-        exit(-1);
-    }
-    if (srsran_ue_sync_set_cell(&ue_sync, cell)) {
-        ERROR("Error initiating ue_sync");
-        exit(-1);
+                                        prog_args.input,
+                                        0, /* Default value */
+                                        0, /* Default value */
+                                        1)) { /* Default value */
+            ERROR("Error initiating ue_sync");
+            exit(-1);
+        }
+        srsran_ue_sync_file_wrap(&ue_sync, false); /* Disable file wrapping */
     }
 
     uint32_t max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell.nof_prb); /// Length in complex samples
-    for (int i = 0; i < prog_args.rf_nof_rx_ant; i++) {
+    for (int i = 0; i < DEFAULT_NOF_RX_ANTENNAS; i++) {
         sf_buffer[i] = srsran_vec_cf_malloc(max_num_samples);
     }
 
@@ -292,7 +330,7 @@ int main(int argc, char** argv)
 
 
     /* Initialize UE downlink processing module */
-    if (srsran_ue_dl_init(&ue_dl, sf_buffer, cell.nof_prb, prog_args.rf_nof_rx_ant)) {
+    if (srsran_ue_dl_init(&ue_dl, sf_buffer, cell.nof_prb, DEFAULT_NOF_RX_ANTENNAS)) {
         ERROR("Error initiating UE downlink processing module");
         exit(-1);
     }
@@ -336,27 +374,18 @@ int main(int argc, char** argv)
     pdsch_cfg.rnti = SRSRAN_SIRNTI;
 
 
+    if(!prog_args.input) {
+        /* Start RX streaming */
+        srsran_rf_start_rx_stream(&rf, false);
 
-
-
-
-    /**********************/
-    /* Start RX streaming */
-    /**********************/
-    srsran_rf_start_rx_stream(&rf, false);
-
-    /* Sync with AGC */
-    srsran_rf_info_t* rf_info = srsran_rf_get_info(&rf);
-    srsran_ue_sync_start_agc(&ue_sync,
-                            srsran_rf_set_rx_gain_th_wrapper_,
-                            rf_info->min_rx_gain,
-                            rf_info->max_rx_gain,
-                            cell_detect_config.init_agc);
-
-  #ifdef PRINT_CHANGE_SCHEDULING
-    srsran_ra_dl_grant_t old_dl_dci;
-    bzero(&old_dl_dci, sizeof(srsran_ra_dl_grant_t));
-  #endif
+        /* Sync with AGC */
+        srsran_rf_info_t* rf_info = srsran_rf_get_info(&rf);
+        srsran_ue_sync_start_agc(&ue_sync,
+                                srsran_rf_set_rx_gain_th_wrapper_,
+                                rf_info->min_rx_gain,
+                                rf_info->max_rx_gain,
+                                cell_detect_config.init_agc);
+    }
 
     ue_sync.cfo_correct_enable_track = true;
 
@@ -378,6 +407,11 @@ int main(int argc, char** argv)
         ret = srsran_ue_sync_zerocopy(&ue_sync, buffers, max_num_samples);
 
         if (ret < 0) {
+            if(prog_args.input) {
+                printf("End of the trace!\n");
+                go_exit = true;
+                continue;
+            }
             ERROR("Error calling srsran_ue_sync_work()");
         }
         else if (ret == 0) { /* srsran_ue_sync_zerocopy returns 1 if successfully read 1 aligned subframe */
@@ -394,12 +428,14 @@ int main(int argc, char** argv)
             if (sf_idx == 0) {
                 uint8_t bch_payload[SRSRAN_BCH_PAYLOAD_LEN];
                 int     sfn_offset;
+                bzero(bch_payload, SRSRAN_BCH_PAYLOAD_LEN);
                 n = srsran_ue_mib_decode(&ue_mib, bch_payload, NULL, &sfn_offset);
                 if (n < 0) {
                     ERROR("Error decoding UE MIB");
                     exit(-1);
                 } else if (n == SRSRAN_UE_MIB_FOUND) {
                     srsran_pbch_mib_unpack(bch_payload, &cell, &sfn);
+                    cell.phich_resources = SRSRAN_PHICH_R_1;
                     sfn   = (sfn + sfn_offset) % 1024;
                     if(push_asn_payload(decoder, bch_payload, SRSRAN_BCH_PAYLOAD_LEN, MIB_4G, sfn * 10 + sf_idx)) {
                         printf("Error pushing SIB payload\n");
@@ -410,7 +446,7 @@ int main(int argc, char** argv)
             uint32_t tti = sfn * 10 + sf_idx;
 
 
-            /* Decode PDSHC */
+            /* Decode PDSCH */
             n = 0;
             for (uint32_t tm = 0; tm < 4 && !n; tm++) {
                 dl_sf.tti                             = tti;
@@ -418,6 +454,28 @@ int main(int argc, char** argv)
                 ue_dl_cfg.cfg.tm                      = (srsran_tm_t)tm; /* Transmission mode */
                 ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = false; /*enable_256qam*/
                 ue_dl_cfg.chest_cfg = chest_pdsch_cfg; /* Set PDSCH channel estimation */
+
+
+                /* DCIs */
+                /*
+                ngscope_tree_t tree;
+                ngscope_dci_per_sub_t   dci_per_sub;
+                empty_dci_persub(&dci_per_sub);
+                n = srsran_ngscope_search_all_space_array_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+                    &dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, dci_per_sub, &tree, targetRNTI);
+                // filter the dci 
+                filter_dci_from_tree(&tree, &ue_tracker[rf_idx], dci_per_sub);
+
+                // update the dci per subframe--> mainly decrease the tti
+                update_ue_dci_per_tti(&tree, &ue_tracker[rf_idx], dci_per_sub, tti);
+
+                // update the ue_tracker at subframe level, mainly remove those inactive UE
+                ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
+
+                */
+
+
+                /* SIBs */
                 if ((ue_dl_cfg.cfg.tm == SRSRAN_TM1 && cell.nof_ports == 1) ||
                     (ue_dl_cfg.cfg.tm > SRSRAN_TM1 && cell.nof_ports > 1)) {
                     n = srsran_ue_dl_find_and_decode(&ue_dl, &dl_sf, &ue_dl_cfg, &pdsch_cfg, data, acks);
@@ -440,9 +498,6 @@ int main(int argc, char** argv)
             if (sf_idx == 5 && false) {
                 srsran_ue_sync_set_cfo_ref(&ue_sync, ue_dl.chest_res.cfo);
             }
-
-
-
             if (sf_idx == 9) {
                 sfn++;
                 if (sfn == 1024) {
@@ -450,7 +505,6 @@ int main(int argc, char** argv)
                 }
             }
         }
-
         sf_cnt++;
     } // Main loop
 
@@ -463,7 +517,7 @@ int main(int argc, char** argv)
         free(data[i]);
       }
     }
-    for (int i = 0; i < prog_args.rf_nof_rx_ant; i++) {
+    for (int i = 0; i < DEFAULT_NOF_RX_ANTENNAS; i++) {
       if (sf_buffer[i]) {
         free(sf_buffer[i]);
       }
@@ -471,7 +525,9 @@ int main(int argc, char** argv)
     
     srsran_ue_mib_free(&ue_mib);
     
-    srsran_rf_close(&rf);
+    if(prog_args.rf_freq) {
+        srsran_rf_close(&rf);
+    }
 
     printf("\nBye\n");
     exit(0);

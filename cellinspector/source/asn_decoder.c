@@ -27,7 +27,7 @@ struct _Node
 struct _ASNDecoder
 {
     char * log_path;
-    double freq;
+    char * name;
     FILE * file;
     Node * first;
     Node * last;
@@ -83,7 +83,7 @@ int open_sib_log(ASNDecoder * decoder)
 
     /* Assemble new path */
     bzero(path, 1024);
-    sprintf(path, "%s/%lf_sibs.dump", decoder->log_path, decoder->freq);
+    sprintf(path, "%s/%s_sibs.dump", decoder->log_path, decoder->name);
 
     printf("Openning %s...\n", path);
 
@@ -162,7 +162,7 @@ void * asn_processor(void * args)
 /* Public functions */
 /********************/
 
-ASNDecoder * init_asn_decoder(char * path, double freq)
+ASNDecoder * init_asn_decoder(char * path, char * name)
 {
     pthread_t processor;
     ASNDecoder * decoder;
@@ -175,7 +175,7 @@ ASNDecoder * init_asn_decoder(char * path, double freq)
     decoder->file = NULL;
     decoder->first = NULL;
     decoder->last = NULL;
-    decoder->freq = freq;
+    decoder->name = name;
     decoder->log_path = path;
     pthread_mutex_init(&(decoder->queue_mux), NULL);
     pthread_mutex_init(&(decoder->file_mux), NULL);
