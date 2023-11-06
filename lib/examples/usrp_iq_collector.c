@@ -70,14 +70,16 @@ typedef struct {
   char *   rf_args;
   double   rf_freq;
   char *   output;
+  char *   cell_metadata;
 } prog_args_t;
 
 void usage(char* prog)
 {
-  printf("Usage: %s <afo>\n", prog);
+  printf("Usage: %s <afoc>\n", prog);
   printf("\t-a RF args [Default ""]\n");
-  printf("\t-f rx_frequency (in Hz)\n");
+  printf("\t-f RX frequency (in Hz)\n");
   printf("\t-o Output file\n");
+  printf("\t-c Cell metadata output file\n");
 }
 
 void args_default(prog_args_t* args)
@@ -85,12 +87,16 @@ void args_default(prog_args_t* args)
   args->rf_args        = "";
   args->rf_freq        = -1.0;
   args->output         = NULL;
+  args->cell_metadata  = NULL;
 }
 
 void parse_args(prog_args_t* args, int argc, char** argv)
 {
   int opt;
-  while ((opt = getopt(argc, argv, "afoh")) != -1) {
+  /* Default args */
+  args_default(args);
+
+  while ((opt = getopt(argc, argv, "afohc")) != -1) {
     switch (opt) {
       case 'a':
             args->rf_args = argv[optind];
@@ -101,6 +107,9 @@ void parse_args(prog_args_t* args, int argc, char** argv)
         case 'o':
             args->output = argv[optind];
             break;
+        case 'c':
+            args->cell_metadata = argv[optind];
+            break;
         case 'h':
             usage(argv[0]);
             exit(0);
@@ -109,7 +118,7 @@ void parse_args(prog_args_t* args, int argc, char** argv)
         exit(-1);
     }
   }
-  if (args->rf_freq < 0 && args->output == NULL ) {
+  if (args->rf_freq < 0 || args->output == NULL ) {
     usage(argv[0]);
     exit(-1);
   }
@@ -135,13 +144,10 @@ prog_args_t prog_args;
 
 void dump_cell(srsran_cell_t * cell, char * path)
 {
-  char output[1024];
   FILE * out = NULL;
 
-  sprintf(output, "%s.cell", path);
-  printf("Writing cell information to %s\n", output);
-
-  if((out = fopen(output, "w")) == NULL ) {
+  printf("Writing cell information to %s\n", path);
+  if((out = fopen(path, "w")) == NULL ) {
     printf("Error duimping cell information\n");
     printf("CELL Struct: cell.id=%d, cell.nof_prb=%d, cell.nof_ports=%d, cell.cp=%d, cell.phich_length=%d, cell.phich_resources=%d, cell.frame_type=%d\n",
                             cell->id,
@@ -187,36 +193,42 @@ int main(int argc, char** argv)
   srsran_cell_t cell;
   srsran_filesink_t sink;
 
+
+  /* Configure the Ctrl+C signal handler */
   signal(SIGINT, int_handler);
 
+  /* Parse command line arguments */
   parse_args(&prog_args, argc, argv);
 
+  /* This affect how the simbol size is calculated form the number of PRBs */
   srsran_use_standard_symbol_size(false);
 
+  /* Initialize filesink structure. This is use to write to disk the IQ samples */
   srsran_filesink_init(&sink, prog_args.output, SRSRAN_COMPLEX_FLOAT_BIN);
 
+  /* Open the radio device */
   printf("Opening RF device...\n");
   if (srsran_rf_open_multi(&rf, prog_args.rf_args, DEFAULT_NOF_RX_ANTENNAS)) {
     ERROR("Error opening rf");
     exit(-1);
   }
 
-
-  /* Start Automatic Gain Control thread */
+  /* Initialize Automatic Gain Control thread. This thread will set the gain based on what the AGC determines */
   printf("Starting AGC thread...\n");
   if (srsran_rf_start_gain_thread(&rf, false)) {
     ERROR("Error opening rf");
     exit(-1);
   }
-  srsran_rf_set_rx_gain(&rf, srsran_rf_get_rx_gain(&rf));
+  srsran_rf_set_rx_gain(&rf, srsran_rf_get_rx_gain(&rf)); /* Initialize gain. AGC will adjust it automatically once started  */
   cell_detect_config.init_agc = srsran_rf_get_rx_gain(&rf);
 
+  /* Configure signal other signal handlers. This will show a stack dump is something crashes */
   sigset_t sigset;
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGINT);
   sigprocmask(SIG_UNBLOCK, &sigset, NULL);
 
-  /* set receiver frequency */
+  /* Set receiver frequency to the frequency specified through the command line */
   printf("Tuning receiver to %.3f MHz\n", (prog_args.rf_freq) / 1000000);
   srsran_rf_set_rx_freq(&rf, DEFAULT_NOF_RX_ANTENNAS, prog_args.rf_freq);
 
@@ -224,18 +236,25 @@ int main(int argc, char** argv)
   do {
     ret = rf_search_and_decode_mib(
         &rf, DEFAULT_NOF_RX_ANTENNAS, &cell_detect_config, -1, &cell, &search_cell_cfo);
-    if (ret < 0 || ntrial == MIB_SEARCH_MAX_ATTEMPTS) {
+    if (ret < 0 || ntrial == MIB_SEARCH_MAX_ATTEMPTS) { /* If the decoding process fails or the max number of attempts is reached */
         ERROR("Error searching for cell");
         exit(-1);
     } else if (ret == 0) {
         printf("Cell not found after [%d/%d] attempts. Trying again... (Ctrl+C to exit)\n", ntrial++, MIB_SEARCH_MAX_ATTEMPTS);
     }
   } while (ret == 0);
-
+  /* print information of the detected cell */
   srsran_cell_fprint(stdout, &cell, 0);
 
-  /* Dump cell info */
-  dump_cell(&cell, prog_args.output);
+  /* Dump cell info to a file */
+  if(prog_args.cell_metadata == NULL) {
+    char output[1024];
+    sprintf(output, "%s.cell", prog_args.output);
+    dump_cell(&cell, output);
+  }
+  else {
+    dump_cell(&cell, prog_args.cell_metadata);
+  }
   
 
   /* Set sampling rate base on the number of PRBs of the selected cell */
@@ -252,6 +271,7 @@ int main(int argc, char** argv)
       exit(-1);
   }
 
+  /* Initialize the structure required to get IQs from the cell */
   if (srsran_ue_sync_init_multi_decim(&ue_sync,
                                       cell.nof_prb,
                                       false,
@@ -262,12 +282,13 @@ int main(int argc, char** argv)
       ERROR("Error initiating ue_sync");
       exit(-1);
   }
+  /* Enable cell sync */
   if (srsran_ue_sync_set_cell(&ue_sync, cell)) {
       ERROR("Error initiating ue_sync");
       exit(-1);
   }
 
-  /* Allocate memory for the buffers */
+  /* Allocate memory for the buffers based on the cell bandwdith */
   uint32_t max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell.nof_prb); /// Length in complex samples
   for (int i = 0; i < DEFAULT_NOF_RX_ANTENNAS; i++) {
       buffer[i] = srsran_vec_cf_malloc(max_num_samples);
@@ -276,7 +297,7 @@ int main(int argc, char** argv)
   /* Start RX streaming */
   srsran_rf_start_rx_stream(&rf, false);
 
-  /* Sync with AGC */
+  /* Initialize AGC thread. This will communicate the gain to be set to the previously created thread */
   srsran_rf_info_t* rf_info = srsran_rf_get_info(&rf);
   srsran_ue_sync_start_agc(&ue_sync,
     srsran_rf_set_rx_gain_th_wrapper_,
@@ -285,18 +306,15 @@ int main(int argc, char** argv)
     cell_detect_config.init_agc);
 
 
-
-
-
   uint32_t           subframe_count = 0;
   bool               start_capture  = false;
   bool               stop_capture   = false;
   srsran_timestamp_t ts_rx_start    = {};
 
 
-
-
+  /* Main loop */
   while (!stop_capture) {
+    /* Get IQs and copy them to the buffer */
     n = srsran_ue_sync_zerocopy(&ue_sync, buffer, max_num_samples);
     if (n < 0) {
       ERROR("Error receiving samples");
@@ -308,6 +326,7 @@ int main(int argc, char** argv)
           start_capture = true;
         }
       } else {
+        /* Write IQs to filesink */
         printf("Writing to file %6d subframes...\r", subframe_count);
         srsran_filesink_write_multi(&sink, (void**)buffer, SRSRAN_SF_LEN_PRB(cell.nof_prb), DEFAULT_NOF_RX_ANTENNAS);
 
@@ -325,6 +344,7 @@ int main(int argc, char** argv)
     }
   }
 
+  /* Close and free structures */
   srsran_filesink_free(&sink);
   srsran_rf_close(&rf);
   srsran_ue_sync_free(&ue_sync);

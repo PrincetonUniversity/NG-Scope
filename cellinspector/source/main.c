@@ -59,9 +59,6 @@ cell_search_cfg_t cell_detect_config = {.max_frames_pbch      = SRSRAN_DEFAULT_M
                                         .init_agc             = 0,
                                         .force_tdd            = false};
 
-//#define STDOUT_COMPACT
-
-char* output_file_name;
 //#define PRINT_CHANGE_SCHEDULING
 
 //#define CORRECT_SAMPLE_OFFSET
@@ -178,6 +175,7 @@ srsran_ue_sync_t   ue_sync;
 prog_args_t        prog_args;
 
 
+/* This function will fill the cell structure with the data specified in the cell config file */
 int read_cell_from_file(char * file, srsran_cell_t * cell)
 {
     config_t cfg;
@@ -232,7 +230,7 @@ int main(int argc, char** argv)
     /* Parse command line arguments */
     parse_args(&prog_args, argc, argv);
 
-    /* Start ASN decoder */
+    /* Start ASN decoder thread */
     if(prog_args.rf_freq) {
         decoder = init_asn_decoder(prog_args.output, basename(prog_args.rf_freq));
     }
@@ -272,8 +270,7 @@ int main(int argc, char** argv)
         srsran_rf_set_rx_gain(&rf, srsran_rf_get_rx_gain(&rf));
         cell_detect_config.init_agc = srsran_rf_get_rx_gain(&rf);
 
-
-        /* Set signal handler */
+        /* Configure signal other signal handlers. This will show a stack dump is something crashes */
         sigset_t sigset;
         sigemptyset(&sigset);
         sigaddset(&sigset, SIGINT);
@@ -284,7 +281,7 @@ int main(int argc, char** argv)
         printf("Tuning receiver to %.3f MHz\n", (strtod(prog_args.rf_freq, NULL)) / 1000000);
         srsran_rf_set_rx_freq(&rf, DEFAULT_NOF_RX_ANTENNAS, strtod(prog_args.rf_freq, NULL));
         
-
+        /* Search for cell (decode the MIB and fill the cell structure) */
         uint32_t ntrial = 0;
         do {
         ret = rf_search_and_decode_mib(
@@ -296,9 +293,8 @@ int main(int argc, char** argv)
             printf("Cell not found after [%4d] attempts. Trying again... (Ctrl+C to exit)\n", ntrial++);
         }
         } while (ret == 0 && !go_exit);
-
+        /* Print cell info */
         srsran_cell_fprint(stdout, &cell, 0);
-
         printf("cell.id %d, cell.nof_prb %d, cell.nof_ports %d, cell.cp %d, cell.phich_length %d, cell.phich_resources %d, cell.frame_type %d\n",
                             cell.id,
                             cell.nof_prb,
@@ -338,20 +334,13 @@ int main(int argc, char** argv)
             exit(-1);
         }
     }
-    else {
-        /* preset cell configuration */
-        //cell.id              = 67; /* Placeholder */
-        //cell.nof_prb         = 100; /* Placeholder */
-        //cell.nof_ports       = 2; /* Placeholder */
-        //cell.cp              = SRSRAN_CP_NORM;
-        //cell.phich_length    = SRSRAN_PHICH_NORM;
-        //cell.phich_resources = SRSRAN_PHICH_R_1;
-        //cell.frame_type      = SRSRAN_FDD;
+    else { /* File based decoding */
 
+        /* Read cell structure */
         if(read_cell_from_file(prog_args.cell, &cell)) {
             exit(1);
         }
-
+        /* Initialize structures to get IQs from file */
         if (srsran_ue_sync_init_file_multi(&ue_sync,
                                         cell.nof_prb,
                                         prog_args.input,
@@ -361,7 +350,8 @@ int main(int argc, char** argv)
             ERROR("Error initiating ue_sync");
             exit(-1);
         }
-        srsran_ue_sync_file_wrap(&ue_sync, false); /* Disable file wrapping */
+        /* Disable file wrapping */
+        srsran_ue_sync_file_wrap(&ue_sync, false);
     }
 
     uint32_t max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell.nof_prb); /// Length in complex samples
@@ -423,7 +413,7 @@ int main(int argc, char** argv)
         srsran_softbuffer_rx_init(pdsch_cfg.softbuffers.rx[i], cell.nof_prb);
     }
 
-    pdsch_cfg.rnti = SRSRAN_SIRNTI;
+    pdsch_cfg.rnti = SRSRAN_SIRNTI; /* Broadcast RNTI */
 
 
     if(!prog_args.input) {
@@ -456,8 +446,9 @@ int main(int argc, char** argv)
         for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
             buffers[p] = sf_buffer[p];
         }
-        ret = srsran_ue_sync_zerocopy(&ue_sync, buffers, max_num_samples);
 
+        /* Get IQs and copy them to the buffer */
+        ret = srsran_ue_sync_zerocopy(&ue_sync, buffers, max_num_samples);
         if (ret < 0) {
             if(prog_args.input) {
                 printf("End of the trace!\n");
@@ -473,6 +464,7 @@ int main(int argc, char** argv)
             bool acks[SRSRAN_MAX_CODEWORDS] = {false};
             uint32_t sf_idx;
 
+            /* SubFrame index */
             sf_idx = srsran_ue_sync_get_sfidx(&ue_sync);
 
 
@@ -525,6 +517,17 @@ int main(int argc, char** argv)
                 ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
 
                 */
+                
+                //ngscope_tree_t tree;
+                //ngscope_dci_per_sub_t   dci_per_sub;
+                //empty_dci_persub(&dci_per_sub);
+                //n = srsran_ngscope_search_all_space_array_yx(&ue_dl, &dl_sf, &ue_dl_cfg, &pdsch_cfg, &dci_per_sub, &tree, SRSRAN_SIRNTI); /* 0x1315 */
+                ///* filter the dci  */
+                //filter_dci_from_tree(&tree, &ue_tracker, dci_per_sub);
+                ///* update the dci per subframe--> mainly decrease the tti */
+                //update_ue_dci_per_tti(&tree, &ue_tracker, dci_per_sub, tti);
+                ///* update the ue_tracker at subframe level, mainly remove those inactive UE */
+                //ngscope_ue_tracker_update_per_tti(&ue_tracker, tti);
 
 
                 /* SIBs */
