@@ -147,7 +147,7 @@ void * asn_processor(void * args)
                 break;
             case SIB_4G:
 #ifdef ENABLE_ASN4G
-                sib_decode_4g(decoder->file, node->payload, node->len);
+                bcch_dl_sch_decode_4g(decoder->file, node->payload, node->len);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
@@ -167,7 +167,7 @@ void * asn_processor(void * args)
                 break;
             case SIB_5G:
 #ifdef ENABLE_ASN5G
-                sib_decode_5g(decoder->file, node->payload, node->len);
+                bcch_dl_sch_decode_5g(decoder->file, node->payload, node->len);
                 /* Free Node and payload */
                 free(node->payload);
                 free(node);
