@@ -37,6 +37,7 @@
 
 /* Local libs */
 #include "cellscanner/headers/cell_scan.h"
+#include "cellscanner/headers/bands.h"
 
 /* SRS libs */
 #include "srsran/common/crash_handler.h"
@@ -89,19 +90,6 @@ srsran_cell_t      cell;
 
 #define MAX_SCAN_CELLS 128
 
-// ALL BANDS
-int all_bands_length = 57;
-int all_bands[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 65, 66, 67, 68, 69, 70, 71};
-
-// NORTH AMERICA BANDS
-int na_bands_length = 35;
-int na_bands[] = {1, 2, 3, 4, 5, 8, 10, 12, 13, 14, 17, 23, 24, 25, 26, 27, 29, 30, 35, 36, 37, 41, 42, 43, 46, 47, 48, 49, 50, 51, 52, 65, 66, 70, 71};
-
-int eu_bands_length = 7;
-int eu_bands[] = {7, 20, 22, 28, 72, 87, 88};
-
-
-
 
 /********/
 /* Main */
@@ -116,7 +104,7 @@ int main(int argc, char** argv)
 
 
     if(argc < 2 || argc > 4) {
-      printf("USAGE: %s <Output file> <Region (0: All, 1: North America, 2: Europe)> <USRP Args (Optional)>\n", argv[0]);
+      printf("USAGE: %s <Output file> <Region (0: All, 1: USA, 2: Europe)> <USRP Args (Optional)>\n", argv[0]);
       exit(1);
     }
 
@@ -132,9 +120,9 @@ int main(int argc, char** argv)
       printf("Using All bands...\n");
     }
     else if(region == 1) {
-      bands_length = na_bands_length;
-      bands = na_bands;
-      printf("Using North America bands...\n");
+      bands_length = usa_bands_length;
+      bands = usa_bands;
+      printf("Using USA bands...\n");
     }
     else if(region == 2) {
       bands_length = eu_bands_length;
@@ -142,7 +130,7 @@ int main(int argc, char** argv)
       printf("Using Europe bands...\n");
     }
     else {
-      printf("Invalid region value. 0: All, 1: North America, 2: Europe\n");
+      printf("Invalid region value. 0: All, 1: USA, 2: Europe\n");
       exit(1);
     }
     
