@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include "cellinspector/headers/asn_decoder.h"
 #ifdef ENABLE_ASN4G
 #include <libasn4g.h>
@@ -80,10 +81,16 @@ exit:
 int open_sib_log(ASNDecoder * decoder)
 {
     char path[1024];
+    time_t rawtime;
+    struct tm * ti;
+    
+    /* Get time */
+    time(&rawtime);
+    ti = localtime(&rawtime);
 
     /* Assemble new path */
     bzero(path, 1024);
-    sprintf(path, "%s/%s_sibs.dump", decoder->log_path, decoder->name);
+    sprintf(path, "%s/%d-%d-%d_%d-%d-%d_%s_sibs.dump", decoder->log_path, ti->tm_mday, ti->tm_mon + 1, ti->tm_year + 1900, ti->tm_hour, ti->tm_min, ti->tm_sec, decoder->name);
 
     printf("Openning %s...\n", path);
 
