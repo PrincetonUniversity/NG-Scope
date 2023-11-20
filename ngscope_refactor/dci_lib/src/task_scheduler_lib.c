@@ -139,6 +139,7 @@ int task_scheduler_init(prog_args_t       prog_args,
     exit(-1);
   }
 
+  printf("Task Scheduler inited\n");
   return SRSRAN_SUCCESS;
 }
 
