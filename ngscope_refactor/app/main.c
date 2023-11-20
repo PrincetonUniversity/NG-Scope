@@ -31,6 +31,7 @@ int main()
   strcpy(prog_args.rf_args, "serial=180015");
 
   pthread_t main_thd;
+  printf("start the thread!\n");
   pthread_create(&main_thd, NULL, task_scheduler_thread, (void*)(&prog_args));
 
   return 1;
