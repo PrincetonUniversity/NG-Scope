@@ -86,8 +86,11 @@ int radio_init_and_start(srsran_rf_t*       rf,
     ERROR("Invalid number of PRB %d", cell->nof_prb);
     exit(-1);
   }
+
   // start rx stream
   srsran_rf_start_rx_stream(rf, false);
+
+  printf("Radio Started!\n");
   return SRSRAN_SUCCESS;
 }
 
