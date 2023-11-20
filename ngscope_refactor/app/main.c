@@ -27,6 +27,9 @@ int main()
   prog_args.nof_decoder    = 1;
   prog_args.disable_plots  = true;
 
+  prog_args.rf_args = (char*)malloc(100 * sizeof(char));
+  strcpy(prog_args.rf_args, "serial=180015");
+
   pthread_t main_thd;
   pthread_create(&main_thd, NULL, task_scheduler_thread, (void*)(&prog_args));
 
