@@ -7,8 +7,8 @@ bool go_exit = false;
 
 int main(int argc, char** argv)
 {
-  srsran_debug_handle_crash(argc, argv);
-  // hello_world();
+  // srsran_debug_handle_crash(argc, argv);
+  //  hello_world();
   prog_args_t prog_args;
 
   args_default(&prog_args);
