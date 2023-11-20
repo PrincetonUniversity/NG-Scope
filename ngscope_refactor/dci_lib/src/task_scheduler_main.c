@@ -23,6 +23,7 @@ void* task_scheduler_thread(void* p)
   uint32_t     rf_nof_rx_ant = prog_args->rf_nof_rx_ant;
   uint32_t     max_num_samples;
 
+  printf("TASK scheduler\n");
   // Define some important structure
   srsran_ue_sync_t ue_sync;
   srsran_rf_t      radio;
