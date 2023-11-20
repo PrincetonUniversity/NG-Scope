@@ -34,5 +34,6 @@ int main()
   printf("start the thread!\n");
   pthread_create(&main_thd, NULL, task_scheduler_thread, (void*)(&prog_args));
 
+  pthread_join(main_thd, NULL);
   return 1;
 }
