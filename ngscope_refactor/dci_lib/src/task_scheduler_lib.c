@@ -118,18 +118,22 @@ int task_scheduler_init(prog_args_t       prog_args,
 
   // First of all, start the radio and get the cell information
   radio_init_and_start(rf, cell, prog_args, &cell_detect_config, &search_cell_cfo);
+  printf("Radio inited!\n");
 
   // Next, let's get the ue_sync ready
   ue_sync_init_imp(ue_sync, rf, cell, &cell_detect_config, prog_args, search_cell_cfo);
+  printf("ue sync inited!\n");
 
   // Now, let's init the mib decoder
   task_mib_init_imp(ue_mib, sync_buffer, cell);
+  printf("task mib inited!\n");
 
   // init the UE_DL entity
   if (srsran_ue_dl_init(ue_dl, sync_buffer, cell->nof_prb, rf_nof_rx_ant)) {
     ERROR("Error initiating UE downlink processing module");
     exit(-1);
   }
+
   if (srsran_ue_dl_set_cell(ue_dl, *cell)) {
     ERROR("Error initiating UE downlink processing module");
     exit(-1);
