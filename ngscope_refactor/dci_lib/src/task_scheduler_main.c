@@ -72,6 +72,7 @@ void* task_scheduler_thread(void* p)
   int      ret          = 0;
 
   /**********   THE MAIN LOOP    *********/
+  printf("Enter the Main Loop ....\n");
   while (!go_exit && (sf_cnt < prog_args->nof_subframes || prog_args->nof_subframes == -1)) {
     /*  Get the subframe data and put it into the buffer */
     ret = srsran_ue_sync_zerocopy(&ue_sync, buffers, max_num_samples);
