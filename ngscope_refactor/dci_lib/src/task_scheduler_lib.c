@@ -99,7 +99,7 @@ int ue_sync_init_imp(srsran_ue_sync_t*  ue_sync,
 }
 
 // Init the task scheduler
-int task_scheduler_init(prog_args_t*      prog_args,
+int task_scheduler_init(prog_args_t       prog_args,
                         srsran_rf_t*      rf,
                         srsran_cell_t*    cell,
                         srsran_ue_sync_t* ue_sync,
@@ -120,7 +120,7 @@ int task_scheduler_init(prog_args_t*      prog_args,
   radio_init_and_start(rf, cell, prog_args, &cell_detect_config, &search_cell_cfo);
 
   // Next, let's get the ue_sync ready
-  ue_sync_init_imp(ue_sync, rf, cell, cell_detect_config, prog_args, search_cell_cfo);
+  ue_sync_init_imp(ue_sync, rf, cell, &cell_detect_config, prog_args, search_cell_cfo);
 
   // Now, let's init the mib decoder
   task_mib_init_imp(ue_mib, sync_buffer, cell);
@@ -130,7 +130,7 @@ int task_scheduler_init(prog_args_t*      prog_args,
     ERROR("Error initiating UE downlink processing module");
     exit(-1);
   }
-  if (srsran_ue_dl_set_cell(ue_dl, cell)) {
+  if (srsran_ue_dl_set_cell(ue_dl, *cell)) {
     ERROR("Error initiating UE downlink processing module");
     exit(-1);
   }
@@ -147,10 +147,10 @@ int task_init_decode_config(srsran_dl_sf_cfg_t*     dl_sf,
 {
   /************************* Init dl_sf **************************/
   if (cell->frame_type == SRSRAN_TDD && prog_args->tdd_special_sf >= 0 && prog_args->sf_config >= 0) {
-    dl_sf.tdd_config.ss_config = prog_args->tdd_special_sf;
-    // dl_sf.tdd_config.sf_config  = prog_args.sf_config;
-    // dl_sf.tdd_config.sf_config  = 2;
-    dl_sf.tdd_config.configured = true;
+    dl_sf->tdd_config.ss_config = prog_args->tdd_special_sf;
+    // dl_sf->tdd_config.sf_config  = prog_args.sf_config;
+    // dl_sf->tdd_config.sf_config  = 2;
+    dl_sf->tdd_config.configured = true;
   }
 
   dl_sf->sf_type                         = SRSRAN_SF_NORM; // Ingore the MBSFN
@@ -164,10 +164,10 @@ int task_init_decode_config(srsran_dl_sf_cfg_t*     dl_sf,
 
   /************************* Init ue_dl_cfg **************************/
   srsran_chest_dl_cfg_t chest_pdsch_cfg = {};
-  chest_pdsch_cfg->cfo_estimate_enable  = prog_args->enable_cfo_ref;
-  chest_pdsch_cfg->cfo_estimate_sf_mask = 1023;
-  chest_pdsch_cfg->estimator_alg        = srsran_chest_dl_str2estimator_alg(prog_args->estimator_alg);
-  chest_pdsch_cfg->sync_error_enable    = true;
+  chest_pdsch_cfg.cfo_estimate_enable   = prog_args->enable_cfo_ref;
+  chest_pdsch_cfg.cfo_estimate_sf_mask  = 1023;
+  chest_pdsch_cfg.estimator_alg         = srsran_chest_dl_str2estimator_alg(prog_args->estimator_alg);
+  chest_pdsch_cfg.sync_error_enable     = true;
 
   // Set PDSCH channel estimation (we don't consider MBSFN)
   ue_dl_cfg->chest_cfg = chest_pdsch_cfg;
@@ -187,6 +187,7 @@ int task_init_decode_config(srsran_dl_sf_cfg_t*     dl_sf,
   }
 
   pdsch_cfg->rnti = prog_args->rnti;
+
   return SRSRAN_SUCCESS;
 }
 

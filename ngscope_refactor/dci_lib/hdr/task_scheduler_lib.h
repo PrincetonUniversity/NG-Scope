@@ -6,10 +6,12 @@ extern "C" {
 #endif
 
 #include "ngscope_def.h"
-#include "prog_args.h"
+#include "parse_args.h"
+#include "radio.h"
+#include "srsran/srsran.h"
 
 // Init the task scheduler
-int task_scheduler_init(prog_args_t*      prog_args,
+int task_scheduler_init(prog_args_t       prog_args,
                         srsran_rf_t*      rf,
                         srsran_cell_t*    cell,
                         srsran_ue_sync_t* ue_sync,
