@@ -130,7 +130,7 @@ int task_scheduler_init(prog_args_t       prog_args,
   }
 
   // Now, let's init the mib decoder
-  task_mib_init_imp(ue_mib, sync_buffer[0], cell);
+  task_mib_init_imp(ue_mib, sync_buffer, cell);
   printf("task mib inited!\n");
 
   // init the UE_DL entity
