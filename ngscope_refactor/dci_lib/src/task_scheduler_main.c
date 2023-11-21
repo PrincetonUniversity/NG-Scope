@@ -39,7 +39,6 @@ void* task_scheduler_thread(void* p)
   /******************* INIT the task scheduler  *********************/
   printf("INIT the Task Scheduler!\n");
   task_scheduler_init(*prog_args, &radio, &cell, &ue_sync, &ue_mib, &ue_dl, rf_nof_rx_ant, sync_buffer);
-  max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell.nof_prb); /// Length in complex samples
   // Set the buffer for ue_sync
   for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
     buffers[p] = sync_buffer[p];
