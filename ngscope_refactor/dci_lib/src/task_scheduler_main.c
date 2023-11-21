@@ -42,6 +42,7 @@ void* task_scheduler_thread(void* p)
 
   uint32_t max_num_samples;
   max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell.nof_prb); /// Length in complex samples
+
   // Set the buffer for ue_sync
   for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
     buffers[p] = sync_buffer[p];
@@ -94,7 +95,7 @@ void* task_scheduler_thread(void* p)
             sfn = sfn_tmp;
             printf("UPDATE SFN: current sfn-> %d decoded sfn-> %d\n", sfn, sfn_tmp);
             printf("******   DCI decoding start for Cell %d    ******\n", rf_idx);
-            printf("**************************************************");
+            printf("**************************************************\n\n");
           }
         }
       }
@@ -120,7 +121,11 @@ void* task_scheduler_thread(void* p)
         if ((ret = srsran_ue_dl_decode_fft_estimate(&ue_dl, &dl_sf_cfg, &ue_dl_cfg)) < 0) {
           return NULL;
         }
-
+        srsran_dci_dl_t dci_dl[SRSRAN_MAX_DCI_MSG] = {};
+        ret = srsran_ue_dl_find_dl_dci(&ue_dl, &dl_sf_cfg, &ue_dl_cfg, pdsch_cfg.rnti, dci_dl);
+        if (ret > 0) {
+          printf("Found DCI!\n");
+        }
         /*************  Handing the SFN and sf_idx ***********/
         if ((sf_idx == 9)) {
           sfn++; // we increase the sfn incase MIB decoding failed
