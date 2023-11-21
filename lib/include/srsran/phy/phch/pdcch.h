@@ -75,8 +75,6 @@ typedef struct SRSRAN_API {
 
 } srsran_pdcch_t;
 
-SRSRAN_API int srsran_pdcch_get_nof_cce_yx(srsran_pdcch_t* q, uint32_t cfi);
-
 SRSRAN_API int srsran_pdcch_init_ue(srsran_pdcch_t* q, uint32_t max_prb, uint32_t nof_rx_antennas);
 
 SRSRAN_API int srsran_pdcch_init_enb(srsran_pdcch_t* q, uint32_t max_prb);
@@ -106,10 +104,6 @@ SRSRAN_API int srsran_pdcch_extract_llr(srsran_pdcch_t*        q,
 SRSRAN_API int
 srsran_pdcch_decode_msg(srsran_pdcch_t* q, srsran_dl_sf_cfg_t* sf, srsran_dci_cfg_t* dci_cfg, srsran_dci_msg_t* msg);
 
-SRSRAN_API int
-srsran_pdcch_decode_msg_yx(srsran_pdcch_t* q, srsran_dl_sf_cfg_t* sf, srsran_dci_cfg_t* dci_cfg, srsran_dci_msg_t* msg, float* prob);
-
-
 /**
  * @brief Computes decoded DCI correlation. It encodes the given DCI message and compares it with the received LLRs
  * @param q PDCCH object
@@ -123,10 +117,6 @@ srsran_pdcch_dci_decode(srsran_pdcch_t* q, float* e, uint8_t* data, uint32_t E, 
 
 SRSRAN_API int
 srsran_pdcch_dci_encode(srsran_pdcch_t* q, uint8_t* data, uint8_t* e, uint32_t nof_bits, uint32_t E, uint16_t rnti);
-
-SRSRAN_API int
-srsran_pdcch_dci_decode_yx(srsran_pdcch_t* q, float* e, uint8_t* data, uint32_t E, uint32_t nof_bits, uint16_t* crc, float* prob);
-
 
 SRSRAN_API void
 srsran_pdcch_dci_encode_conv(srsran_pdcch_t* q, uint8_t* data, uint32_t nof_bits, uint8_t* coded_data, uint16_t rnti);

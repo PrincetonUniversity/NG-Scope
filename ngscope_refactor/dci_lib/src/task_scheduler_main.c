@@ -157,14 +157,7 @@ void* task_scheduler_thread(void* p)
   /*   pthread_join(dci_thd[i], NULL); */
   /* } */
 
-  // free the ue dl and the related buffer
-  /* for (int i = 0; i < nof_decoder; i++) { */
-  /*   srsran_ue_dl_free(&dci_decoder[i].ue_dl); */
-  /*   // free the buffer */
-  /*   for (int j = 0; j < rf_nof_rx_ant; j++) { */
-  /*     free(sf_buffer[rf_idx][i].IQ_buffer[j]); */
-  /*   } */
-  /* } */
+  srsran_ue_dl_free(&ue_dl);
 
   // free the ue mib decoder
   srsran_ue_mib_free(&ue_mib);

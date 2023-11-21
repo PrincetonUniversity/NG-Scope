@@ -126,8 +126,8 @@ extern "C" {
 #include "srsran/phy/ue/ue_sync_nr.h"
 #include "srsran/phy/ue/ue_ul.h"
 #include "srsran/phy/ue/ue_ul_nr.h"
-#include "srsran/phy/ue/ngscope.h"
-#include "srsran/phy/ue/ngscope_st.h"
+// #include "srsran/phy/ue/ngscope.h"
+// #include "srsran/phy/ue/ngscope_st.h"
 
 #include "srsran/phy/enb/enb_dl.h"
 #include "srsran/phy/enb/enb_ul.h"

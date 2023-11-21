@@ -54,6 +54,8 @@
 #include "srsran/phy/utils/debug.h"
 #include "srsran/phy/utils/vector.h"
 
+#include "srsran/phy/ue/ngscope_st.h"
+
 #include "srsran/config.h"
 
 #define SRSRAN_MAX_CANDIDATES_UE 16 // From 36.213 Table 9.1.1-1
@@ -198,6 +200,13 @@ SRSRAN_API int srsran_ue_dl_dci_to_pdsch_grant(srsran_ue_dl_t*       q,
                                                srsran_ue_dl_cfg_t*   cfg,
                                                srsran_dci_dl_t*      dci,
                                                srsran_pdsch_grant_t* grant);
+
+SRSRAN_API int srsran_ue_dl_dci_to_pdsch_grant_wo_mimo_yx(srsran_ue_dl_t*       q,
+                                               srsran_dl_sf_cfg_t*   sf,
+                                               srsran_ue_dl_cfg_t*   cfg,
+                                               srsran_dci_dl_t*      dci,
+                                               srsran_pdsch_grant_t* grant);
+
 /* Decodes PDSCH and PHICH in the signal processed in a previous call to decode_fft_estimate() */
 SRSRAN_API int srsran_ue_dl_decode_pdsch(srsran_ue_dl_t*     q,
                                          srsran_dl_sf_cfg_t* sf,
@@ -241,15 +250,32 @@ SRSRAN_API int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
                                             uint8_t*            data[SRSRAN_MAX_CODEWORDS],
                                             bool                acks[SRSRAN_MAX_CODEWORDS]);
 
-SRSRAN_API uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce,
-                                                                       uint32_t nsubframe,
-                                                                       uint16_t rnti,
-                                                                       uint32_t this_ncce);
+SRSRAN_API int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
+                            srsran_dl_sf_cfg_t* sf,
+                            dci_blind_search_t* search_space,
+                            srsran_dci_cfg_t*   dci_cfg,
+                            srsran_dci_msg_t    dci_msg[MAX_NOF_FORMAT]);
 
-SRSRAN_API uint32_t srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce,
-                                                                  uint32_t nsubframe,
-                                                                  uint16_t rnti,
-                                                                  uint32_t this_ncce);
-SRSRAN_API void     srsran_ue_dl_save_signal(srsran_ue_dl_t* q, srsran_dl_sf_cfg_t* sf, srsran_pdsch_cfg_t* pdsch_cfg);
+SRSRAN_API bool srsran_ngscope_space_match_yx(uint16_t rnti,
+                                    uint32_t nof_cce,
+                                    uint32_t sf_idx,
+                                    uint32_t ncce,
+                                    srsran_dci_format_t format);
+
+SRSRAN_API uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti,
+                                                                    uint32_t this_ncce);
+
+SRSRAN_API uint32_t srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti,
+                                                                    uint32_t this_ncce);
+
+/* Functions used for testing purposes */
+SRSRAN_API int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,
+                                 srsran_dl_sf_cfg_t* sf,
+                                 srsran_ue_dl_cfg_t* cfg,
+                                 srsran_pdsch_cfg_t* pdsch_cfg,
+                                 ngscope_dci_per_sub_t* dci_res, 
+								 uint16_t 				targetRNTI);
+
+SRSRAN_API void srsran_ue_dl_save_signal(srsran_ue_dl_t* q, srsran_dl_sf_cfg_t* sf, srsran_pdsch_cfg_t* pdsch_cfg);
 
 #endif // SRSRAN_UE_DL_H

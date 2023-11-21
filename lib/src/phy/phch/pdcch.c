@@ -29,7 +29,6 @@
 #include <strings.h>
 
 #include "srsran/phy/common/phy_common.h"
-#include "srsran/phy/ue/ngscope_st.h"
 #include "srsran/phy/phch/dci.h"
 #include "srsran/phy/phch/pdcch.h"
 #include "srsran/phy/phch/regs.h"
@@ -384,77 +383,6 @@ int srsran_pdcch_dci_decode(srsran_pdcch_t* q, float* e, uint8_t* data, uint32_t
   }
 }
 
-int srsran_pdcch_dci_decode_yx(srsran_pdcch_t* q, float* e, uint8_t* data, uint32_t E, uint32_t nof_bits, uint16_t* crc, float* prob)
-{
-  uint16_t p_bits, crc_res;
-  uint8_t* x;
-
-  uint8_t tmp[3 * (SRSRAN_DCI_MAX_BITS + 16)];
-  uint8_t tmp2[10 * (SRSRAN_DCI_MAX_BITS + 16)];
-  uint8_t check[(SRSRAN_DCI_MAX_BITS + 16)];
-
-  int poly[3] = {0x6D, 0x4F, 0x57};
-  srsran_convcoder_t encoder;
-
-  if (q != NULL) {
-    if (data != NULL && E <= q->max_bits && nof_bits <= SRSRAN_DCI_MAX_BITS) {
-      srsran_vec_f_zero(q->rm_f, 3 * (SRSRAN_DCI_MAX_BITS + 16));
-
-      uint32_t coded_len = 3 * (nof_bits + 16);
-
-      /* unrate matching */
-      srsran_rm_conv_rx(e, E, q->rm_f, coded_len);
-
-      /* viterbi decoder */
-      srsran_viterbi_decode_f(&q->decoder, q->rm_f, data, nof_bits + 16);
-
-      x       = &data[nof_bits];
-      p_bits  = (uint16_t)srsran_bit_pack(&x, 16);
-      crc_res = ((uint16_t)srsran_crc_checksum(&q->crc, data, nof_bits) & 0xffff);
-
-      if (crc) {
-        *crc = p_bits ^ crc_res;
-      }
-      uint16_t c_rnti = *crc;
-
-      encoder.K = 7;
-      encoder.R = 3;
-      encoder.tail_biting = true;
-          
-      memcpy(encoder.poly, poly, 3 * sizeof(int));
-
-      memcpy(check,data,nof_bits);
-
-      srsran_crc_attach(&q->crc, check, nof_bits);
-      crc_set_mask_rnti(&check[nof_bits], c_rnti);
-
-      srsran_convcoder_encode(&encoder, check, tmp, nof_bits + 16);
-      srsran_rm_conv_tx(tmp, 3 * (nof_bits + 16), tmp2, E);
-
-      float parcheck = 0.0;
-      for (int i=0;i<E;i++) {
-        parcheck += ((((e[i]*32+127.5)>127.5)?1:0)==tmp2[i]);
-        //parcheck += (((e[i]>0)?1:0)==tmp2[i]);
-      }
-      parcheck = 100*parcheck/E;
- 
-      *prob = parcheck;
-      return SRSRAN_SUCCESS;
-    } else {
-      ERROR("Invalid parameters: E: %d, max_bits: %d, nof_bits: %d", E, q->max_bits, nof_bits);
-      return SRSRAN_ERROR_INVALID_INPUTS;
-    }
-  } else {
-    ERROR("Invalide INPUTS: q is empty!\n");
-    return SRSRAN_ERROR_INVALID_INPUTS;
-  }
-}
-
-
-int srsran_pdcch_get_nof_cce_yx(srsran_pdcch_t* q, uint32_t cfi){
-    return NOF_CCE(cfi);
-}
-
 /** Tries to decode a DCI message from the LLRs stored in the srsran_pdcch_t structure by the function
  * srsran_pdcch_extract_llr(). This function can be called multiple times.
  * The location to search for is obtained from msg.
@@ -500,58 +428,6 @@ int srsran_pdcch_decode_msg(srsran_pdcch_t* q, srsran_dl_sf_cfg_t* sf, srsran_dc
              msg->rnti);
       } else {
         INFO("Skipping DCI:  nCCE=%d, L=%d, msg_len=%d, mean=%f", msg->location.ncce, msg->location.L, nof_bits, mean);
-      }
-    }
-  } else if (msg != NULL) {
-    ERROR("Invalid parameters, location=%d,%d", msg->location.ncce, msg->location.L);
-  }
-  return ret;
-}
-int srsran_pdcch_decode_msg_yx(srsran_pdcch_t* q, srsran_dl_sf_cfg_t* sf, srsran_dci_cfg_t* dci_cfg, srsran_dci_msg_t* msg, float* prob)
-{
-  int ret = SRSRAN_ERROR_INVALID_INPUTS;
-  //printf("decode_msg: NOF_CCE:%d cfi:%d\n",NOF_CCE(sf->cfi), sf->cfi);
-
-  if (q != NULL && msg != NULL && srsran_dci_location_isvalid(&msg->location)) {
-    if (msg->location.ncce * 72 + PDCCH_FORMAT_NOF_BITS(msg->location.L) > NOF_CCE(sf->cfi) * 72) {
-      ERROR("Invalid location: nCCE: %d, L: %d, NofCCE: %d cfi:%d", msg->location.ncce, msg->location.L, NOF_CCE(sf->cfi), sf->cfi);
-    } else {
-      ret = SRSRAN_SUCCESS;
-
-      uint32_t nof_bits = srsran_dci_format_sizeof(&q->cell, sf, dci_cfg, msg->format);
-      uint32_t e_bits   = PDCCH_FORMAT_NOF_BITS(msg->location.L);
-
-      // Compute absolute mean of the LLRs
-      double mean = 0;
-      for (int i = 0; i < e_bits; i++) {
-        mean += fabsf(q->llr[msg->location.ncce * 72 + i]);
-      }
-      mean /= e_bits;
-
-      //if (mean > 0.4f) {
-      if (mean > LLR_RATIO) {
-        float decode_prob = 0;
-        ret = srsran_pdcch_dci_decode_yx(q, &q->llr[msg->location.ncce * 72], msg->payload, e_bits, nof_bits, &msg->rnti, &decode_prob);
-        if (ret == SRSRAN_SUCCESS) {
-          *prob = decode_prob;
-          msg->nof_bits = nof_bits;
-          // Check format differentiation
-          if (msg->format == SRSRAN_DCI_FORMAT0 || msg->format == SRSRAN_DCI_FORMAT1A) {
-            msg->format = (msg->payload[dci_cfg->cif_enabled ? 3 : 0] == 0) ? SRSRAN_DCI_FORMAT0 : SRSRAN_DCI_FORMAT1A;
-          }
-        } else {
-          ERROR("Error calling pdcch_dci_decode");
-        }
-        INFO("Decoded DCI: nCCE=%d, L=%d, format=%s, msg_len=%d, mean=%f, crc_rem=0x%x",
-             msg->location.ncce,
-             msg->location.L,
-             srsran_dci_format_string(msg->format),
-             nof_bits,
-             mean,
-             msg->rnti);
-      } else {
-        INFO("Skipping DCI:  nCCE=%d, L=%d, msg_len=%d, mean=%f", msg->location.ncce, msg->location.L, nof_bits, mean);
-        //ERROR("Skipping DCI:  nCCE=%d, L=%d, msg_len=%d, mean=%f", msg->location.ncce, msg->location.L, nof_bits, mean);
       }
     }
   } else if (msg != NULL) {

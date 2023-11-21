@@ -519,89 +519,231 @@ static int dci_blind_search(srsran_ue_dl_t*     q,
   return nof_dci;
 }
 
-/* Check whether the locations of decoded DCI with RNTI is valid
- * by valid we mean the location of the DCI follows the 3gpp standard
- * nof_cce: the total number control channel element (CCE)
+/* Check whether the locations of decoded DCI with RNTI is valid 
+ * by valid we mean the location of the DCI follows the 3gpp standard 
+ * nof_cce: the total number control channel element (CCE) 
  * nsubframe: subframe index
  * rnti: the RNTI of the decoded dci
  * this_ncce: the ncce of the decoded dci
  */
 
-// Check the UE-specific search space
-uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce,
-                                                            uint32_t nsubframe,
-                                                            uint16_t rnti,
-                                                            uint32_t this_ncce)
+// Check the UE-specific search space 
+uint32_t srsran_ngscope_ue_locations_ncce_check_ue_specific(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, 
+                                                                    uint32_t this_ncce) 
 {
-  int       l; // this must be int because of the for(;;--) loop
-  uint32_t  i, L, m;
-  uint32_t  Yk, ncce;
-  const int nof_candidates[4] = {6, 6, 2, 2};
+    int l; // this must be int because of the for(;;--) loop
+    uint32_t i, L, m;
+    uint32_t Yk, ncce;
+    const int nof_candidates[4] = { 6, 6, 2, 2};
 
-  // Compute Yk for this subframe
-  Yk = rnti;
-  for (m = 0; m < nsubframe + 1; m++) {
-    Yk = (39827 * Yk) % 65537;
-  }
-
-  // All aggregation levels from 8 to 1
-  for (l = 3; l >= 0; l--) {
-    L = (1 << l);
-    // For all candidates as given in table 9.1.1-1
-    for (i = 0; i < nof_candidates[l]; i++) {
-      if (nof_cce >= L) {
-        ncce = L * ((Yk + i) % (nof_cce / L));
-        // Check if candidate fits in c vector and in CCE region
-        if (ncce + L <= nof_cce) {
-          if (ncce == this_ncce) {
-            return 1; // cce matches
-          }
-        }
-      }
+    // Compute Yk for this subframe
+    Yk = rnti;
+    for (m = 0; m < nsubframe+1; m++) {
+        Yk = (39827 * Yk) % 65537;
     }
-  }
-  return 0;
+
+    // All aggregation levels from 8 to 1
+    for (l = 3; l >= 0; l--) {
+        L = (1 << l);
+        // For all candidates as given in table 9.1.1-1
+        for (i = 0; i < nof_candidates[l]; i++) {
+            if (nof_cce >= L) {
+                ncce = L * ((Yk + i) % (nof_cce / L));
+                // Check if candidate fits in c vector and in CCE region
+                if (ncce + L <= nof_cce)
+                {
+                    if (ncce==this_ncce) {
+                        return 1; // cce matches
+                    }
+                }
+            }
+        }
+    }
+    return 0;
 }
 
-// Check the common search space
-uint32_t
-srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, uint32_t this_ncce)
+// Check the common search space 
+uint32_t srsran_ngscope_ue_locations_ncce_check_common(uint32_t nof_cce, uint32_t nsubframe, uint16_t rnti, 
+                                                                    uint32_t this_ncce) 
 {
-  int      l; // this must be int because of the for(;;--) loop
-  uint32_t i, L;
-  uint32_t ncce;
+    int l; // this must be int because of the for(;;--) loop
+    uint32_t i, L;
+    uint32_t ncce;
 
-  // Commom search space
-  for (l = 3; l > 1; l--) {
-    L = (1 << l);
-    for (i = 0; i < SRSRAN_MIN(nof_cce, 16) / (L); i++) {
-      ncce = (L) * (i % (nof_cce / (L)));
-      if (ncce + L <= nof_cce) {
-        if (ncce == this_ncce) {
-          return 1; // cce matches
+    // Commom search space
+    for (l = 3; l > 1; l--) {
+        L = (1 << l);
+        for (i = 0; i < SRSRAN_MIN(nof_cce, 16) / (L); i++) {
+            ncce = (L) * (i % (nof_cce / (L)));
+            if (ncce + L <= nof_cce){
+                if (ncce==this_ncce) {
+                    return 1; // cce matches
+                }
+            }
         }
-      }
     }
-  }
-  return 0;
+    return 0;
 }
 
 // Decide the search space according to the format
 
-static uint32_t srsran_ngscope_is_common_space(srsran_dci_format_t format)
+static uint32_t srsran_ngscope_is_common_space(srsran_dci_format_t format){
+    if( format == SRSRAN_DCI_FORMAT0 || format == SRSRAN_DCI_FORMAT1A ){
+        // both common and ue specific space
+        return 0;
+    }else if(format == SRSRAN_DCI_FORMAT1 || format == SRSRAN_DCI_FORMAT1B
+       || format == SRSRAN_DCI_FORMAT1D || format == SRSRAN_DCI_FORMAT2 
+       || format == SRSRAN_DCI_FORMAT2A || format == SRSRAN_DCI_FORMAT2B ){
+        return 1;
+    }else if(format == SRSRAN_DCI_FORMAT1C ){
+        return 2;
+    }else{
+        ERROR("Format not recognized !\n");
+        return 3;
+    }
+}
+
+
+/* Yaxiong's implementation of the search in one space
+ *
+ */
+int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
+                            srsran_dl_sf_cfg_t* sf,
+                            dci_blind_search_t* search_space,
+                            srsran_dci_cfg_t*   dci_cfg,
+                            srsran_dci_msg_t    dci_msg[MAX_NOF_FORMAT])
 {
-  if (format == SRSRAN_DCI_FORMAT0 || format == SRSRAN_DCI_FORMAT1A) {
-    // both common and ue specific space
-    return 0;
-  } else if (format == SRSRAN_DCI_FORMAT1 || format == SRSRAN_DCI_FORMAT1B || format == SRSRAN_DCI_FORMAT1D ||
-             format == SRSRAN_DCI_FORMAT2 || format == SRSRAN_DCI_FORMAT2A || format == SRSRAN_DCI_FORMAT2B) {
-    return 1;
-  } else if (format == SRSRAN_DCI_FORMAT1C) {
-    return 2;
-  } else {
-    ERROR("Format not recognized !\n");
-    return 3;
-  }
+  uint32_t nof_dci = 0;
+  int nof_cce = srsran_pdcch_get_nof_cce_yx(&q->pdcch, sf->cfi);
+    for (int l = 0; l < search_space->nof_locations; l++) {
+      if (nof_dci >= SRSRAN_MAX_DCI_MSG) {
+        ERROR("Can't store more DCIs in buffer");
+        return nof_dci;
+      }
+      if (dci_location_is_allocated(q, search_space->loc[l])) {
+        INFO("Skipping location L=%d, ncce=%d. Already allocated", search_space->loc[l].L, search_space->loc[l].ncce);
+        continue;
+      }
+      for (uint32_t f = 0; f < search_space->nof_formats; f++) {
+        INFO("Searching format %s in %d,%d (%d/%d)",
+             srsran_dci_format_string(search_space->formats[f]),
+             search_space->loc[l].ncce,
+             search_space->loc[l].L,
+             l,
+             search_space->nof_locations);
+
+        // Try to decode a valid DCI msg
+        dci_msg[nof_dci].location = search_space->loc[l];
+        dci_msg[nof_dci].format   = search_space->formats[f];
+        dci_msg[nof_dci].rnti     = 0;
+
+        float decode_prob = 0;
+        //if (srsran_pdcch_decode_msg(&q->pdcch, sf, dci_cfg, &dci_msg[nof_dci])) {
+        if (srsran_pdcch_decode_msg_yx(&q->pdcch, sf, dci_cfg, &dci_msg[nof_dci], &decode_prob)) {
+          ERROR("Error decoding DCI msg");
+          return SRSRAN_ERROR;
+        }else{
+            //printf("PROB:%f\n", decode_prob);
+        }
+      	dci_msg[nof_dci].decode_prob = decode_prob;
+        // Check if RNTI is matched
+        //if ((dci_msg[nof_dci].nof_bits > 0) && decode_prob > 50 ) {
+        if ((dci_msg[nof_dci].nof_bits > 0) ) {
+          // Compute decoded message correlation to drastically reduce false alarm probability
+          float corr = srsran_pdcch_msg_corr(&q->pdcch, &dci_msg[nof_dci]);
+          dci_msg[nof_dci].corr = corr;
+          //printf("corr:%f\n", corr);
+          // Skip candidate if the threshold is not reached
+          // 0.5 is set from pdcch_test
+          if (!isnormal(corr) || corr < 0.5f) {
+            //printf("Corr skip!\n");
+            //continue;
+          }
+
+          // When searching for format 1A, we also need to consider format 0         
+          //if(search_space->formats[f]  == SRSRAN_DCI_FORMAT1A){
+          //    srsran_dci_format_t decoded_format = (dci_msg[nof_dci].payload[0] == 0) ? SRSRAN_DCI_FORMAT0 : SRSRAN_DCI_FORMAT1A;
+          //    //printf("dci_msg format:%d decode format:%d\n", dci_msg[nof_dci].format, decoded_format);
+          //    if ( dci_msg[nof_dci].format != decoded_format ){
+          //      dci_msg[nof_dci].format = decoded_format; 
+          //    }
+          // }
+
+          int ue_specific = srsran_ngscope_ue_locations_ncce_check_ue_specific(nof_cce, 
+                                        sf->tti % 10, dci_msg[nof_dci].rnti, dci_msg[nof_dci].location.ncce); 
+
+          int common_space = srsran_ngscope_ue_locations_ncce_check_common(nof_cce, 
+                                        sf->tti % 10, dci_msg[nof_dci].rnti, dci_msg[nof_dci].location.ncce); 
+          
+        //  // Skip if the message location doesn't match with its search space
+          uint32_t is_common = srsran_ngscope_is_common_space(dci_msg[nof_dci].format);
+          if(is_common == 0){
+              if( (ue_specific == 0) && (common_space == 0)) {
+                //printf("UE specific and common doesn't match!\n");
+                //continue;
+              }
+           }
+           if(is_common == 1){
+              if( (ue_specific == 1) && (common_space == 0)){
+                //printf("Location Matched!\n");
+              }else{
+                //continue;
+              }
+           }
+           if(is_common == 2){
+              if( (ue_specific == 0) && (common_space == 1)){
+                //printf("Location Matched!\n");
+              }else{
+                //continue;
+              }
+           }
+          nof_dci++;
+        }
+      }
+    }
+  
+  return nof_dci;
+}
+
+
+bool srsran_ngscope_space_match_yx(uint16_t rnti, 
+                                    uint32_t nof_cce, 
+                                    uint32_t sf_idx, 
+                                    uint32_t ncce, 
+                                    srsran_dci_format_t format)
+{ 
+    int ue_specific = srsran_ngscope_ue_locations_ncce_check_ue_specific(nof_cce, 
+                                sf_idx, rnti, ncce); 
+    int common_space = srsran_ngscope_ue_locations_ncce_check_common(nof_cce, 
+                                sf_idx, rnti, ncce); 
+
+    //  // Skip if the message location doesn't match with its search space
+    uint32_t is_common = srsran_ngscope_is_common_space(format);
+
+    if(is_common == 0){
+      if( (ue_specific == 0) && (common_space == 0)) {
+        //printf("UE specific and common doesn't match!\n");
+        //continue;
+        return false;
+      }
+    }
+    if(is_common == 1){
+      if( (ue_specific == 1) && (common_space == 0)){
+        //printf("Location Matched!\n");
+      }else{
+        //continue;
+        return false;
+      }
+    }
+    if(is_common == 2){
+      if( (ue_specific == 0) && (common_space == 1)){
+        //printf("Location Matched!\n");
+      }else{
+        //continue;
+        return false;
+      }
+    }
+    return true;
 }
 
 static int find_dci_ss(srsran_ue_dl_t*            q,
@@ -781,6 +923,23 @@ int srsran_ue_dl_dci_to_pdsch_grant(srsran_ue_dl_t*       q,
 {
   return srsran_ra_dl_dci_to_grant(&q->cell, sf, cfg->cfg.tm, cfg->cfg.pdsch.use_tbs_index_alt, dci, grant);
 }
+
+/****************************************************************************
+ *In NG-Scope, we igore the MIMO related parameters(such as pmi). 
+ * We igore because that the current hasn't implemented some MIMO type (e.g., 4x2) yet  
+ * and will report error when decoding those MIMO configurations
+ * We don't want that so we igore those errors by not configure the parameters
+ *******************************************************************************/ 
+int srsran_ue_dl_dci_to_pdsch_grant_wo_mimo_yx(srsran_ue_dl_t*       q,
+                                    srsran_dl_sf_cfg_t*   sf,
+                                    srsran_ue_dl_cfg_t*   cfg,
+                                    srsran_dci_dl_t*      dci,
+                                    srsran_pdsch_grant_t* grant)
+{
+  return srsran_ra_dl_dci_to_grant_wo_mimo_yx(&q->cell, sf, cfg->cfg.tm, cfg->cfg.pdsch.use_tbs_index_alt, dci, grant);
+}
+
+
 
 int srsran_ue_dl_decode_pdsch(srsran_ue_dl_t*     q,
                               srsran_dl_sf_cfg_t* sf,
@@ -1595,12 +1754,163 @@ int srsran_ue_dl_find_and_decode(srsran_ue_dl_t*     q,
     for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
       if (pdsch_cfg->grant.tb[tb].enabled) {
         acks[tb] = pdsch_res[tb].crc;
-        // printf("TB:%d ACK :%d \n", tb, pdsch_res[tb].crc);
+		//printf("TB:%d ACK :%d \n", tb, pdsch_res[tb].crc);
       }
     }
   }
   return ret;
 }
+void copy_single_dl_dci(ngscope_dci_msg_t* 		dci_array,
+						srsran_dci_location_t 	loc,
+                        float 					decode_prob, 
+						float 					corr,
+                        srsran_dci_dl_t* 		dci_dl,
+                        srsran_pdsch_grant_t* 	dci_dl_grant)
+{
+    dci_array->rnti    = dci_dl->rnti;
+    dci_array->prb     = dci_dl_grant->nof_prb;
+    dci_array->harq    = dci_dl->pid;
+    dci_array->nof_tb  = dci_dl_grant->nof_tb;
+    dci_array->dl      = true;
+ 
+    dci_array->decode_prob  = decode_prob;
+    dci_array->corr         = corr;
+
+    dci_array->loc       	= loc;
+   
+    // transport block 1
+    dci_array->tb[0].mcs      = dci_dl_grant->tb[0].mcs_idx;
+    dci_array->tb[0].tbs      = dci_dl_grant->tb[0].tbs;
+    dci_array->tb[0].rv       = dci_dl_grant->tb[0].rv;
+    //dci_array[i][j].tb[0].ndi      = dci_dl_grant->tb[0].ndi;
+    dci_array->tb[0].ndi      = dci_dl->tb[0].ndi;
+
+    if(dci_dl_grant->nof_tb > 1){
+       // transport block 1
+        dci_array->tb[1].mcs      = dci_dl_grant->tb[1].mcs_idx;
+        dci_array->tb[1].tbs      = dci_dl_grant->tb[1].tbs;
+        dci_array->tb[1].rv       = dci_dl_grant->tb[1].rv;
+        //dci_array->tb[1].ndi      = dci_dl_grant->tb[1].ndi;
+    	dci_array->tb[1].ndi      = dci_dl->tb[1].ndi;
+    }
+    return;
+}
+
+
+void copy_single_ul_dci(ngscope_dci_msg_t* 			dci_array,
+							srsran_dci_location_t 	loc,
+							float 					decode_prob, 
+							float 					corr,
+							srsran_dci_ul_t* 		dci_ul,
+							srsran_pusch_grant_t* 	dci_ul_grant)
+{
+    dci_array->rnti    = dci_ul->rnti;
+    dci_array->prb     = dci_ul_grant->L_prb;
+    dci_array->harq    = 0;
+    dci_array->nof_tb  = 1;
+    dci_array->dl      = false;
+
+    // transport block 1
+    dci_array->tb[0].mcs      = dci_ul_grant->tb.mcs_idx;
+    dci_array->tb[0].tbs      = dci_ul_grant->tb.tbs;
+    dci_array->tb[0].rv       = dci_ul_grant->tb.rv;
+    //dci_array->tb[0].ndi      = dci_ul_grant->tb.ndi;
+
+    dci_array->loc       			= loc;
+	
+    dci_array->phich.n_dmrs   		=  dci_ul->n_dmrs;
+    dci_array->phich.n_prb_tilde   	= dci_ul_grant->n_prb_tilde[0];
+
+    dci_array->decode_prob      = decode_prob;
+    dci_array->corr             = corr;
+
+    return;
+}
+
+/* Yaxiong's decode rnti function */
+int srsran_ue_decode_dci_yx(srsran_ue_dl_t*     q,
+                                 srsran_dl_sf_cfg_t* sf,
+                                 srsran_ue_dl_cfg_t* cfg,
+                                 srsran_pdsch_cfg_t* pdsch_cfg,
+								 ngscope_dci_per_sub_t* dci_res,
+								 uint16_t 			targetRNTI)
+{
+	int ret = SRSRAN_ERROR;
+	if(targetRNTI == 0){
+		//printf("rnti=0\n");
+		return 0;
+	}
+	srsran_dci_dl_t    dci_dl[SRSRAN_MAX_DCI_MSG] = {};
+	srsran_dci_ul_t    dci_ul[SRSRAN_MAX_DCI_MSG] = {};
+	//srsran_pusch_grant_t ul_grant;
+
+	srsran_pmch_cfg_t  pmch_cfg;
+
+	// Use default values for PDSCH decoder
+	ZERO_OBJECT(pmch_cfg);
+
+	uint32_t mi_set_len;
+	if (q->cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) {
+		mi_set_len = 3;
+	} else {
+		mi_set_len = 1;
+	}
+
+	// Currently we assume FDD only 
+	srsran_ue_dl_set_mi_auto(q);
+
+	// Blind search PHICH mi value
+	ret = 0;
+	if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
+		return ret; 
+	}
+
+	srsran_dci_location_t 	loc = {};
+	/* Downlink dci decoding unpack and translation to grant*/
+	ret = srsran_ue_dl_find_dl_dci(q, sf, cfg, targetRNTI, dci_dl);
+	if (ret == 1) {
+		//printf("FOUND DL DCI: tti:%d rnti:%d format:%d\n", sf->tti, dci_res->dci_dl[0].rnti, dci_res->dci_dl[0].format);
+		if (srsran_ue_dl_dci_to_pdsch_grant_wo_mimo_yx(q, sf, cfg, dci_dl, &pdsch_cfg->grant)) {
+			ERROR("Error unpacking DCI");
+			return SRSRAN_ERROR;
+		}else{
+			//printf("FOUND DL DCI: tti:%d\tnof_prb:%d\tnof_tb:%d\ttbs1:%d\ttbs2:%d\tmcs1:%d\tmcs2:%d\n", sf->tti, pdsch_cfg->grant.nof_prb, 
+		//		pdsch_cfg->grant.nof_tb, pdsch_cfg->grant.tb[0].tbs, pdsch_cfg->grant.tb[1].tbs, pdsch_cfg->grant.tb[0].mcs_idx, pdsch_cfg->grant.tb[1].mcs_idx);
+			/* Copy single dci message */
+			copy_single_dl_dci(&dci_res->dl_msg[dci_res->nof_dl_dci], loc, 0, 0, &dci_dl[0], &pdsch_cfg->grant);
+			dci_res->nof_dl_dci += 1; 
+		}
+	}else{
+		//printf("NO DCI found in dl!\n");
+	}
+
+	/* Uplink dci decoding, unpack, and translation to grant*/
+	int nof_ul_dci = srsran_ue_dl_find_ul_dci(q, sf, cfg, targetRNTI, dci_ul);
+	if(nof_ul_dci > 0){
+		srsran_ul_sf_cfg_t ul_sf;
+		ZERO_OBJECT(ul_sf);
+		ul_sf.tdd_config = sf->tdd_config;
+		ul_sf.tti        = sf->tti;
+		// set the hopping config
+		srsran_pusch_hopping_cfg_t ul_hopping = {.n_sb = 1, .hopping_offset = 0, .hop_mode = 1};
+		srsran_pusch_grant_t dci_ul_grant;
+
+		if (srsran_ra_ul_dci_to_grant(&q->cell, &ul_sf, &ul_hopping, dci_ul, &dci_ul_grant)) {
+			//ERROR("Translate UL DCI to uplink grant");
+			return SRSRAN_ERROR;
+		}else{
+			copy_single_ul_dci(&dci_res->ul_msg[dci_res->nof_ul_dci], loc, 0, 0, &dci_ul[0], &dci_ul_grant);
+			dci_res->nof_ul_dci += 1; 
+		}
+		//printf("FOUND UL DCI: tti:%d\tnof_prb:%d\tnof_tb:%d\ttbs1:%d\ttbs2:%d\tmcs1:%d\tmcs2:%d\n", sf->tti, dci_res->ul_msg[0].prb, 
+	//		dci_res->ul_msg[0].nof_tb, dci_res->ul_msg[0].tb[0].tbs, dci_res->ul_msg[0].tb[1].tbs, dci_res->ul_msg[0].tb[0].mcs, dci_res->ul_msg[0].tb[1].tbs);
+	}
+
+	return ret;
+}
+
+
+
 
 void srsran_ue_dl_save_signal(srsran_ue_dl_t* q, srsran_dl_sf_cfg_t* sf, srsran_pdsch_cfg_t* pdsch_cfg)
 {
