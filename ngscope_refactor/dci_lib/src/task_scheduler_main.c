@@ -21,7 +21,6 @@ void* task_scheduler_thread(void* p)
   int          nof_decoder   = prog_args->nof_decoder;
   int          rf_idx        = prog_args->rf_index;
   uint32_t     rf_nof_rx_ant = prog_args->rf_nof_rx_ant;
-  uint32_t     max_num_samples;
 
   printf("TASK scheduler\n");
   // Define some important structure
@@ -35,19 +34,16 @@ void* task_scheduler_thread(void* p)
   cf_t* sync_buffer[SRSRAN_MAX_PORTS] = {NULL};
   cf_t* buffers[SRSRAN_MAX_CHANNELS]  = {};
 
-  for (int j = 0; j < rf_nof_rx_ant; j++) {
-    sync_buffer[j] = srsran_vec_cf_malloc(max_num_samples);
-  }
-  // Set the buffer for ue_sync
-  for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
-    buffers[p] = sync_buffer[p];
-  }
   /************** END OF setting up the UE sync buffer ******************/
 
   /******************* INIT the task scheduler  *********************/
   printf("INIT the Task Scheduler!\n");
   task_scheduler_init(*prog_args, &radio, &cell, &ue_sync, &ue_mib, &ue_dl, rf_nof_rx_ant, sync_buffer);
   max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell.nof_prb); /// Length in complex samples
+  // Set the buffer for ue_sync
+  for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
+    buffers[p] = sync_buffer[p];
+  }
 
   /*******  Define and Init the downlink decoding parameters and configurations ****/
   srsran_dl_sf_cfg_t dl_sf_cfg;

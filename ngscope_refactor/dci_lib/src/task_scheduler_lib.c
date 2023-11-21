@@ -124,8 +124,13 @@ int task_scheduler_init(prog_args_t       prog_args,
   ue_sync_init_imp(ue_sync, rf, cell, &cell_detect_config, prog_args, search_cell_cfo);
   printf("ue sync inited!\n");
 
+  uint32_t max_num_samples = 3 * SRSRAN_SF_LEN_PRB(cell->nof_prb); /// Length in complex samples
+  for (int j = 0; j < prog_args.rf_nof_rx_ant; j++) {
+    sync_buffer[j] = srsran_vec_cf_malloc(max_num_samples);
+  }
+
   // Now, let's init the mib decoder
-  task_mib_init_imp(ue_mib, sync_buffer, cell);
+  task_mib_init_imp(ue_mib, sync_buffer[0], cell);
   printf("task mib inited!\n");
 
   // init the UE_DL entity
@@ -133,6 +138,7 @@ int task_scheduler_init(prog_args_t       prog_args,
     ERROR("Error initiating UE downlink processing module");
     exit(-1);
   }
+  printf("ue_dl inited!\n");
 
   if (srsran_ue_dl_set_cell(ue_dl, *cell)) {
     ERROR("Error initiating UE downlink processing module");
