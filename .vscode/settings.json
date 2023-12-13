@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "cpu.h": "c",
-        "crash_handler.h": "c",
-        "ue_tracker.h": "c"
-    }
-}

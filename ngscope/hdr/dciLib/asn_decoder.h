@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef enum { MIB_4G, SIB_4G, MIB_5G, SIB_5G } PayloadType;
+typedef enum { MIB_4G, SIB_4G } PayloadType;
 
 typedef struct _ASNDecoder ASNDecoder;
 

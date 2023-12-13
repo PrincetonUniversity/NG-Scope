@@ -155,26 +155,6 @@ void * asn_processor(void * args)
                 fprintf(decoder->file, "4G SIB message cannot be decoded: libasn4g is not installed\n");
 #endif
                 break;
-            case MIB_5G:
-#ifdef ENABLE_ASN5G
-                mib_decode_5g(decoder->file, node->payload, node->len);
-                /* Free Node and payload */
-                free(node->payload);
-                free(node);
-#else
-                fprintf(decoder->file, "5G MIB message cannot be decoded: libasn5g is not installed\n");
-#endif
-                break;
-            case SIB_5G:
-#ifdef ENABLE_ASN5G
-                bcch_dl_sch_decode_5g(decoder->file, node->payload, node->len);
-                /* Free Node and payload */
-                free(node->payload);
-                free(node);
-#else
-                fprintf(decoder->file, "5G SIB message cannot be decoded: libasn5g is not installed\n");
-#endif
-                break;
             
             default:
                 printf("Invalid ASN1 payload type (%d)\n", node->type);
