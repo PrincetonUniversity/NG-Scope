@@ -1,9 +1,14 @@
-#file(GLOB_RECURSE SOURCES "*.cc" "*.c")
-file(GLOB_RECURSE SOURCES "*.c")
+file(GLOB_RECURSE SOURCES "*.cpp" "*.c")
+#file(GLOB_RECURSE SOURCES "*.c")
 
 add_library(ngscope_dci STATIC ${SOURCES})
 
-target_link_libraries(ngscope_dci config)
+target_link_libraries(ngscope_dci config rrc_asn1 asn1_utils srsran_common)
+
+# Link with C++ standard library
+if(BUILD_STATIC)
+  target_link_libraries(ngscope_dci stdc++)
+endif()
 
 if (LIBASN4G)
   target_link_libraries(ngscope_dci ${LIBASN4G_LIBRARY})

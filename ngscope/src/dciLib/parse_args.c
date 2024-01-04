@@ -20,7 +20,7 @@ void args_default(prog_args_t* args)
   //args->rnti                               = 0xFFFF; //SRSRAN_SIRNTI;
   args->rnti                               = 0x1315; //SRSRAN_SIRNTI;
   args->force_N_id_2                       = -1; // Pick the best
-  args->tdd_special_sf                     = -1;
+  args->tdd_special_sf                     = 2;
   args->sf_config                          = 2;
   args->input_file_name                    = NULL;
   args->disable_cfo                        = false;
@@ -39,7 +39,7 @@ void args_default(prog_args_t* args)
   args->rf_nof_rx_ant                      = 1;
   args->remote_enable                      = false;
   args->decode_single_ue                   = false;
-  args->decode_SIB                   	   = false;
+  args->decode_SIB                   	   = true;
 
   args->enable_cfo_ref                     = false;
   args->estimator_alg                      = (char*)"interpolate";

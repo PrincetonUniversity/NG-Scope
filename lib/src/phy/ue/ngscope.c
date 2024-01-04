@@ -234,7 +234,7 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
 
 		//printf("we enter normal dci message decoding !\n");
 		// Now we search for the normal dci messages 
-  		dci_cfg.multiple_csi_request_enabled 	= true;
+  		dci_cfg.multiple_csi_request_enabled 	= false;
 
 		// Search all the formats in this location
 		int nof_dci = srsran_ngscope_search_in_space_yx(q, sf, &search_space, &dci_cfg, dci_msg);

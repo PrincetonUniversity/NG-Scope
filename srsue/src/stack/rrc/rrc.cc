@@ -1398,7 +1398,7 @@ void rrc::parse_pdu_bcch_dlsch(unique_byte_buffer_t pdu)
     logger.error(pdu->msg, pdu->N_bytes, "Could not unpack BCCH DL-SCH message (%d B).", pdu->N_bytes);
     return;
   }
-
+  std::cout << "testFunction is invoked!" << std::endl;
   log_rrc_message("BCCH-DLSCH", Rx, pdu.get(), dlsch_msg, dlsch_msg.msg.c1().type().to_string());
 
   if (dlsch_msg.msg.c1().type() == bcch_dl_sch_msg_type_c::c1_c_::types::sib_type1) {

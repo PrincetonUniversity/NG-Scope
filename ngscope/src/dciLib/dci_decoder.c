@@ -27,6 +27,9 @@
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
 
+#include "ngscope/hdr/dciLib/sib1_helper.h"
+
+
 extern bool                 go_exit;
 
 extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
@@ -83,15 +86,9 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
     /************************* Init dl_sf **************************/
     if (cell->frame_type == SRSRAN_TDD && prog_args.tdd_special_sf >= 0 && prog_args.sf_config >= 0) {
         dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
-        //dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
-        //dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
-        dci_decoder->dl_sf.tdd_config.configured = true;
+        dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
+        dci_decoder->dl_sf.tdd_config.configured = false;
     }
-
-    //dci_decoder->dl_sf.tdd_config.ss_config  = prog_args.tdd_special_sf;
-    ////dci_decoder->dl_sf.tdd_config.sf_config  = prog_args.sf_config;
-    //dci_decoder->dl_sf.tdd_config.sf_config  = 2; 
-    //dci_decoder->dl_sf.tdd_config.configured = true;
 
     /************************* Init ue_dl_cfg **************************/
     srsran_chest_dl_cfg_t chest_pdsch_cfg = {};
@@ -284,27 +281,8 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         }
     }
 
-    //if(sf_idx % 1 == 0)    
-    //    decode_pdsch = true;
-
-    // decode_pdsch = true;
-    // if ( (dci_decoder->cell.frame_type == SRSRAN_TDD) && 
-    //     (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) ){
-    //     printf("TDD uplink subframe skip\n");
-    //     decode_pdsch = false;
-    // }
  
     int n = 0;
-
-//	uint64_t t1=0, t2=0;
-
-	//char fileName[100];
-	//sprintf(fileName,"decoder_%d.txt", dci_decoder->decoder_idx);
-	//FILE* fd = fopen(fileName,"a+");
-
-//	if(dci_decoder->decoder_idx == 0){
-//    	t1 = timestamp_us();        
-//	}
 
     // Now decode the PDSCH
     if(decode_pdsch){
@@ -349,18 +327,32 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 		}
 	} 
 
-	// Here is the SIB decoding 
-	if(decode_SIB){
+	/*********************  Reading sib1  **********************/
+	if((dci_decoder->cell.frame_type == SRSRAN_TDD && !dci_decoder->dl_sf.tdd_config.configured) || (decode_SIB))
+	{
         dci_decoder->dl_sf.tti          = tti;
 		bool acks[SRSRAN_MAX_CODEWORDS] = {false};
  		int n = srsran_ngscope_decode_SIB_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
 								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, acks, data);
 		if(n > 0){
-        	for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
-            	if (dci_decoder->pdsch_cfg.grant.tb[tb].enabled) {
-                	if (acks[tb]) {
-						int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
-						uint8_t* payload 	= data[tb];
+			for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
+				if (dci_decoder->pdsch_cfg.grant.tb[tb].enabled && acks[tb]) {
+					int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
+					uint8_t* payload 	= data[tb];
+
+					// only get sib1 parameters from the first tb for TDD
+					if (tb == 0 && dci_decoder->cell.frame_type == SRSRAN_TDD && !dci_decoder->dl_sf.tdd_config.configured) {
+						tdd_config config;
+						int result = get_sib1_params(payload, len, &config);
+						if (result == SRSRAN_SUCCESS) {
+							dci_decoder->dl_sf.tdd_config.sf_config  = config.sf_config;
+							dci_decoder->dl_sf.tdd_config.ss_config  = config.tdd_special_sf;
+							dci_decoder->dl_sf.tdd_config.configured = true;
+						}
+					}
+
+					// Dump SIB (Jon's library)
+					if(decode_SIB){
 						if(push_asn_payload(dci_decoder->decoder, payload, len, SIB_4G, tti))
 							printf("Error pushing 4G SIB message to decoder\n");
 					}
@@ -368,6 +360,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 			}
 		}
 	}
+	/*********************  End reading sib1  **********************/	
 
 //	if(dci_decoder->decoder_idx == 0){
 //    	t2 = timestamp_us();        
@@ -544,6 +537,7 @@ void* dci_decoder_thread(void* p){
     		dci_per_sub.timestamp 	= timestamp_us();
 
 			uint64_t t1 = timestamp_us();        
+			
 			dci_decoder_decode(dci_decoder, sf_idx,  sfn, data, &dci_per_sub);
 			uint64_t t2 = timestamp_us();        
 			fprintf(fd,"%d\t%ld\t\n", tti, t2-t1);

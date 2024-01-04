@@ -26,8 +26,8 @@
                               INCLUDES
 *******************************************************************************/
 
-#include <chrono>
 #include <cstring>
+#include <chrono>
 #include <memory>
 #include <stdint.h>
 #include <string>
@@ -36,6 +36,7 @@
 /*******************************************************************************
                               DEFINES
 *******************************************************************************/
+
 
 #define SRSRAN_UE_CATEGORY 4
 
@@ -102,5 +103,6 @@ inline std::string to_string(const srsran_rat_t& type)
 }
 
 } // namespace srsran
+
 
 #endif // SRSRAN_COMMON_H
