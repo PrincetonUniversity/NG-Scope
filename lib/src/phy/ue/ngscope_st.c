@@ -84,7 +84,7 @@ int ngscope_rnti_inside_dci_per_sub_dl(ngscope_dci_per_sub_t* q, uint16_t target
 }
 
 int ngscope_rnti_inside_dci_per_sub_ul(ngscope_dci_per_sub_t* q, uint16_t targetRNTI){
-	if(q->nof_dl_dci > 0){
+	if(q->nof_ul_dci > 0){
 		for(int	i=0; i<q->nof_ul_dci; i++){
 			if(q->ul_msg[i].rnti == targetRNTI){
 				return i;	
