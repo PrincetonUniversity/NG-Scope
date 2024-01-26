@@ -349,10 +349,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 							dci_decoder->dl_sf.tdd_config.ss_config  = config.tdd_special_sf;
 							dci_decoder->dl_sf.tdd_config.configured = true;
 						}
-					}
-
-					// Dump SIB (Jon's library)
-					if(decode_SIB){
+					} else if(decode_SIB){
 						if(push_asn_payload(dci_decoder->decoder, payload, len, SIB_4G, tti))
 							printf("Error pushing 4G SIB message to decoder\n");
 					}
@@ -386,7 +383,7 @@ int get_target_dci(ngscope_dci_msg_t* msg, int nof_msg, uint16_t targetRNTI){
 }
 
 
-bool dci_decoder_phich_decode(ngscope_dci_decoder_t*       dci_decoder,
+bool dci_decoder_phich_decode(ngscope_dci_decoder_t*      dci_decoder,
                                   uint32_t                tti,
                                   ngscope_dci_per_sub_t*  dci_per_sub, 
         						  srsran_phich_res_t*  	  phich_res)
@@ -395,19 +392,30 @@ bool dci_decoder_phich_decode(ngscope_dci_decoder_t*       dci_decoder,
     bool ack_available = false;
     if(targetRNTI > 0){
         if(dci_per_sub->nof_ul_dci > 0){
+			//printf("dci_ul_msg: tti:%d, rnti:%d, mcs:%d, rv:%d\n", tti, dci_per_sub->ul_msg[0].rnti, dci_per_sub->ul_msg[0].tb[0].mcs, dci_per_sub->ul_msg[0].tb[0].rv);
             int idx = get_target_dci(dci_per_sub->ul_msg, dci_per_sub->nof_ul_dci, targetRNTI);
             if(idx >= 0){
                 uint32_t n_dmrs         = dci_per_sub->ul_msg[idx].phich.n_dmrs;
                 uint32_t n_prb_tilde    = dci_per_sub->ul_msg[idx].phich.n_prb_tilde;
+				uint32_t tti_phich 		= 0;
+
+				if(dci_decoder->cell.frame_type == SRSRAN_FDD){
+					tti_phich = TTI_RX_ACK(tti);
+				} else if(dci_decoder->cell.frame_type == SRSRAN_TDD){
+					tti_phich = get_phich_tti_tdd(tti, dci_decoder->dl_sf.tdd_config.sf_config);
+				}
+
+				// printf("tti:%d, tti_phich:%d, tti_dl_sf:%d\n", tti, tti_phich, dci_decoder->dl_sf.tti);
+
                 pthread_mutex_lock(&ack_mutex);
-                phich_set_pending_ack(&ack_list, TTI_RX_ACK(tti), n_prb_tilde, n_dmrs);
+                phich_set_pending_ack(&ack_list, tti_phich, n_prb_tilde, n_dmrs);
                 pthread_mutex_unlock(&ack_mutex);
+
+				// If there is dci0 for the targetRNTI at current tti, reset PHICH for current tti.
+				phich_reset_pending_ack(&ack_list, tti);
             }
         }
-        ack_available = decode_phich(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, &ack_list, phich_res);
-		if(ack_available){
-			//printf("TTI:%d ACK:%d distance:%f\n", tti, phich_res->ack_value, phich_res->distance);
-		}
+        ack_available = decode_phich(&dci_decoder->ue_dl, &dci_decoder->dl_sf, &dci_decoder->ue_dl_cfg, &dci_decoder->cell, &ack_list, phich_res);
     }
     return ack_available;
 }
@@ -450,7 +458,7 @@ void* dci_decoder_thread(void* p){
 
 	int decoder_idx = dci_decoder->decoder_idx;
     int rf_idx     	= dci_decoder->prog_args.rf_index;
-    //uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;
+    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;
 	
 
 	printf("decoder idx :%d \n", decoder_idx);
@@ -565,21 +573,27 @@ void* dci_decoder_thread(void* p){
 			}
 #endif
 		}
-        //t4 = timestamp_us();        
 
-        //printf("End of decoding decoder_idx:%d sfn:%d sf_idx:%d tti:%d\n", 
-        //                    dci_decoder->decoder_idx, sfn, sf_idx, sfn * 10 + sf_idx);
-        // srsran_phich_res_t  	  phich_res;
-        // if(dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub, &phich_res) && (phich_res.ack_value == 0) ){
-		// 	if(ngscope_rnti_inside_dci_per_sub_ul(&dci_per_sub,targetRNTI) >= 0){
-		// 		printf("Conflict we have both ul dci and ul ack!\n");
-		// 	}else{
-		// 		printf("TTI:%d We insert one ul reTx dci msg: before: %d", tti, dci_per_sub.nof_ul_dci);
-		// 		ngscope_enqueue_ul_reTx_dci_msg(&dci_per_sub, targetRNTI);
-		// 		printf("after: %d | \n", dci_per_sub.nof_ul_dci);
-		// 	}
-		// 	//ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
+		// if(dci_per_sub.nof_ul_dci>0){
+		// 	printf("after:: frequency hopping: %d\n", dci_per_sub.ul_msg[0].phich.freq_hopping);
 		// }
+
+		uint32_t sf_config 	= dci_decoder->dl_sf.tdd_config.sf_config;
+		bool tdd_configured = dci_decoder->dl_sf.tdd_config.configured;
+		if(dci_decoder->cell.frame_type == SRSRAN_FDD || (subframe_is_ulgrant_tdd(tti, sf_config) && tdd_configured)){
+			srsran_phich_res_t  	  phich_res;
+			bool ack_available = dci_decoder_phich_decode(dci_decoder, tti, &dci_per_sub, &phich_res);
+			if(ack_available && phich_res.ack_value==0){
+				if(ngscope_rnti_inside_dci_per_sub_ul(&dci_per_sub,targetRNTI) >= 0){
+					printf("Conflict we have both ul dci and ul ack!\n");
+				}else{
+					printf("TTI:%d We insert one ul reTx dci msg: before: %d, ", tti, dci_per_sub.nof_ul_dci);
+					ngscope_enqueue_ul_reTx_dci_msg(&dci_per_sub, targetRNTI);
+					printf("after: %d | \n", dci_per_sub.nof_ul_dci);
+				}
+				//ngscope_push_dci_to_per_sub(dci_per_sub, &tree->dci_array[i][loc_idx]);
+			}
+		}
 
         dci_ret.dci_per_sub  = dci_per_sub;
         dci_ret.tti          = sfn *10 + sf_idx;

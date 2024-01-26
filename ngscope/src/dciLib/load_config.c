@@ -128,8 +128,15 @@ int ngscope_read_config(ngscope_config_t* config, char * path){
 		if(! config_lookup_bool(cfg, name, &config->rf_config[i].log_ul)){
             printf("ERROR: reading log_ul\n");
         }else{
-            printf("log dl dci: %d\n", config->rf_config[i].log_dl);
+            printf("log ul dci: %d\n", config->rf_config[i].log_ul);
         }
+
+        sprintf(name, "rf_config%d.log_phich",i);
+		if(! config_lookup_bool(cfg, name, &config->rf_config[i].log_phich)){
+            printf("ERROR: reading log_phich\n");
+        }else{
+            printf("log phich: %d\n", config->rf_config[i].log_phich);
+        }        
 
     }
 

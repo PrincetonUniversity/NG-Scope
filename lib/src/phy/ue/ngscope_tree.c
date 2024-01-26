@@ -22,6 +22,9 @@ void srsran_ngscope_tree_copy_dci_fromArray2PerSub(ngscope_tree_t* q,
     if((format == 0)  ){
         if(dci_per_sub->nof_ul_dci < MAX_DCI_PER_SUB){
             // Format 0 uplink (we only record maximum of 10 message per subframe )
+
+            // printf("before2:: frequency hopping: %d\n", q->dci_array[format][idx].phich.freq_hopping);
+         
             dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci] 		= q->dci_array[format][idx];
             dci_per_sub->ul_msg[dci_per_sub->nof_ul_dci].format = SRSRAN_DCI_FORMAT0;
             dci_per_sub->nof_ul_dci++;

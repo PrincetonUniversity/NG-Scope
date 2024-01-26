@@ -21,6 +21,7 @@ typedef struct{
 typedef struct{
     uint32_t n_dmrs;
     uint32_t n_prb_tilde;
+    uint32_t freq_hopping;
 }ngscope_dci_phich_t;
 
 

@@ -113,12 +113,13 @@ int srsran_ngscope_unpack_ul_dci_2grant(srsran_ue_dl_t*     q,
     // set the hopping config
     srsran_pusch_hopping_cfg_t ul_hopping = {.n_sb = 1, .hopping_offset = 0, .hop_mode = 1};
 
-
+    // from dci_msg to dci_ul
     if (srsran_dci_msg_unpack_pusch(&q->cell, sf, &cfg->cfg.dci, dci_msg, dci_ul)) {
         //ERROR("Unpacking UL DCI");
         return SRSRAN_ERROR;
     }
 
+    // from dci_ul to dci_ul_grant
     if (srsran_ra_ul_dci_to_grant(&q->cell, &ul_sf, &ul_hopping, dci_ul, dci_ul_grant)) {
         //ERROR("Translate UL DCI to uplink grant");
         return SRSRAN_ERROR;
@@ -149,7 +150,8 @@ void srsran_ngscope_dci_into_array_ul(ngscope_dci_msg_t dci_array[][MAX_CANDIDAT
     dci_array[i][j].loc       	= loc;
 	
     dci_array[i][j].phich.n_dmrs   =  dci_ul->n_dmrs;
-    dci_array[i][j].phich.n_prb_tilde   = dci_ul_grant->n_prb_tilde[0];
+    dci_array[i][j].phich.n_prb_tilde  = dci_ul_grant->n_prb_tilde[0];
+    dci_array[i][j].phich.freq_hopping = dci_ul_grant->freq_hopping+10;
 
     dci_array[i][j].decode_prob      = decode_prob;
     dci_array[i][j].corr             = corr;

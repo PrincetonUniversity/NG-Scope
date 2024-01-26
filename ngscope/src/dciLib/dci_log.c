@@ -121,6 +121,40 @@ void log_ul_subframe(sf_status_t* q,
 	return;
 }
 
+void log_phich_subframe(sf_status_t* q,
+					FILE* fd_phich)
+{
+    int nof_ul_msg = q->nof_ul_msg;
+	int nof_phich  = 0;
+
+	/* Logging uplink messages */
+	if(nof_ul_msg > 0){
+		for(int i=0; i<nof_ul_msg; i++){
+			// rv=4 means phich NACK received
+			if(q->ul_msg[i].tb[0].rv == 4){
+				nof_phich++;
+				// TTI RNTI
+				fprintf(fd_phich, "%d\t%d\t", q->tti, q->ul_msg[i].rnti);	
+				// PHICH
+				fprintf(fd_phich, "%d\t", q->ul_msg[i].tb[0].rv);	
+				fprintf(fd_phich, "%ld\n", q->timestamp_us);							
+			}
+
+		}
+	}
+
+	if (nof_phich==0){
+		// We must fill the TTI even if there is no dci message inside this subframe
+		fprintf(fd_phich, "%d\t", q->tti);
+		for(int i=0; i<2; i++){
+			fprintf(fd_phich, "%d\t", 0);
+		}
+		fprintf(fd_phich, "%ld\n", q->timestamp_us);
+	}
+
+	return;
+}
+
 /* Logging related function */
 void log_per_subframe(sf_status_t* q, ngscope_dci_log_config_t* config, int cell_idx)
 {
@@ -133,6 +167,10 @@ void log_per_subframe(sf_status_t* q, ngscope_dci_log_config_t* config, int cell
     if(config->log_ul[cell_idx]){
 		log_ul_subframe(q, config->fd_ul[cell_idx]);
     }
+
+    if(config->log_phich[cell_idx]){
+		log_phich_subframe(q, config->fd_phich[cell_idx]);
+    }	
 
     return;
 }
@@ -196,6 +234,7 @@ void log_multi_cell(ngscope_cell_dci_ring_buffer_t* 	q,
 }
 void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
                           FILE* fd_ul[MAX_NOF_RF_DEV],
+						  FILE* fd_phich[MAX_NOF_RF_DEV],
 						  ngscope_config_t* config)
 {
 	int nof_rf_dev = config->nof_rf_dev;
@@ -237,6 +276,18 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
                 exit(0);
             }
         }
+
+        if(config->rf_config[i].log_phich){
+			if(fd_phich[i] != NULL){
+				fclose(fd_phich[i]);
+			}
+            sprintf(str, "%s/phich_log_ul_freq_%lld_%s.dciLog", config->dci_logs_path, config->rf_config[i].rf_freq, local_time_str);
+            fd_phich[i] = fopen(str, "w+");
+             if(fd_phich[i]== NULL){
+                printf("ERROR: fail to open phich log file!\n");
+                exit(0);
+            }
+        }		
     }
 	return;
 }
@@ -248,12 +299,13 @@ void fill_dci_log_config(ngscope_dci_log_config_t* q, ngscope_config_t* config){
 		//q->cell_prb[i] 	= config.rf_config[i].
 		q->log_dl[i] 	= config->rf_config[i].log_dl;
 		q->log_ul[i] 	= config->rf_config[i].log_ul;
+		q->log_phich[i] 	= config->rf_config[i].log_phich;
 
 		q->curr_header[i] 	= 0;
 		q->cell_ready[i] 	= false;
 	}
 
-	fill_file_descriptor(q->fd_dl,  q->fd_ul, config);
+	fill_file_descriptor(q->fd_dl, q->fd_ul, q->fd_phich, config);
 
 #ifdef LOG_DCI_LOGGER
 	q->fd_log_cell = fopen("dci_log_cell.txt", "w+");
@@ -271,6 +323,10 @@ void clear_dci_log_config(ngscope_dci_log_config_t* q){
 
 		if(q->log_ul[i]){
 			fclose(q->fd_ul[i]);
+		}
+
+		if(q->log_phich[i]){
+			fclose(q->fd_phich[i]);
 		}
 	}
 #ifdef LOG_DCI_LOGGER
@@ -346,7 +402,7 @@ void* dci_log_thread(void* p){
 			//printf("log_interval:%d distance:%ld \n", log_interval, curr_time - last_time);
 			if( (curr_time - last_time) > log_interval * 1000){
 				// clean and reset the file_descriptor
-				fill_file_descriptor(dci_log_config.fd_dl,  dci_log_config.fd_ul, &(log_config->config));
+				fill_file_descriptor(dci_log_config.fd_dl, dci_log_config.fd_ul, dci_log_config.fd_phich, &(log_config->config));
 				last_time = curr_time;
 			}
 		}

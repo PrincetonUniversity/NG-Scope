@@ -40,6 +40,7 @@ void unpack_dci_message_vec(srsran_ue_dl_t*        q,
 				//Upack the uplink dci to uplink grant
 				if(srsran_ngscope_unpack_ul_dci_2grant(q, sf, cfg, pdsch_cfg, &dci_msg[j],  
 								&dci_ul, &dci_ul_grant) == SRSRAN_SUCCESS){
+          // dci_ul_grant to tree->dci_array
 					srsran_ngscope_dci_into_array_ul(tree->dci_array, 0, loc_idx, tree->dci_location[loc_idx],
 									dci_msg[j].decode_prob, dci_msg[j].corr, &dci_ul, &dci_ul_grant);
 				}
@@ -62,6 +63,7 @@ void copy_dci_to_output(ngscope_tree_t* 	   		tree,
 						int format_idx, int loc_idx)
 {
 	// copy the matched dci message to the results
+  // printf("before1:: frequency hopping: %d, format: %d\n", tree->dci_array[format_idx][loc_idx].phich.freq_hopping, format_idx);
 	srsran_ngscope_tree_copy_dci_fromArray2PerSub(tree, dci_per_sub, format_idx, loc_idx);
 	//printf("nof_dl_msg:%d nof_ul_msg:%d \n", dci_per_sub->nof_dl_dci, dci_per_sub->nof_dl_dci);
 	
@@ -98,7 +100,7 @@ int child_parent_match(ngscope_tree_t* 	   tree,
 			// Prune the nodes since it is possible that two RNTIs are matched for one node
 			pruned_nof_dci = srsran_ngscope_tree_prune_node(tree, nof_matched, matched_root, targetRNTI, matched_format_vec, &format_idx);
 		}
-	   if(pruned_nof_dci == 1){
+	  if(pruned_nof_dci == 1){
 			bool space_match = true;
 			if( (format_idx != 0) && (format_idx != 4)){
 				//TODO Do we need to use space match for other formats?
@@ -155,6 +157,10 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
   }else{
     search_space.nof_formats = MAX_NOF_FORMAT;
   }
+
+  /* For TDD, when searching for SIB1, the ul/dl configuration is unknown and need to do blind search over
+   * the possible mi values
+   */  
   uint32_t mi_set_len;
   if (q->cell.frame_type == SRSRAN_TDD && !sf->tdd_config.configured) {
     mi_set_len = 3;
@@ -162,13 +168,22 @@ int srsran_ngscope_search_all_space_array_yx(srsran_ue_dl_t*        q,
     mi_set_len = 1;
   }
     
-  // Currently we assume FDD only 
-  // Remeber that sf->cfi is set only after calling this function
-  srsran_ue_dl_set_mi_auto(q);
-  if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
-    ERROR("ERROR decode FFT\n");
-    return 0;
+  // Blind search PHICH mi value
+  // Remeber that sf->cfi is set only after calling srsran_ue_dl_decode_fft_estimate
+  ret = 0;
+  for (uint32_t i = 0; i < mi_set_len && !ret; i++) {
+    if (mi_set_len == 1) {
+      srsran_ue_dl_set_mi_auto(q);
+    } else {
+      srsran_ue_dl_set_mi_manual(q, i);
+    }
+
+    if ((ret = srsran_ue_dl_decode_fft_estimate(q, sf, cfg)) < 0) {
+      ERROR("ERROR decode FFT\n");
+      return 0;
+    }
   }
+  
 
   //ngscope_tree_t tree;
   ngscope_tree_init(tree);

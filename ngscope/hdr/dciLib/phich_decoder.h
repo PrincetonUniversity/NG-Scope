@@ -25,7 +25,7 @@
 
 #define UL_PIDOF(tti)   (tti%(2*HARQ_DELAY_MS))
 
-#define TTIMOD_SZ       (((2*HARQ_DELAY_MS) < 10)?10:20)
+#define TTIMOD_SZ       100
 #define TTIMOD(tti)     (tti%TTIMOD_SZ)
 
 typedef struct {
@@ -38,6 +38,8 @@ typedef struct {
     pending_ack_element pending_ack[TTIMOD_SZ];
 } pend_ack_list;
 
+bool subframe_is_ulgrant_tdd(uint32_t tti, uint32_t sf_config);
+uint32_t get_phich_tti_tdd(uint32_t tti, uint32_t sf_config);
 void init_pending_ack(pend_ack_list* ack_list);
 void phich_reset_pending_ack(pend_ack_list* ack_list, uint32_t tti);
 void phich_set_pending_ack(pend_ack_list* ack_list, uint32_t tti, uint32_t I_lowest, uint32_t n_dmrs);
@@ -49,6 +51,7 @@ bool phich_is_any_pending_ack(pend_ack_list* ack_list);
 bool decode_phich(srsran_ue_dl_t* ue_dl,
                   srsran_dl_sf_cfg_t* sf_cfg_dl,
                   srsran_ue_dl_cfg_t* ue_dl_cfg,
+                  srsran_cell_t* cell,
                   pend_ack_list* ack_list,
                   srsran_phich_res_t* phich_res);
 

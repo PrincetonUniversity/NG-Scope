@@ -39,7 +39,7 @@ void args_default(prog_args_t* args)
   args->rf_nof_rx_ant                      = 1;
   args->remote_enable                      = false;
   args->decode_single_ue                   = false;
-  args->decode_SIB                   	   = true;
+  args->decode_SIB                   	   = false;
 
   args->enable_cfo_ref                     = false;
   args->estimator_alg                      = (char*)"interpolate";

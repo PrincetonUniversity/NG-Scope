@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "dci_log.h": "c",
+        "cmath": "c"
+    }
+}

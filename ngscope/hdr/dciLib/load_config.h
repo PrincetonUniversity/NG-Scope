@@ -11,6 +11,7 @@ typedef struct{
     int         disable_plot;
 	int 		log_dl;
 	int			log_ul;
+    int         log_phich;
 }rf_dev_config_t;
 
 typedef struct{

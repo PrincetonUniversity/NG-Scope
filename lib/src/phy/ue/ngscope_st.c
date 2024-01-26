@@ -65,7 +65,7 @@ int ngscope_enqueue_ul_reTx_dci_msg(ngscope_dci_per_sub_t* q, uint16_t targetRNT
 	msg.format 	= 0;
 	msg.tb[0].mcs 	= 0;
 	msg.tb[0].tbs 	= 0;
-	msg.tb[0].rv  	= 1;
+	msg.tb[0].rv  	= 4;
 	msg.tb[0].ndi 	= 0;
 
 	ngscope_push_dci_to_per_sub(q, &msg);
