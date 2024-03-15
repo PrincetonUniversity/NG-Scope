@@ -178,7 +178,7 @@ int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int re
   for (int i = 0; i < nof_ul_msg; i++) {
     if (q->ul_msg[i].rnti == targetRNTI) {
       ngscope_dci_msg_t dci_msg = q->ul_msg[i];
-      printf("ul tbs: %d", dci_msg.tb[0].tbs);
+      //printf("ul tbs: %d", dci_msg.tb[0].tbs);
       ue_dci.ul_tbs = dci_msg.tb[0].tbs + dci_msg.tb[1].tbs;
       if (dci_msg.tb[0].rv > 0 || dci_msg.tb[1].rv > 0) {
         ue_dci.ul_reTx = 1;
@@ -188,7 +188,7 @@ int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int re
     }
   }
 
-  printf("UE DCI dl_tbs: %d ul_tbs:%d \n", ue_dci.dl_tbs, ue_dci.ul_tbs);
+  //printf("UE DCI dl_tbs: %d ul_tbs:%d \n", ue_dci.dl_tbs, ue_dci.ul_tbs);
   sock_send_single_dci(&dci_sink_serv, &ue_dci, 0);
 
   return 1;
