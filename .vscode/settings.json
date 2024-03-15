@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "dci_log.h": "c",
-        "cmath": "c"
+        "cmath": "c",
+        "rf.h": "c",
+        "filesink.h": "c",
+        "gen_mch_tables.h": "c",
+        "stdint.h": "c"
     }
 }

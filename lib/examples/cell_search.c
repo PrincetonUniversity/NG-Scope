@@ -44,7 +44,7 @@
 #define FLEN 9600
 #define FLEN_PERIOD 0.005
 
-#define MAX_EARFCN 1000
+#define MAX_EARFCN 2000
 
 int band         = -1;
 int earfcn_start = -1, earfcn_end = -1;
