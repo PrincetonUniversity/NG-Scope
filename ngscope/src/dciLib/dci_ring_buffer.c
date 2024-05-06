@@ -194,6 +194,77 @@ int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int re
   return 1;
 }
 
+rnti_dci_t *get_rnti_dci(cell_dci_t *cell_dci, uint16_t rnti) {
+	if (cell_dci->nof_rnti >= 1) {
+		// fast return without entering the for loop
+		if (cell_dci->nof_rnti == 1) {
+			if (cell_dci->rnti_list[0].rnti == rnti) {
+				return &cell_dci->rnti_list[0];
+			}
+		} else {
+			for (uint8_t i = 1; i < cell_dci->nof_rnti; i++) {
+				if (cell_dci->rnti_list[i].rnti == rnti) {
+					return &cell_dci->rnti_list[i];
+				}
+			}
+		}
+	}
+	cell_dci->rnti_list[cell_dci->nof_rnti++] = (rnti_dci_t){ rnti, 0, 0, 0, 0 , 0, 0};
+	return &cell_dci->rnti_list[cell_dci->nof_rnti - 1];
+}
+
+int push_rnti_dci_to_remote(sf_status_t* q, int cell_idx, int remote_sock)
+{
+  if (remote_sock <= 0) {
+    // printf("ERROR: sock not set!\n\n");
+    return -1;
+  }
+  cell_dci_t cell_dci;
+  cell_dci.cell_id   = cell_idx;
+  cell_dci.time_stamp = q->timestamp_us;
+  cell_dci.tti        = q->tti;
+  cell_dci.nof_rnti = 0;
+  cell_dci.total_dl_tbs = 0;
+  cell_dci.total_ul_tbs = 0;
+  cell_dci.total_dl_prb = 0;
+  cell_dci.total_ul_prb = 0;
+  cell_dci.total_dl_reTx = 0;
+  cell_dci.total_ul_reTx = 0;
+
+  int nof_dl_msg = q->nof_dl_msg;
+  int nof_ul_msg = q->nof_ul_msg;
+
+  for (int i = 0; i < nof_dl_msg; i++) {
+    ngscope_dci_msg_t dci_msg = q->dl_msg[i];
+    rnti_dci_t *rnti_dci = get_rnti_dci(&cell_dci, dci_msg.rnti);
+    rnti_dci->dl_tbs += dci_msg.tb[0].tbs + dci_msg.tb[1].tbs;
+    rnti_dci->dl_prb += dci_msg.prb;
+    if (dci_msg.tb[0].rv > 0 || dci_msg.tb[1].rv > 0) {
+	    rnti_dci->dl_reTx++;
+	    cell_dci.total_dl_reTx++;
+    }
+    cell_dci.total_dl_tbs += rnti_dci->dl_tbs;
+    cell_dci.total_dl_prb += rnti_dci->dl_prb;
+  }
+
+  for (int i = 0; i < nof_ul_msg; i++) {
+    ngscope_dci_msg_t dci_msg = q->ul_msg[i];
+    rnti_dci_t *rnti_dci = get_rnti_dci(&cell_dci, dci_msg.rnti);
+    rnti_dci->ul_tbs += dci_msg.tb[0].tbs; /* Apparently, UL tbs is only one */
+    rnti_dci->ul_prb += dci_msg.prb;
+    if (dci_msg.tb[0].rv > 0 || dci_msg.tb[1].rv > 0) {
+	    rnti_dci->ul_reTx++;
+	    cell_dci.total_ul_reTx++;
+    }
+    cell_dci.total_ul_tbs += rnti_dci->ul_tbs;
+    cell_dci.total_ul_prb += rnti_dci->ul_prb;
+  }
+
+  sock_send_single_rnti_dci(&dci_sink_serv, &cell_dci, 0);
+
+  return 1;
+}
+
 ///* push to recorded dci to remote */
 // int push_dci_to_remote(sf_status_t* q, int cell_idx, uint16_t targetRNTI, int remote_sock){
 //	if(remote_sock <= 0){
@@ -265,10 +336,13 @@ void update_cell_status_header(ngscope_cell_dci_ring_buffer_t* q, int remote_soc
   check_dci_decoding_timeout(q);
 
   int index = (q->cell_header + 1) % q->buf_size;
+
   while (q->sub_stat[index].filled) {
     q->cell_header            = index;
     q->sub_stat[index].filled = false;
-    push_dci_to_remote(&q->sub_stat[index], q->cell_idx, q->targetRNTI, remote_sock);
+    // TODO: Check which message type to send
+    // push_dci_to_remote(&q->sub_stat[index], q->cell_idx, q->targetRNTI, remote_sock);
+    push_rnti_dci_to_remote(&q->sub_stat[index], q->cell_idx, remote_sock);
     // fprintf(fd,"%d\t%d\t%d\t%d\t\n", q->sub_stat[index].tti, q->cell_header, index, tti);
     // printf("push tti:%d index:%d\n", q->sub_stat[index].tti, index);
     //  update the index

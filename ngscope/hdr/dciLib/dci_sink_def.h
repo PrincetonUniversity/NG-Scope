@@ -21,6 +21,8 @@
 #define MAX_NOF_CELL 4
 #define NOF_LOG_DCI 1000
 #define MAX_CLIENT 5
+#define MAX_NOF_RNTI_PER_DCI 20
+
 
 // This structure is used for the DCI exchange between NG-Scope and the app receiver
 // We include both downlink and uplink information
@@ -53,6 +55,35 @@ typedef struct{
 	uint16_t cell_prb[MAX_NOF_CELL];
 	uint16_t rnti;
 }cell_config_t;
+
+typedef struct {
+	uint16_t rnti;
+	uint32_t dl_tbs;
+	uint8_t dl_prb;
+	uint8_t dl_reTx;
+
+	uint32_t ul_tbs;
+	uint8_t ul_prb;
+	uint8_t ul_reTx;
+} rnti_dci_t;
+
+// Structure that is used for storing all RNTIs DCI data per cell between the
+// dci sink server/client
+typedef struct {
+	uint8_t  cell_id;
+	uint64_t time_stamp;
+	uint16_t tti;
+	uint64_t total_dl_tbs;
+	uint64_t total_ul_tbs;
+	uint8_t total_dl_prb;
+	uint8_t total_ul_prb;
+	uint8_t total_dl_reTx;
+	uint8_t total_ul_reTx;
+	// TODO: Evaluate MAX_NOF_RNTI
+	uint8_t nof_rnti;
+	rnti_dci_t rnti_list[MAX_NOF_RNTI_PER_DCI];
+} cell_dci_t;
+
 
 
 #endif
