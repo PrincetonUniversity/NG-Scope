@@ -206,6 +206,48 @@ int sock_send_config(ngscope_dci_sink_serv_t* q, cell_config_t* cell_config)
   return 1;
 }
 
+int sock_send_single_rnti_dci(ngscope_dci_sink_serv_t* q, cell_dci_t* cell_dci, int proto_v)
+{
+  char buf[1000];
+  /**********************************************
+  Common part of the data:
+  preamble: 			0xAB 0xAB 0xAB 0xAB
+  protocol version:		8 bits
+  cell_dci_t: 			848
+  **********************************************/
+  // preamble here
+  buf[0]      = (char) 0xAB;
+  buf[1]      = (char) 0xAB;
+  buf[2]      = (char) 0xAB;
+  buf[3]      = (char) 0xAB;
+  int buf_idx = 4;
+
+  /************ Protocol Version ************/
+  memcpy(&buf[buf_idx], &proto_v, sizeof(uint8_t));
+  buf_idx += 1;
+
+  /*********** Cell DCI ***************/
+  memcpy(&buf[buf_idx], cell_dci, sizeof(cell_dci_t));
+  buf_idx += sizeof(cell_dci_t);
+
+  /* Send the data to all client via UDP */
+  pthread_mutex_lock(&q->client_list.mutex);
+  for (int i = 0; i < q->client_list.nof_client; i++) {
+    int ret = sendto(q->sink_sockfd,
+                     (char*)buf,
+                     buf_idx,
+                     MSG_CONFIRM,
+                     (const struct sockaddr*)&q->client_list.client_addr[i],
+                     sizeof(struct sockaddr));
+    if (ret < 0) {
+      printf("ERROR in sending via socket!\n");
+    }
+  }
+  pthread_mutex_unlock(&q->client_list.mutex);
+
+  return 1;
+}
+
 struct sockaddr_in sock_create_serv_addr(char serv_IP[40], int serv_port)
 {
   struct sockaddr_in servaddr;
