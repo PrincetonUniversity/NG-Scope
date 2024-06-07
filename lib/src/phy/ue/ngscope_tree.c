@@ -514,11 +514,11 @@ int srsran_ngscope_tree_copy_rnti(ngscope_tree_t*   		q,
 	int ret = 0;
     for(int i=0; i<q->nof_location; i++){
     	for(int j=0; j<MAX_NOF_FORMAT+1; j++){
-			if(q->dci_array[j][i].rnti == rnti){
+			// if(q->dci_array[j][i].rnti == rnti){
 				srsran_ngscope_tree_copy_dci_fromArray2PerSub(q, dci_per_sub, j, i);
     			ZERO_OBJECT(q->dci_array[j][i]);
 				ret++;;
-			}
+			// }
         }
     }
     return ret;
