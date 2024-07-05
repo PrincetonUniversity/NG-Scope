@@ -286,6 +286,8 @@ int srsran_ra_ul_dci_to_grant(srsran_cell_t*              cell,
                               srsran_dci_ul_t*            dci,
                               srsran_pusch_grant_t*       grant)
 {
+  bzero(grant, sizeof(srsran_pusch_grant_t));
+
   // Compute PRB allocation
   if (!ra_ul_grant_to_grant_prb_allocation(dci, grant, hopping_cfg->n_rb_ho, cell->nof_prb)) {
     // copy default values from DCI. RV can be updated by ul_fill_ra_mcs() in case of Adaptive retx (mcs>28)
