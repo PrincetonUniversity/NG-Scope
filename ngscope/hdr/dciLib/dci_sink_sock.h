@@ -43,6 +43,7 @@ void sock_update_client_list_addr(client_list_t* q, struct sockaddr_in* addr);
 
 int sock_send_config(ngscope_dci_sink_serv_t* q, cell_config_t* cell_config);
 int sock_send_single_dci(ngscope_dci_sink_serv_t* q, ue_dci_t* ue_dci, int proto_v);
+int sock_send_single_rnti_dci(ngscope_dci_sink_serv_t* q, cell_dci_t* cell_dci, int proto_v);
 
 struct sockaddr_in sock_create_serv_addr(char serv_IP[40], int serv_port);
 #endif

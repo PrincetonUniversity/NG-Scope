@@ -10,6 +10,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdint.h>
+/* <thesis> */
+#include <wchar.h>
+#include <locale.h>
+/* </thesis> */
 
 #include "ngscope/hdr/dciLib/radio.h"
 #include "ngscope/hdr/dciLib/task_scheduler.h"
@@ -520,7 +524,9 @@ void* task_scheduler_thread(void* p){
 	FILE* 		fd = fopen("task_scheduler.txt","w+");
 	//FILE* 		fd_1 = fopen("sf_sfn.txt","w+");
 	
-
+    uint8_t print_index = 0;
+    uint8_t print_delay = 0;
+    setlocale(LC_CTYPE, "");
 	//uint64_t t1=0, t2=0, t3=0;
 	//uint64_t t1_sf_idx =0, t2_sf_idx=0;
     while(!go_exit && (sf_cnt < task_scheduler.prog_args.nof_subframes || task_scheduler.prog_args.nof_subframes == -1)) {
@@ -534,7 +540,20 @@ void* task_scheduler_thread(void* p){
         //printf("RET is:%d\n", ret); 
         if (ret < 0) {
             ERROR("Error calling srsran_ue_sync_work()");
-        }else if(ret == 1){
+        }
+	else if (ret == 0) {
+           if (print_delay++ >= 100) {
+                printf("\r🔍 searching pss");
+		fflush(stdout);
+                print_delay = 0;
+            }
+        }
+	else if(ret == 1) {
+            if (print_delay++ >= 100) {
+                printf("\r%lc                ", (wchar_t) (0x25F3 - (print_index++ % 4)));
+                fflush(stdout);
+                print_delay = 0;
+            }
         	//t1_sf_idx = timestamp_us();        
             sf_idx = srsran_ue_sync_get_sfidx(&task_scheduler.ue_sync);
         	//t2_sf_idx = timestamp_us();        
@@ -549,7 +568,7 @@ void* task_scheduler_thread(void* p){
                 ue_mib_decode_sfn(&ue_mib, &task_scheduler.cell, &sfn_tmp, decode_pdcch);
 
                 if(sfn != sfn_tmp){
-                    printf("current sfn:%d decoded sfn:%d\n",sfn, sfn_tmp);
+                    //printf("current sfn:%d decoded sfn:%d\n",sfn, sfn_tmp);
                 }
                 if(sfn_tmp > 0){
                     //printf("decoded sfn from:%d\n",sfn_tmp);
@@ -568,7 +587,7 @@ void* task_scheduler_thread(void* p){
             /***************** Tell the decoder to decode the PDCCH *********/          
             if(decode_pdcch){  // We only decode when we got the SFN
 				if((last_tti != 10239) && (last_tti+1 != tti) ){
-					printf("Last tti:%d current tti:%d\n", last_tti, tti);
+					//printf("Last tti:%d current tti:%d\n", last_tti, tti);
 				}
 				last_tti = tti;
                 /** Now we need to know where shall we put the IQ data of each subframe*/
@@ -588,7 +607,7 @@ void* task_scheduler_thread(void* p){
 					if(task_sf_ring_buffer_put(&task_tmp_buffer[rf_idx], buffers, sfn, sf_idx, 
 								task_scheduler.prog_args.rf_nof_rx_ant, max_num_samples) == 0){
 						int nof_buf_sf = task_sf_ring_buffer_len(&task_tmp_buffer[rf_idx]);
-						printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
+						//printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
 						skip_tti_put(&skip_tti[rf_idx], sfn, sf_idx);			
 					}
 					//int nof_buf_sf = get_nof_buffered_sf(rf_idx);
