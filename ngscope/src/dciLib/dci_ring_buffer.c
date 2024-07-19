@@ -324,6 +324,23 @@ int push_rnti_dci_to_remote(sf_status_t* q, int cell_idx, int remote_sock)
 		cell_dci.total_ul_prb += dci_msg.prb;
 	}
 
+	if (q->cell_dl_prb > 200 || q->cell_ul_prb > 200) {
+		printf("\r######\n");
+		printf("  q.filled         : %b\n", q->filled);
+		printf("  q.cell_dl_prb    : %i\n", q->cell_dl_prb);
+		printf("  q.cell_ul_prb    : %i\n", q->cell_ul_prb);
+		printf("    cell_dci.dl_all_prb : %i\n",
+				(cell_dci.total_dl_prb + cell_dci.total_dl_no_tbs_prb + dl_rnti_skipped_prbs));
+		printf("    cell_dci.ul_all_prb : %i\n",
+				(cell_dci.total_ul_prb + cell_dci.total_ul_no_tbs_prb + ul_rnti_skipped_prbs));
+		printf("    cell_dci.total_dl_prb        : %i\n", cell_dci.total_dl_prb);
+		printf("    cell_dci.total_ul_prb        : %i\n", cell_dci.total_ul_prb);
+		printf("    cell_dci.total_dl_no_tbs_prb : %i\n", cell_dci.total_dl_no_tbs_prb);
+		printf("    cell_dci.total_ul_no_tbs_prb : %i\n", cell_dci.total_ul_no_tbs_prb);
+		printf("\r##########\n");
+	}
+
+
 	sock_send_single_rnti_dci(&dci_sink_serv, &cell_dci, 0);
 	
 	return 1;
