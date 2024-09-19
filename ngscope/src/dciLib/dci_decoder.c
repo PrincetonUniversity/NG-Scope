@@ -261,6 +261,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	int rf_idx 				= dci_decoder->prog_args.rf_index;
+	bool acks[SRSRAN_MAX_CODEWORDS] = {false};
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
@@ -277,7 +278,8 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         if ((sf_idx == 5 && (sfn % 2) == 0)) {
             decode_pdsch = true;
         } else {
-            
+            int ret = srsran_ngscope_decode_SIB2(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, acks, data);
         }
     }
 

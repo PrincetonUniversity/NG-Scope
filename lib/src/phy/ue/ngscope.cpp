@@ -651,9 +651,9 @@ uint8_t *data[SRSRAN_MAX_CODEWORDS]
     // if (si_type != 2) {
     //   return -1;
     // }
-    FILE *sib2out = "sib2out.txt";
+    FILE *sib2out;
 
-    fopen(sib2out, 'w');
+    sib2out = fopen("sib2out.txt", "w");
     
     sib2 = dlsch.msg.c1().sys_info();
     sib2.to_json(js_sib2);
