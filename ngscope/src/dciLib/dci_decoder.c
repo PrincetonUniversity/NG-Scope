@@ -277,7 +277,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
         if ((sf_idx == 5 && (sfn % 2) == 0)) {
             decode_pdsch = true;
         } else {
-            decode_pdsch = false;
+            
         }
     }
 
