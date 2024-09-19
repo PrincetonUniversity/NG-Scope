@@ -1,5 +1,9 @@
 #include "../../hdr/dciLib/decode_sib.h"
 
+#include "srsran/asn1/asn1_utils.h"
+#include "srsran/asn1/rrc/si.h"
+#include "srsran/asn1/rrc.h"
+
 int srsran_ue_dl_find_and_decode_sib1
 (
 srsran_ue_dl_t *q,
@@ -104,9 +108,9 @@ bool acks[SRSRAN_MAX_CODEWORDS]
     sib1 = dlsch.msg.c1().sib_type1();
     sib1.to_json(js_sib1);
     printf("Decoded SIB1: %s\n", js_sib1.to_string().c_str());
-	FILE *sib1out = fopen("sib1out.txt", "w");
-	fprintf(sib1out, "%s\n", js_sib1.to_string().c_str());
-	fclose(sib1out);
+	  FILE *sib1out = fopen("sib1out.txt", "w");
+	  fprintf(sib1out, "%s\n", js_sib1.to_string().c_str());
+	  fclose(sib1out);
   }
   return ret;
 }
@@ -221,7 +225,7 @@ bool acks[SRSRAN_MAX_CODEWORDS]
     sib2 = dlsch.msg.c1().sys_info();
     sib2.to_json(js_sib2);
     printf("Decoded SIB2 %s\n", js_sib2.to_string().c_str());
-	fprintf(sib2out, "s\n", js_sib2.to_string().c_str());
+	  fprintf(sib2out, "s\n", js_sib2.to_string().c_str());
   }
   return ret;
 }

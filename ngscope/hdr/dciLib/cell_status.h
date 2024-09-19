@@ -30,4 +30,8 @@ typedef struct{
 }cell_status_info_t;
 
 void* cell_status_thread(void* arg);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

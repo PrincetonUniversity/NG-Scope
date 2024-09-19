@@ -26,8 +26,9 @@
 #include "ngscope/hdr/dciLib/thread_exit.h"
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
-
 #include "ngscope/hdr/dciLib/sib1_helper.h"
+
+#include "ngscope/hdr/dciLib/decode_sib.h"
 
 
 extern bool                 go_exit;
@@ -57,10 +58,6 @@ pthread_cond_t 	dci_plot_cond[MAX_NOF_RF_DEV] = {PTHREAD_COND_INITIALIZER, PTHRE
 
 cf_t* pdcch_buf[MAX_NOF_RF_DEV];
 float csi_amp[MAX_NOF_RF_DEV][110 * 15 * 2048];
-
-int srsran_ue_dl_find_and_decode_sib1(srsran_ue_dl_t *q, srsran_dl_sf_cfg_t *sf, srsran_ue_dl_cfg_t *cfg, srsran_pdsch_cfg_t *pdsch_cfg, uint8_t *data[SRSRAN_MAX_CODEWORDS], bool acks[SRSRAN_MAX_CODEWORDS]);
-
-int srsran_ue_dl_find_and_decode_sib2(srsran_ue_dl_t *q, srsran_dl_sf_cfg_t *sf, srsran_ue_dl_cfg_t *cfg, srsran_pdsch_cfg_t *pdsch_cfg, uint8_t *data[SRSRAN_MAX_CODEWORDS], bool acks[SRSRAN_MAX_CODEWORDS]);
 
 int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
                         prog_args_t             prog_args,
@@ -256,13 +253,13 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             //srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                             ngscope_dci_per_sub_t*  dci_per_sub)
 {
-    uint32_t tti = sfn * 10 + sf_idx;
+  uint32_t tti = sfn * 10 + sf_idx;
 
-    bool decode_pdsch = false;
+  bool decode_pdsch = false;
 
 	bool decode_single_ue 	= dci_decoder->prog_args.decode_single_ue;
 	bool decode_SIB 		= dci_decoder->prog_args.decode_SIB;
-    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
+  uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	int rf_idx 				= dci_decoder->prog_args.rf_index;
 	bool acks[SRSRAN_MAX_CODEWORDS] = {false};
