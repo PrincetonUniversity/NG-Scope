@@ -108,7 +108,7 @@ bool acks[SRSRAN_MAX_CODEWORDS]
     sib1 = dlsch.msg.c1().sib_type1();
     sib1.to_json(js_sib1);
     printf("Decoded SIB1: %s\n", js_sib1.to_string().c_str());
-	  FILE *sib1out = fopen("sib1out.txt", "w");
+	  FILE *sib1out = fopen("sib1out.txt", "a");
 	  fprintf(sib1out, "%s\n", js_sib1.to_string().c_str());
 	  fclose(sib1out);
   }
