@@ -302,6 +302,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
+		dci_decoder->pdsch_cfg.rnti = dci_decoder->prog_args.rnti;
         decode_pdsch = true;
         if (dci_decoder->cell.frame_type == SRSRAN_TDD) {
 			if (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) {
@@ -311,7 +312,6 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 			}
 		}
 	}
-
  
     int n = 0;
 

@@ -220,12 +220,13 @@ bool acks[SRSRAN_MAX_CODEWORDS]
     // if (si_type != 2) {
     //   return -1;
     // }
-    FILE *sib2out = fopen("sib2out.txt", "w");
+    FILE *sib2out = fopen("sib2out.txt", "a");
     
     sib2 = dlsch.msg.c1().sys_info();
     sib2.to_json(js_sib2);
     printf("Decoded SIB2 %s\n", js_sib2.to_string().c_str());
-	  fprintf(sib2out, "s\n", js_sib2.to_string().c_str());
+	  fprintf(sib2out, "%s\n", js_sib2.to_string().c_str());
+    fclose(sib2out);
   }
   return ret;
 }
