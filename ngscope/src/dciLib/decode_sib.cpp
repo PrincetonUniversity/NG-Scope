@@ -43,7 +43,7 @@ bool acks[SRSRAN_MAX_CODEWORDS]
       return ret;
     }
     // printf("Finding DCI...\n");
-    ret = srsran_ue_dl_find_dl_dci_sirnti(q, sf, cfg, pdsch_cfg->rnti, dci_dl);
+    ret = srsran_ue_dl_find_dl_dci_sirnti(q, sf, cfg, SRSRAN_SIRNTI, dci_dl);
     printf("ret = %d\n", ret);
   }
 
@@ -154,7 +154,7 @@ bool acks[SRSRAN_MAX_CODEWORDS]
       return ret;
     }
     // printf("Finding DCI...\n");
-    ret = srsran_ue_dl_find_dl_dci_sirnti(q, sf, cfg, pdsch_cfg->rnti, dci_dl);
+    ret = srsran_ue_dl_find_dl_dci_sirnti(q, sf, cfg, SRSRAN_SIRNTI, dci_dl);
     // printf("ret = %d\n", ret);
   }
 

@@ -253,20 +253,51 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             //srsran_dci_location_t   dci_location[MAX_CANDIDATES_ALL],
                             ngscope_dci_per_sub_t*  dci_per_sub)
 {
-  uint32_t tti = sfn * 10 + sf_idx;
+    uint32_t tti = sfn * 10 + sf_idx;
 
-  bool decode_pdsch = false;
+    bool decode_pdsch = false;
 
 	bool decode_single_ue 	= dci_decoder->prog_args.decode_single_ue;
 	bool decode_SIB 		= dci_decoder->prog_args.decode_SIB;
-  uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
+    uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	int rf_idx 				= dci_decoder->prog_args.rf_index;
 	bool acks[SRSRAN_MAX_CODEWORDS] = {false};
 	int ret = 0;
 
-  for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+    for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
         data[i] = srsran_vec_u8_malloc(2000 * 8);
+    }
+
+	//First, we decode SIB1 and SIB2
+	srsran_chest_dl_cfg_t chest_pdsch_cfg = {};
+    chest_pdsch_cfg.cfo_estimate_enable   = dci_decoder->prog_args.enable_cfo_ref;
+    chest_pdsch_cfg.cfo_estimate_sf_mask  = 1023;
+    chest_pdsch_cfg.estimator_alg         = srsran_chest_dl_str2estimator_alg(dci_decoder->prog_args.estimator_alg);
+    chest_pdsch_cfg.sync_error_enable     = true;
+
+	dci_decoder->dl_sf.tti = tti;
+    dci_decoder->dl_sf.sf_type = SRSRAN_SF_NORM;
+	dci_decoder->ue_dl_cfg.cfg.tm = (srsran_tm_t)1;
+	dci_decoder->pdsch_cfg.rnti = SRSRAN_SIRNTI;
+	dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = false;
+	dci_decoder->ue_dl_cfg.cfg.dci.multiple_csi_request_enabled = false;
+	dci_decoder->ue_dl_cfg.chest_cfg = chest_pdsch_cfg;
+
+	if ((sf_idx == 5 && (sfn % 2) == 0)) {
+		ret = 0;
+        ret = srsran_ue_dl_find_and_decode_sib1(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
+		if (ret > 0) {
+			printf("Successfully decoded SIB1!\n");
+		}
+    } else { //SIB2 
+	    ret = 0;
+        ret = srsran_ue_dl_find_and_decode_sib2(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
+		if (ret > 0) {
+			printf("Successfully decoded SIB2!\n");
+		}
     }
 
     // Shall we decode the PDSCH of the current subframe?
@@ -279,16 +310,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 				decode_pdsch = true;
 			}
 		}
-    } else {
-        /* We are looking for SIB1 Blocks, search only in appropiate places */
-        if ((sf_idx == 5 && (sfn % 2) == 0)) {
-            ret = srsran_ue_dl_find_and_decode_sib1(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
-								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
-        } else { //SIB2 
-            ret = srsran_ue_dl_find_and_decode_sib2(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
-								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
-        }
-    }
+	}
 
  
     int n = 0;
