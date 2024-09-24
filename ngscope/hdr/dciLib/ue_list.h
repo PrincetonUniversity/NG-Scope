@@ -40,4 +40,8 @@ typedef struct{
 
 void ngscope_ue_list_enqueue_rnti_per_sf_per_cell(ngscope_ue_list_t q[MAX_NOF_RF_DEV], ngscope_status_buffer_t* dci_buf);
 int ngscope_ue_list_print_ue_freq(ngscope_ue_list_t* q);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

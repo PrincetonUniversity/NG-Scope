@@ -25,4 +25,8 @@ int connectServer();
 
 int accept_slave_connect(int* server_fd, int* client_fd_vec, int portNum);
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif

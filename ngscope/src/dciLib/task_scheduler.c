@@ -22,6 +22,7 @@
 #include "ngscope/hdr/dciLib/skip_tti.h"
 #include "ngscope/hdr/dciLib/thread_exit.h"
 #include "ngscope/hdr/dciLib/ue_tracker.h"
+#include "ngscope/hdr/dciLib/decode_sib.h"
 
 extern bool go_exit;
 
@@ -519,7 +520,11 @@ void* task_scheduler_thread(void* p){
 
 	FILE* 		fd = fopen("task_scheduler.txt","w+");
 	//FILE* 		fd_1 = fopen("sf_sfn.txt","w+");
+    uint8_t* data[SRSRAN_MAX_CODEWORDS];
 	
+    for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+        data[i] = srsran_vec_u8_malloc(2000 * 8);
+    }
 
 	//uint64_t t1=0, t2=0, t3=0;
 	//uint64_t t1_sf_idx =0, t2_sf_idx=0;

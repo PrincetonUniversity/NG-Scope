@@ -26,8 +26,9 @@
 #include "ngscope/hdr/dciLib/thread_exit.h"
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
-
 #include "ngscope/hdr/dciLib/sib1_helper.h"
+
+#include "ngscope/hdr/dciLib/decode_sib.h"
 
 
 extern bool                 go_exit;
@@ -261,9 +262,47 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
     uint16_t targetRNTI 	= dci_decoder->prog_args.rnti;  
 
 	int rf_idx 				= dci_decoder->prog_args.rf_index;
+	bool acks[SRSRAN_MAX_CODEWORDS] = {false};
+	int ret = 0;
+
+    for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+        data[i] = srsran_vec_u8_malloc(2000 * 8);
+    }
+
+	//First, we decode SIB1 and SIB2
+	srsran_chest_dl_cfg_t chest_pdsch_cfg = {};
+    chest_pdsch_cfg.cfo_estimate_enable   = dci_decoder->prog_args.enable_cfo_ref;
+    chest_pdsch_cfg.cfo_estimate_sf_mask  = 1023;
+    chest_pdsch_cfg.estimator_alg         = srsran_chest_dl_str2estimator_alg(dci_decoder->prog_args.estimator_alg);
+    chest_pdsch_cfg.sync_error_enable     = true;
+
+	dci_decoder->dl_sf.tti = tti;
+    dci_decoder->dl_sf.sf_type = SRSRAN_SF_NORM;
+	dci_decoder->ue_dl_cfg.cfg.tm = (srsran_tm_t)1;
+	dci_decoder->pdsch_cfg.rnti = SRSRAN_SIRNTI;
+	dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = false;
+	dci_decoder->ue_dl_cfg.cfg.dci.multiple_csi_request_enabled = false;
+	dci_decoder->ue_dl_cfg.chest_cfg = chest_pdsch_cfg;
+
+	if ((sf_idx == 5 && (sfn % 2) == 0)) {
+		ret = 0;
+        ret = srsran_ue_dl_find_and_decode_sib1(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
+		if (ret > 0) {
+			printf("Successfully decoded SIB1!\n");
+		}
+    } else { //SIB2 
+	    ret = 0;
+        ret = srsran_ue_dl_find_and_decode_sib2(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
+								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
+		if (ret > 0) {
+			printf("Successfully decoded SIB2!\n");
+		}
+    }
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
+		dci_decoder->pdsch_cfg.rnti = dci_decoder->prog_args.rnti;
         decode_pdsch = true;
         if (dci_decoder->cell.frame_type == SRSRAN_TDD) {
 			if (srsran_sfidx_tdd_type(dci_decoder->dl_sf.tdd_config, sf_idx) == SRSRAN_TDD_SF_U) {
@@ -272,15 +311,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 				decode_pdsch = true;
 			}
 		}
-    } else {
-        /* We are looking for SIB1 Blocks, search only in appropiate places */
-        if ((sf_idx == 5 && (sfn % 2) == 0)) {
-            decode_pdsch = true;
-        } else {
-            decode_pdsch = false;
-        }
-    }
-
+	}
  
     int n = 0;
 
@@ -326,50 +357,6 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
 		}
 	} 
-
-	/*********************  Reading sib1  **********************/
-	if((dci_decoder->cell.frame_type == SRSRAN_TDD && !dci_decoder->dl_sf.tdd_config.configured) || (decode_SIB))
-	{
-        dci_decoder->dl_sf.tti          = tti;
-		bool acks[SRSRAN_MAX_CODEWORDS] = {false};
- 		int n = srsran_ngscope_decode_SIB_yx(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
-								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, acks, data);
-		if(n > 0){
-			for (uint32_t tb = 0; tb < SRSRAN_MAX_CODEWORDS; tb++) {
-				if (dci_decoder->pdsch_cfg.grant.tb[tb].enabled && acks[tb]) {
-					int len 			= dci_decoder->pdsch_cfg.grant.tb[tb].tbs;
-					uint8_t* payload 	= data[tb];
-
-					// only get sib1 parameters from the first tb for TDD
-					if (tb == 0 && dci_decoder->cell.frame_type == SRSRAN_TDD && !dci_decoder->dl_sf.tdd_config.configured) {
-						tdd_config config;
-						int result = get_sib1_params(payload, len, &config);
-						if (result == SRSRAN_SUCCESS) {
-							dci_decoder->dl_sf.tdd_config.sf_config  = config.sf_config;
-							dci_decoder->dl_sf.tdd_config.ss_config  = config.tdd_special_sf;
-							dci_decoder->dl_sf.tdd_config.configured = true;
-						}
-					} else if(decode_SIB){
-						if(push_asn_payload(dci_decoder->decoder, payload, len, SIB_4G, tti))
-							printf("Error pushing 4G SIB message to decoder\n");
-					}
-				}
-			}
-		}
-	}
-	/*********************  End reading sib1  **********************/	
-
-//	if(dci_decoder->decoder_idx == 0){
-//    	t2 = timestamp_us();        
-//    	printf("time_spend:%ld (us)\n", t2-t1);
-//	}
-
-	//printf("going to print t2\n");
-	//printf("%ld\n", t2);
-    //printf("time_spend:%ld (us)\n", t2-t1);
-	//fprintf(fd, "%d\t%ld\n", tti, tdif);
-	//fclose(fd);
-
     return SRSRAN_SUCCESS;
 }
 

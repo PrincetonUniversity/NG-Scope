@@ -27,4 +27,8 @@ int64_t timestamp_ns();
 int64_t timestamp_us();
 int64_t timestamp_ms();
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif

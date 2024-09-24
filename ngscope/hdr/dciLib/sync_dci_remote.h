@@ -38,4 +38,7 @@ void dci_sync_init(ngscope_dci_sync_t* dci_sync);
 
 int ngscope_sync_dci_remote(int sock, ngscope_dci_sync_t dci_sync);
 int ngscope_sync_config_remote(int sock, uint16_t* prb_cell, uint8_t nof_cell);
+#ifdef __cplusplus
+}
+#endif
 #endif

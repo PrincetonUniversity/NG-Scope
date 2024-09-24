@@ -915,6 +915,46 @@ int srsran_ue_dl_find_dl_dci(srsran_ue_dl_t*     q,
   return nof_msg;
 }
 
+int srsran_ue_dl_find_dl_dci_sirnti
+(
+srsran_ue_dl_t *q,
+srsran_dl_sf_cfg_t *sf,
+srsran_ue_dl_cfg_t *dl_cfg,
+uint16_t rnti,
+srsran_dci_dl_t dci_dl[SRSRAN_MAX_DCI_MSG]
+)
+{
+  set_mi_value(q, sf, dl_cfg);
+
+  srsran_dci_msg_t dci_msg[SRSRAN_MAX_DCI_MSG] = {};
+  // printf("%d\n", rnti);
+
+  // Reset pending UL grants on each call
+  q->pending_ul_dci_count = 0;
+
+  // Reset allocated DCI locations
+  q->nof_allocated_locations = 0;
+
+  int nof_msg = 0;
+
+  nof_msg = find_dl_dci_type_siprarnti(q, sf, dl_cfg, rnti, dci_msg);
+  // printf("nof_msg: %d\n", nof_msg);
+
+  if (nof_msg < 0) {
+    ERROR("Invalid number of DCI messages");
+    return SRSRAN_ERROR;
+  }
+
+  // Unpack DCI messages
+  for (uint32_t i = 0; i < nof_msg; i++) {
+    if (srsran_dci_msg_unpack_pdsch(&q->cell, sf, &dl_cfg->cfg.dci, &dci_msg[i], &dci_dl[i])) {
+      ERROR("Unpacking DL DCI");
+      return SRSRAN_ERROR;
+    }
+  }
+  return nof_msg;
+}
+
 int srsran_ue_dl_dci_to_pdsch_grant(srsran_ue_dl_t*       q,
                                     srsran_dl_sf_cfg_t*   sf,
                                     srsran_ue_dl_cfg_t*   cfg,

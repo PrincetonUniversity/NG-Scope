@@ -62,4 +62,8 @@ void fill_file_descriptor(FILE* fd_dl[MAX_NOF_RF_DEV],
 //							long long* rf_freq);
 
 void* dci_log_thread(void* p);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

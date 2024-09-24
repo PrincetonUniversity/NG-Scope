@@ -51,4 +51,7 @@ bool task_sf_ring_buffer_full(task_tmp_buffer_t* q);
 bool task_sf_ring_buffer_empty(task_tmp_buffer_t* q);
 int task_sf_ring_buffer_len(task_tmp_buffer_t* q);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

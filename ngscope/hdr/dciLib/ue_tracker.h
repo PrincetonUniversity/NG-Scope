@@ -60,4 +60,9 @@ void ngscope_ue_tracker_update_per_tti(ngscope_ue_tracker_t* q, uint32_t tti);
 void ngscope_ue_tracker_enqueue_ue_rnti(ngscope_ue_tracker_t* q, uint32_t tti, uint16_t rnti, bool dl);
 void ngscope_ue_tracker_update_per_tti(ngscope_ue_tracker_t* q, uint32_t tti);
 void ngscope_ue_tracker_info(ngscope_ue_tracker_t* q, uint32_t tti);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
