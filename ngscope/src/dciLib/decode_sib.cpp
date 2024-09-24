@@ -104,7 +104,6 @@ bool acks[SRSRAN_MAX_CODEWORDS]
     asn1::cbit_ref dlsch_bref(pdsch_res->payload, pdsch_cfg->grant.tb[0].tbs / 8);
     asn1::json_writer js_sib1;
     asn1::SRSASN_CODE err = dlsch.unpack(dlsch_bref);
-    printf("sib type: %d\n", dlsch.msg.c1().type());
     sib1 = dlsch.msg.c1().sib_type1();
     sib1.to_json(js_sib1);
     printf("Decoded SIB1: %s\n", js_sib1.to_string().c_str());
@@ -221,7 +220,6 @@ bool acks[SRSRAN_MAX_CODEWORDS]
     //   return -1;
     // }
     FILE *sib2out = fopen("sib2out.txt", "a");
-    
     sib2 = dlsch.msg.c1().sys_info();
     sib2.to_json(js_sib2);
     printf("Decoded SIB2 %s\n", js_sib2.to_string().c_str());
