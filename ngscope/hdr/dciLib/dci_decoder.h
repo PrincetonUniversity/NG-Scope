@@ -46,8 +46,7 @@ int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
                         srsran_cell_t*          cell,
                         cf_t*                   sf_buffer[SRSRAN_MAX_PORTS],
                         srsran_softbuffer_rx_t* rx_softbuffers,
-                        int                     decoder_idx,
-                        ASNDecoder * decoder);
+                        int                     decoder_idx);
 
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,

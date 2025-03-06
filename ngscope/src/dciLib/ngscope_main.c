@@ -57,7 +57,14 @@ bool task_scheduler_closed[MAX_NOF_RF_DEV] = {true, true, true, true};
 pthread_mutex_t     scheduler_close_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
-int ngscope_main(ngscope_config_t* config){
+/*********************************************
+ * Function name: ngscope_main
+ * Return value type: int
+ * Description: the main entrance of ngscope.
+ * Author: PAWS (https://paws.princeton.edu/)
+*********************************************/
+int ngscope_main(ngscope_config_t* config)
+{
     int nof_rf_dev;
 
 	prog_args_t prog_args[MAX_NOF_RF_DEV];
@@ -76,6 +83,8 @@ int ngscope_main(ngscope_config_t* config){
 	}
 
     /* Task scheduler thread */
+    /* One USRP with one prog_args */
+    /* One USRP with one task_thd thread */
     pthread_t task_thd[MAX_NOF_RF_DEV];
     for(int i=0; i<nof_rf_dev; i++){
 		task_scheduler_up[i] 		= true;

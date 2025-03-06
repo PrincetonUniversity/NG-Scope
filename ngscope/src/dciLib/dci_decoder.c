@@ -32,6 +32,8 @@
 
 
 extern bool                 go_exit;
+extern bool                 have_sib1;
+extern bool                 have_sib2;
 
 extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
 extern bool                 sf_token[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
@@ -59,17 +61,20 @@ pthread_cond_t 	dci_plot_cond[MAX_NOF_RF_DEV] = {PTHREAD_COND_INITIALIZER, PTHRE
 cf_t* pdcch_buf[MAX_NOF_RF_DEV];
 float csi_amp[MAX_NOF_RF_DEV][110 * 15 * 2048];
 
-int dci_decoder_init(ngscope_dci_decoder_t*     dci_decoder,
-                        prog_args_t             prog_args,
-                        srsran_cell_t*          cell,
-                        cf_t*                   sf_buffer[SRSRAN_MAX_PORTS],
-                        srsran_softbuffer_rx_t* rx_softbuffers,
-                        int                     decoder_idx,
-						ASNDecoder * 			decoder){
+int dci_decoder_init
+(
+ngscope_dci_decoder_t* dci_decoder,
+prog_args_t prog_args,
+srsran_cell_t* cell,
+cf_t* sf_buffer[SRSRAN_MAX_PORTS],
+srsran_softbuffer_rx_t* rx_softbuffers,
+int decoder_idx
+)
+{
     // Init the args
     dci_decoder->prog_args  = prog_args;
     dci_decoder->cell       = *cell;
-	dci_decoder->decoder = decoder;
+	// dci_decoder->decoder = decoder;
 
     if (srsran_ue_dl_init(&dci_decoder->ue_dl, sf_buffer, cell->nof_prb, prog_args.rf_nof_rx_ant)) {
         ERROR("Error initiating UE downlink processing module");
@@ -245,6 +250,14 @@ void update_ue_dci_per_tti(ngscope_tree_t* 			tree,
 	return;
 }
 
+
+/*********************************************
+ * Function name: dci_decoder_decode
+ * Return value type: int
+ * Description: dci decoding function, 
+ *     in the dci decoder thread.
+ * Author: PAWS (https://paws.princeton.edu/)
+*********************************************/
 int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
                             uint32_t                sf_idx,
                             uint32_t                sfn,
@@ -283,7 +296,6 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 	dci_decoder->ue_dl_cfg.cfg.pdsch.use_tbs_index_alt = false;
 	dci_decoder->ue_dl_cfg.cfg.dci.multiple_csi_request_enabled = false;
 	dci_decoder->ue_dl_cfg.chest_cfg = chest_pdsch_cfg;
-
 	if ((sf_idx == 5 && (sfn % 2) == 0)) {
 		ret = 0;
         ret = srsran_ue_dl_find_and_decode_sib1(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
@@ -293,12 +305,19 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 		}
     } else { //SIB2 
 	    ret = 0;
+		// have_sib2 = true;
         ret = srsran_ue_dl_find_and_decode_sib2(&dci_decoder->ue_dl, &dci_decoder->dl_sf, \
 								&dci_decoder->ue_dl_cfg, &dci_decoder->pdsch_cfg, data, acks);
 		if (ret > 0) {
 			printf("Successfully decoded SIB2!\n");
 		}
     }
+
+	pthread_mutex_lock(&token_mutex[0]);
+	FILE* rsrpoutfile = fopen("rsrp.txt", "a");
+	fprintf(rsrpoutfile, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm);
+	fclose(rsrpoutfile);
+	pthread_mutex_unlock(&token_mutex[0]);
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
@@ -315,7 +334,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
  
     int n = 0;
 
-    // Now decode the PDSCH
+        // Now decode the PDSCH
     if(decode_pdsch){
         uint32_t tm = 3;
 
@@ -343,17 +362,17 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 			ngscope_ue_tracker_update_per_tti(&ue_tracker[rf_idx], tti);
 
 			// print the tracker info
-			//ngscope_ue_tracker_info(&ue_tracker[rf_idx], tti);
+			ngscope_ue_tracker_info(&ue_tracker[rf_idx], tti);
 
            	pthread_mutex_unlock(&ue_tracker_mutex[rf_idx]);
 
 			/*********************   Print decoding result  **********************/
 
-			//int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
-			//printf("decoder: TTI:%d left %d non-empty nodes found:%d dl_dci %d ul_dci!\n", tti, nof_node, \
-						dci_per_sub->nof_dl_dci, dci_per_sub->nof_ul_dci); 
-			//srsran_ngscope_print_dci_per_sub(dci_per_sub);
-			//printf("\n");
+			// int nof_node = srsran_ngscope_tree_non_empty_nodes(&tree);
+			// printf("decoder: TTI:%d left %d non-empty nodes found:%d dl_dci %d ul_dci!\n", tti, nof_node, \
+			// 			dci_per_sub->nof_dl_dci, dci_per_sub->nof_ul_dci); 
+			// srsran_ngscope_print_dci_per_sub(dci_per_sub);
+			// printf("\n");
 
 		}
 	} 
@@ -440,6 +459,14 @@ void empty_dci_persub(ngscope_dci_per_sub_t*  dci_per_sub){
     return;
 }
     
+
+/*********************************************
+ * Function name: dci_decoder_thread
+ * Return value type: void*
+ * Description: main function for dci decoder
+ *     thread.
+ * Author: PAWS (https://paws.princeton.edu/)
+*********************************************/ 
 void* dci_decoder_thread(void* p){
 	ngscope_dci_decoder_t* dci_decoder 	= (ngscope_dci_decoder_t* )p;
 

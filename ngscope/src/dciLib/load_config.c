@@ -23,7 +23,16 @@ bool containsDuplicate(long long* nums, int numsSize){
     return false;
 }
 
-int ngscope_read_config(ngscope_config_t* config, char * path){
+
+/*********************************************
+ * Function name: ngscope_read_config
+ * Return value type: int
+ * Description: load configuration from the
+ *     config file.
+ * Author: PAWS (https://paws.princeton.edu/)
+*********************************************/
+int ngscope_read_config(ngscope_config_t* config, char * path)
+{
     config_t* cfg = (config_t *)malloc(sizeof(config_t));
     config_init(cfg);
 

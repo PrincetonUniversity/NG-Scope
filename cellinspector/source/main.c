@@ -303,6 +303,21 @@ int main(int argc, char** argv)
                             cell.phich_length,
                             cell.phich_resources,
                             cell.frame_type);
+                            
+        FILE *file = fopen("celloutput.txt", "a");
+        if (file == NULL) {
+            perror("Error openning the file.\n");
+        } else {
+            fprintf(file, "cell.id %d, cell.nof_prb %d, cell.nof_ports %d, cell.cp %d, cell.phich_length %d, cell.phich_resources %d, cell.frame_type %d\n",
+                            cell.id,
+                            cell.nof_prb,
+                            cell.nof_ports,
+                            cell.cp,
+                            cell.phich_length,
+                            cell.phich_resources,
+                            cell.frame_type);
+        }
+        fclose(file);
 
         /* Set sampling rate base on the number of PRBs of the selected cell */
         int srate = srsran_sampling_freq_hz(cell.nof_prb);
