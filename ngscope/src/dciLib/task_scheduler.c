@@ -511,9 +511,11 @@ void* task_scheduler_thread(void* p){
         perror("Error physical resource block number!\n");
     }
     FILE* cellcfgfile = NULL;
-    cellcfgfile = fopen("cellcfg.txt", "w");
-    fprintf(cellcfgfile, "cell.frame_type: %s\n", duplymode);
-    fprintf(cellcfgfile, "cell.bandwidth: %dMHz\n", bw);
+    cellcfgfile = fopen("cell_type.json", "w");
+    fprintf(cellcfgfile,"{\n");
+    fprintf(cellcfgfile,"\"frame_type\": \"%s\",\n", duplymode);
+    fprintf(cellcfgfile,"\"bandwidth\": \"%d\"\n", bw);
+    fprintf(cellcfgfile,"}");
     fclose(cellcfgfile);
 
     FILE* rsrpoutfile = fopen("rsrp.txt", "w");

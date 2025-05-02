@@ -32,6 +32,117 @@ extern ngscope_status_buffer_t      log_stat_buffer[MAX_DCI_BUFFER];
 extern dci_ready_t               	log_stat_ready;
 
 
+#define USE_JSON
+
+
+
+#ifdef USE_JSON
+void log_dl_subframe(sf_status_t* q,FILE* fd_dl){
+	static bool isFirstCall = true;
+
+	long position = ftell(fd_dl);
+
+	if (position == 0){
+		isFirstCall = true;
+	}
+
+	if (isFirstCall == true){
+		fprintf(fd_dl,"[\n");
+		fprintf(fd_dl,"]");
+	}
+	fseek(fd_dl, -1, SEEK_END);
+	int nof_dl_msg = q->nof_dl_msg;
+	/* Logging downlink messages */
+	if(nof_dl_msg > 0){
+		for(int i=0; i<nof_dl_msg; i++){
+			if (isFirstCall == false){
+				fprintf(fd_dl,",{\n");
+			}else{
+				fprintf(fd_dl,"{\n");
+			}
+			
+			// TTI RNTI
+			fprintf(fd_dl,"\"tti\": \"%d\",\n", q->tti);
+			fprintf(fd_dl,"\"rnti\": \"%d\",\n", q->dl_msg[i].rnti);
+
+			// CELL_PRB UE_PRB
+			fprintf(fd_dl,"\"cell_dl_prb\": \"%d\",\n", q->cell_dl_prb);
+			fprintf(fd_dl,"\"prb\": \"%d\",\n", q->dl_msg[i].prb);
+
+
+
+			fprintf(fd_dl,"\"harq\": \"%d\",\n", q->dl_msg[i].harq);
+			fprintf(fd_dl,"\"timestamp_us\": \"%ld\",\n", q->timestamp_us);
+
+			
+
+			// TB1 related information
+			fprintf(fd_dl,"\"TB1_mcs\": \"%d\",\n", q->dl_msg[i].tb[0].mcs);
+			fprintf(fd_dl,"\"TB1_rv\": \"%d\",\n", q->dl_msg[i].tb[0].rv);
+			fprintf(fd_dl,"\"TB1_tbs\": \"%d\",\n",q->dl_msg[i].tb[0].tbs);
+			fprintf(fd_dl,"\"TB1_ndi\": \"%d\",\n", q->dl_msg[i].tb[0].ndi);
+
+			
+			// TB2 related information
+			if(q->dl_msg[i].nof_tb > 1){
+				fprintf(fd_dl,"\"TB2_mcs\": \"%d\",\n", q->dl_msg[i].tb[1].mcs);
+				fprintf(fd_dl,"\"TB2_rv\": \"%d\",\n", q->dl_msg[i].tb[1].rv);
+				fprintf(fd_dl,"\"TB2_tbs\": \"%d\",\n", q->dl_msg[i].tb[1].tbs);
+				fprintf(fd_dl,"\"TB2_ndi\": \"%d\"\n", q->dl_msg[i].tb[1].ndi);
+
+			}else{
+				fprintf(fd_dl,"\"TB2_mcs\": \"%d\",\n", 0);
+				fprintf(fd_dl,"\"TB2_rv\": \"%d\",\n", 0);
+				fprintf(fd_dl,"\"TB2_tbs\": \"%d\",\n", 0);
+				fprintf(fd_dl,"\"TB2_ndi\": \"%d\"\n", 0);
+			}
+			fprintf(fd_dl,"}");
+			if (isFirstCall == true){
+				isFirstCall = false;
+			}
+		}
+	}else{
+		if (isFirstCall == false){
+			fprintf(fd_dl,",{\n");
+		}else{
+			fprintf(fd_dl,"{\n");
+		}
+			
+		// TTI RNTI
+		fprintf(fd_dl,"\"tti\": \"%d\",\n", q->tti);
+		fprintf(fd_dl,"\"rnti\": \"%d\",\n", 0);
+
+		// CELL_PRB UE_PRB
+		fprintf(fd_dl,"\"cell_dl_prb\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"prb\": \"%d\",\n", 0);
+
+
+
+		fprintf(fd_dl,"\"harq\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"timestamp_us\": \"%ld\",\n", q->timestamp_us);
+
+		
+
+		// TB1 related information
+		fprintf(fd_dl,"\"TB1_mcs\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"TB1_rv\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"TB1_tbs\": \"%d\",\n",0);
+		fprintf(fd_dl,"\"TB1_ndi\": \"%d\",\n", 0);
+
+		
+		// TB2 related information
+		fprintf(fd_dl,"\"TB2_mcs\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"TB2_rv\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"TB2_tbs\": \"%d\",\n", 0);
+		fprintf(fd_dl,"\"TB2_ndi\": \"%d\"\n", 0);
+		fprintf(fd_dl,"}");
+		if (isFirstCall == true){
+			isFirstCall = false;
+		}
+	}
+	fprintf(fd_dl,"]");
+}
+#else
 void log_dl_subframe(sf_status_t* q,
 					FILE* fd_dl)
 {
@@ -82,7 +193,117 @@ void log_dl_subframe(sf_status_t* q,
 	}
 	return;
 }
+#endif
 
+
+
+#ifdef USE_JSON
+void log_ul_subframe(sf_status_t* q,FILE* fd_ul){
+	static bool isFirstCall = true;
+	
+	long position = ftell(fd_ul);
+
+	if (position == 0){
+		isFirstCall = true;
+	}
+
+	if (isFirstCall == true){
+		fprintf(fd_ul,"[\n");
+		fprintf(fd_ul,"]");
+	}
+	fseek(fd_ul, -1, SEEK_END);
+	int nof_ul_msg = q->nof_ul_msg;
+	/* Logging downlink messages */
+	if(nof_ul_msg > 0){
+		for(int i=0; i<nof_ul_msg; i++){
+			if (isFirstCall == false){
+				fprintf(fd_ul,",{\n");
+			}else{
+				fprintf(fd_ul,"{\n");
+			}
+			
+			// TTI RNTI
+			fprintf(fd_ul,"\"tti\": \"%d\",\n", q->tti);
+			fprintf(fd_ul,"\"rnti\": \"%d\",\n", q->ul_msg[i].rnti);
+
+			// CELL_PRB UE_PRB
+			fprintf(fd_ul,"\"cell_ul_prb\": \"%d\",\n", q->cell_ul_prb);
+			fprintf(fd_ul,"\"prb\": \"%d\",\n", q->ul_msg[i].prb);
+
+
+
+			fprintf(fd_ul,"\"timestamp_us\": \"%ld\",\n", q->timestamp_us);
+
+			
+
+			// TB1 related information
+			fprintf(fd_ul,"\"TB1_mcs\": \"%d\",\n", q->ul_msg[i].tb[0].mcs);
+			fprintf(fd_ul,"\"TB1_rv\": \"%d\",\n", q->ul_msg[i].tb[0].rv);
+			fprintf(fd_ul,"\"TB1_tbs\": \"%d\",\n",q->ul_msg[i].tb[0].tbs);
+			fprintf(fd_ul,"\"TB1_ndi\": \"%d\",\n", q->ul_msg[i].tb[0].ndi);
+
+			
+			// TB2 related information --> UPlink has no second TB yet
+			if(q->ul_msg[i].nof_tb > 1){
+				fprintf(fd_ul,"\"TB2_mcs\": \"%d\",\n", q->ul_msg[i].tb[1].mcs);
+				fprintf(fd_ul,"\"TB2_rv\": \"%d\",\n", q->ul_msg[i].tb[1].rv);
+				fprintf(fd_ul,"\"TB2_tbs\": \"%d\",\n", q->ul_msg[i].tb[1].tbs);
+				fprintf(fd_ul,"\"TB2_ndi\": \"%d\"\n", q->ul_msg[i].tb[1].ndi);
+
+			}else{
+				fprintf(fd_ul,"\"TB2_mcs\": \"%d\",\n", 0);
+				fprintf(fd_ul,"\"TB2_rv\": \"%d\",\n", 0);
+				fprintf(fd_ul,"\"TB2_tbs\": \"%d\",\n", 0);
+				fprintf(fd_ul,"\"TB2_ndi\": \"%d\"\n", 0);
+			}
+			fprintf(fd_ul,"}");
+			if (isFirstCall == true){
+				isFirstCall = false;
+			}
+		}
+	}else{
+		if (isFirstCall == false){
+			fprintf(fd_ul,",{\n");
+		}else{
+			fprintf(fd_ul,"{\n");
+		}
+		
+		// TTI RNTI
+		fprintf(fd_ul,"\"tti\": \"%d\",\n", q->tti);
+		fprintf(fd_ul,"\"rnti\": \"%d\",\n", 0);
+
+		// CELL_PRB UE_PRB
+		fprintf(fd_ul,"\"cell_ul_prb\": \"%d\",\n", 0);
+		fprintf(fd_ul,"\"prb\": \"%d\",\n", 0);
+
+
+
+		fprintf(fd_ul,"\"timestamp_us\": \"%ld\",\n", q->timestamp_us);
+
+		
+
+		// TB1 related information
+		fprintf(fd_ul,"\"TB1_mcs\": \"%d\",\n", 0);
+		fprintf(fd_ul,"\"TB1_rv\": \"%d\",\n", 0);
+		fprintf(fd_ul,"\"TB1_tbs\": \"%d\",\n",0);
+		fprintf(fd_ul,"\"TB1_ndi\": \"%d\",\n", 0);
+
+		
+		// TB2 related information --> UPlink has no second TB yet
+
+		fprintf(fd_ul,"\"TB2_mcs\": \"%d\",\n", 0);
+		fprintf(fd_ul,"\"TB2_rv\": \"%d\",\n", 0);
+		fprintf(fd_ul,"\"TB2_tbs\": \"%d\",\n", 0);
+		fprintf(fd_ul,"\"TB2_ndi\": \"%d\"\n", 0);
+		
+		fprintf(fd_ul,"}");
+		if (isFirstCall == true){
+			isFirstCall = false;
+		}
+	}
+	fprintf(fd_ul,"]");
+}
+#else
 void log_ul_subframe(sf_status_t* q,
 					FILE* fd_ul)
 {
@@ -120,7 +341,77 @@ void log_ul_subframe(sf_status_t* q,
 
 	return;
 }
+#endif
 
+
+#ifdef USE_JSON
+void log_phich_subframe(sf_status_t* q, FILE* fd_phich){
+	static bool isFirstCall = true;
+
+	long position = ftell(fd_phich);
+
+	if (position == 0){
+		isFirstCall = true;
+	}
+
+	if (isFirstCall == true){
+		fprintf(fd_phich,"[\n");
+		fprintf(fd_phich,"]");
+	}
+	fseek(fd_phich, -1, SEEK_END);
+	int nof_ul_msg = q->nof_ul_msg;
+	int nof_phich  = 0;
+
+	/* Logging uplink messages */
+	if(nof_ul_msg > 0){
+		for(int i=0; i<nof_ul_msg; i++){
+			// rv=4 means phich NACK received
+			if(q->ul_msg[i].tb[0].rv == 4){
+				nof_phich++;
+				if (isFirstCall == false){
+					fprintf(fd_phich,",{\n");
+				}else{
+					fprintf(fd_phich,"{\n");
+				}
+
+				// TTI RNTI		
+				fprintf(fd_phich,"\"tti\": \"%d\",\n", q->tti);
+				fprintf(fd_phich,"\"rnti\": \"%d\",\n", q->ul_msg[i].rnti);
+
+				// PHICH
+				fprintf(fd_phich,"\"rv\": \"%d\",\n", q->ul_msg[i].tb[0].rv);
+				fprintf(fd_phich,"\"timestamp_us\": \"%ld\"\n", q->timestamp_us);
+				fprintf(fd_phich,"}");
+				if (isFirstCall == true){
+					isFirstCall = false;
+				}
+			}
+		}
+	}
+
+	if (nof_phich==0){
+		// We must fill the TTI even if there is no dci message inside this subframe
+		if (isFirstCall == false){
+			fprintf(fd_phich,",{\n");
+		}else{
+			fprintf(fd_phich,"{\n");
+		}
+		// TTI RNTI		
+		fprintf(fd_phich,"\"tti\": \"%d\",\n", q->tti);
+		fprintf(fd_phich,"\"rnti\": \"%d\",\n", 0);
+
+		// PHICH
+		fprintf(fd_phich,"\"rv\": \"%d\",\n", 0);
+		fprintf(fd_phich,"\"timestamp_us\": \"%ld\"\n", q->timestamp_us);
+		fprintf(fd_phich,"}");
+		if (isFirstCall == true){
+			isFirstCall = false;
+		}
+	}
+	fprintf(fd_phich,"]");
+	return;
+}
+#else
 void log_phich_subframe(sf_status_t* q,
 					FILE* fd_phich)
 {
@@ -154,7 +445,7 @@ void log_phich_subframe(sf_status_t* q,
 
 	return;
 }
-
+#endif
 /* Logging related function */
 void log_per_subframe(sf_status_t* q, ngscope_dci_log_config_t* config, int cell_idx)
 {

@@ -278,8 +278,12 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 	bool acks[SRSRAN_MAX_CODEWORDS] = {false};
 	int ret = 0;
 
-    for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
-        data[i] = srsran_vec_u8_malloc(2000 * 8);
+    // for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+    //     data[i] = srsran_vec_u8_malloc(2000 * 8);
+    // }
+
+	for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
+		srsran_vec_u8_zero(data[i],2000 * 8);
     }
 
 	//First, we decode SIB1 and SIB2
