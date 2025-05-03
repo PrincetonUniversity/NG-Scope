@@ -514,7 +514,8 @@ void* task_scheduler_thread(void* p){
     cellcfgfile = fopen("cell_type.json", "w");
     fprintf(cellcfgfile,"{\n");
     fprintf(cellcfgfile,"\"frame_type\": \"%s\",\n", duplymode);
-    fprintf(cellcfgfile,"\"bandwidth\": \"%d\"\n", bw);
+    fprintf(cellcfgfile,"\"bandwidth\": \"%d\",\n", bw);
+    fprintf(cellcfgfile,"\"centerFreq\": \"%.1f\"\n", prog_args->rf_freq/1000000);
     fprintf(cellcfgfile,"}");
     fclose(cellcfgfile);
 

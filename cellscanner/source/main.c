@@ -113,6 +113,16 @@ int main(int argc, char** argv)
       exit(1);
     }
 
+  static bool isFirstCall = true;
+
+	//long position = ftell(fd_dl);
+
+	// if (position == 0){
+	// 	isFirstCall = true;
+	// }
+
+    fprintf(file,"[\n");
+
     region = atoi(argv[2]);
     if(region == 0) {
       bands_length = all_bands_length;
@@ -172,7 +182,7 @@ int main(int argc, char** argv)
     sigprocmask(SIG_UNBLOCK, &sigset, NULL);
     signal(SIGINT, sig_int_handler);
 
-    fprintf(file, "band,cell_id,dl_earfcn,freq_mhz,prbs,pss_power_dbm\n");
+    //fprintf(file, "band,cell_id,dl_earfcn,freq_mhz,prbs,pss_power_dbm\n");
     /* Scanning loop */
     for(j=0; j < bands_length; j++) {
       band = bands[j];
@@ -191,7 +201,22 @@ int main(int argc, char** argv)
 
       printf("\n\nFound %d cells in band %d\n", ret, band);
       for (i = 0; i < ret; i++) {
-          fprintf(file, "%d,%d,%d,%.1f,%d,%.1f\n", band, scanned_cells[i].cell.id, scanned_cells[i].dl_earfcn, scanned_cells[i].freq, scanned_cells[i].cell.nof_prb, srsran_convert_power_to_dB(scanned_cells[i].power));
+          //fprintf(file, "%d,%d,%d,%.1f,%d,%.1f\n", band, scanned_cells[i].cell.id, scanned_cells[i].dl_earfcn, scanned_cells[i].freq, scanned_cells[i].cell.nof_prb, srsran_convert_power_to_dB(scanned_cells[i].power));
+          if (isFirstCall == true){
+            fprintf(file,"{");
+            isFirstCall = false;
+          }else{
+            fprintf(file,",{");
+
+          }
+          fprintf(file,"\"band\": \"%d\",\n", band);
+          fprintf(file,"\"cell_id\": \"%d\",\n", scanned_cells[i].cell.id);
+          fprintf(file,"\"dl_earfcn\": \"%d\",\n", scanned_cells[i].dl_earfcn);
+          fprintf(file,"\"freq\": \"%.1f\",\n", scanned_cells[i].freq);
+          fprintf(file,"\"prbs\": \"%d\",\n", scanned_cells[i].cell.nof_prb);
+          fprintf(file,"\"pss_power\": \"%.1f\"\n", srsran_convert_power_to_dB(scanned_cells[i].power));
+          fprintf(file,"}");
+
           printf("CELL %d:\n\tCell ID: %d\n\tEARFCN(DL): %d\n\tFreq: %.1f MHz\n\tPRBs: %d\n\tPSS Power: %.1f dBm\n",
               i+1,
               scanned_cells[i].cell.id,
@@ -202,7 +227,7 @@ int main(int argc, char** argv)
               //srsran_cell_fprint(stdout, &(scanned_cells[i].cell), 0);
       }
     }
-
+    fprintf(file,"]");
     fclose(file);
 
     srsran_rf_close(&rf);
