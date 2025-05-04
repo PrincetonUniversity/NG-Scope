@@ -10,6 +10,107 @@ extern bool                 have_sib2;
 
 extern pthread_mutex_t token_mutex[MAX_NOF_RF_DEV]; 
 
+#define USE_JSON
+
+#define CELL_CFG_FILE_JSON  "cellcfg.json"
+
+
+typedef struct sib_record_s{
+  int mcc0;
+  int mcc1;
+  int mcc2;
+
+  int mnc0;
+  int mnc1;
+  int mnc2;
+
+  long int tac;
+  long int id;
+  int pdsch_power_dbm;
+
+}sib_record_s;
+
+
+static sib_record_s sib_json_record = {0,0,0,0,0,0,0,0,-10000};
+
+void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
+
+
+  sib_json_record.mcc0 =  sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mcc[0];
+  sib_json_record.mcc1 =  sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mcc[1];
+  sib_json_record.mcc2 =  sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mcc[2];
+
+  sib_json_record.mnc0 = sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mnc[0];
+  sib_json_record.mnc1 = sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mnc[1];
+  sib_json_record.mnc2 = sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mnc[2];
+
+  sib_json_record.id = sib1->cell_access_related_info.cell_id.to_number();
+  sib_json_record.tac = sib1->cell_access_related_info.tac.to_number();
+
+  FILE *cellcfgfile = fopen(CELL_CFG_FILE_JSON, "w");
+
+  if(cellcfgfile == NULL){
+    return;
+  }
+
+  fprintf(cellcfgfile,"{\n");
+  fprintf(cellcfgfile,"\"mcc\": \"%d%d%d\",\n", \
+    sib_json_record.mcc0, \
+    sib_json_record.mcc1, \
+    sib_json_record.mcc2);
+
+
+  fprintf(cellcfgfile,"\"mnc\": \"%d%d%d\",\n", \
+    sib_json_record.mnc0, \
+    sib_json_record.mnc1, \
+    sib_json_record.mnc2);
+  
+  fprintf(cellcfgfile,"\"tac\": \"%ld\",\n", sib_json_record.tac);
+  //fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
+  fprintf(cellcfgfile,"\"id\": \"%d\",\n", sib_json_record.id);
+  fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
+  fprintf(cellcfgfile,"}");
+  fclose(cellcfgfile);
+  return;
+}
+
+void save_cellcfg_from_sib2_json(asn1::rrc::sib_type2_s* sib2){
+
+
+  sib_json_record.pdsch_power_dbm = sib2->rr_cfg_common.pdsch_cfg_common.ref_sig_pwr;
+  
+  if(have_sib1 == false){
+    return;
+  }
+
+  FILE *cellcfgfile = fopen(CELL_CFG_FILE_JSON, "w");
+
+  if(cellcfgfile == NULL){
+    return;
+  }
+
+  fprintf(cellcfgfile,"{\n");
+  fprintf(cellcfgfile,"\"mcc\": \"%d%d%d\",\n", \
+    sib_json_record.mcc0, \
+    sib_json_record.mcc1, \
+    sib_json_record.mcc2);
+
+  
+
+  fprintf(cellcfgfile,"\"mnc\": \"%d%d%d\",\n", \
+    sib_json_record.mnc0, \
+    sib_json_record.mnc1, \
+    sib_json_record.mnc2);
+
+  fprintf(cellcfgfile,"\"tac\": \"%ld\",\n", sib_json_record.tac);
+  //fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
+  fprintf(cellcfgfile,"\"id\": \"%d\",\n", sib_json_record.id);
+  fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
+  fprintf(cellcfgfile,"}");
+  fclose(cellcfgfile);
+  return;
+}
+
 int srsran_ue_dl_find_and_decode_sib1
 (
 srsran_ue_dl_t *q,
@@ -109,25 +210,35 @@ bool acks[SRSRAN_MAX_CODEWORDS]
       asn1::cbit_ref dlsch_bref(pdsch_res->payload, pdsch_cfg->grant.tb[0].tbs / 8);
       asn1::json_writer js_sib1;
       asn1::SRSASN_CODE err = dlsch.unpack(dlsch_bref);
+
+      if(err != asn1::SRSASN_CODE::SRSASN_SUCCESS){
+        return SRSRAN_ERROR;
+      }
+
       sib1 = dlsch.msg.c1().sib_type1();
       sib1.to_json(js_sib1);
-		  have_sib1 = true;
       pthread_mutex_lock(&token_mutex[0]);
-
-      FILE *cellcfgfile = fopen("cellcfg.txt", "a");
-      fprintf(cellcfgfile, "cell.mcc: %d%d%d\n", \
-        sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mcc[0], \
-        sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mcc[1], \
-        sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mcc[2]);
-      fprintf(cellcfgfile, "cell.mnc: %d%d%d\n", \
-        sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mnc[0], \
-        sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mnc[1], \
-        sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mnc[2]);
-      fprintf(cellcfgfile, "cell.tac: %d\n", sib1.cell_access_related_info.tac.to_number());
-      fprintf(cellcfgfile, "cell.id: %ld\n", sib1.cell_access_related_info.cell_id.to_number());
-      fclose(cellcfgfile);
-
+      if(sib1.cell_access_related_info.plmn_id_list.size() > 0){
+#ifndef USE_JSON
+        FILE *cellcfgfile = fopen("cellcfg.txt", "a");
+        fprintf(cellcfgfile, "cell.mcc: %d%d%d\n", \
+          sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mcc[0], \
+          sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mcc[1], \
+          sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mcc[2]);
+        fprintf(cellcfgfile, "cell.mnc: %d%d%d\n", \
+          sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mnc[0], \
+          sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mnc[1], \
+          sib1.cell_access_related_info.plmn_id_list[0].plmn_id.mnc[2]);
+        fprintf(cellcfgfile, "cell.tac: %d\n", sib1.cell_access_related_info.tac.to_number());
+        fprintf(cellcfgfile, "cell.id: %ld\n", sib1.cell_access_related_info.cell_id.to_number());
+        fclose(cellcfgfile);
+#else
+        save_cellcfg_from_sib1_json(&sib1);
+#endif
+        }
+      have_sib1 = true;
       pthread_mutex_unlock(&token_mutex[0]);
+      
     }
   }
   return ret;
@@ -226,29 +337,43 @@ bool acks[SRSRAN_MAX_CODEWORDS]
       }
     }
     asn1::rrc::bcch_dl_sch_msg_s dlsch;
-    asn1::rrc::sys_info_s sibs;
+    //asn1::rrc::sys_info_s sibs;
     asn1::cbit_ref dlsch_bref(pdsch_res->payload, pdsch_cfg->grant.tb[0].tbs / 8);
     asn1::json_writer js_sib2;
     asn1::SRSASN_CODE err = dlsch.unpack(dlsch_bref);
-    FILE *sib2out = fopen("sib2out.txt", "a");
-    sibs = dlsch.msg.c1().sys_info();
-    sibs.to_json(js_sib2);
-    asn1::rrc::sys_info_r8_ies_s::sib_type_and_info_l_ &sib_list = dlsch.msg.c1().sys_info().crit_exts.sys_info_r8().sib_type_and_info;
-    asn1::rrc::sib_type2_s sib2;
-    for (uint32_t i = 0; i < sib_list.size(); i++) {
-      if ((sib_list[i].type().value == asn1::rrc::sib_info_item_c::types::sib2) && (have_sib2 == 0)) {
-        sib2 = sib_list[i].sib2();
-        have_sib2 = true;
-        pthread_mutex_lock(&token_mutex[0]);
 
-        FILE *cellcfgfile = fopen("cellcfg.txt", "a");
-        fprintf(cellcfgfile, "cell.pdsch_reference_signal_power: %ddBm\n", sib2.rr_cfg_common.pdsch_cfg_common.ref_sig_pwr);
-        fclose(cellcfgfile);
-
-        pthread_mutex_unlock(&token_mutex[0]);
-      }
+    if(err != asn1::SRSASN_CODE::SRSASN_SUCCESS){
+      return SRSRAN_ERROR;
     }
     
+    //FILE *sib2out = fopen("sib2out.txt", "a");
+    asn1::rrc::sys_info_s &sibs = dlsch.msg.c1().sys_info();
+    sibs.to_json(js_sib2);
+    //asn1::rrc::sys_info_r8_ies_s::sib_type_and_info_l_ &sib_list = dlsch.msg.c1().sys_info().crit_exts.sys_info_r8().sib_type_and_info;
+    if(sibs.crit_exts.type().value == asn1::rrc::sys_info_s::crit_exts_c_::types::sys_info_r8){
+      asn1::rrc::sys_info_r8_ies_s::sib_type_and_info_l_ &sib_list = sibs.crit_exts.sys_info_r8().sib_type_and_info;
+    
+      for (uint32_t i = 0; i < sib_list.size(); i++) {
+
+        if ((sib_list[i].type().value == asn1::rrc::sib_info_item_c::types::sib2) && (have_sib2 == 0)) {
+          asn1::rrc::sib_type2_s &sib2 = sib_list[i].sib2();
+          pthread_mutex_lock(&token_mutex[0]);
+
+  #ifndef USE_JSON
+          FILE *cellcfgfile = fopen("cellcfg.txt", "a");
+          fprintf(cellcfgfile, "cell.pdsch_reference_signal_power: %ddBm\n", sib2.rr_cfg_common.pdsch_cfg_common.ref_sig_pwr);
+          fclose(cellcfgfile);
+  #else
+          save_cellcfg_from_sib2_json(&sib2);
+  #endif
+          have_sib2 = true;
+          pthread_mutex_unlock(&token_mutex[0]);
+          
+        
+        }
+    
+      }
+    }
   }
   return ret;
 }
