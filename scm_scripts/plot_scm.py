@@ -19,7 +19,7 @@ for i in range(len(scm_results)):
 plot_ids = []
 
 for lt,lg in cell_loc:
-    if (lt == -10000):
+    if (lt == "-10000"):
         continue
     pop_up_text = ""
     depth = 0
@@ -45,7 +45,7 @@ folium.Marker(location=[40.350288669177814, -74.65208898358767],
         ).add_to(m)
 
 m.fit_bounds(m.get_bounds(), padding=(1, 1))
-m.save("test_mapt.html")
+m.save("cells_map.html")
 
 
 

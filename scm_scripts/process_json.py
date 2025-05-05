@@ -35,6 +35,8 @@ if response.status_code == 200:
     print(response.json())
     cell_info["lat"] = response.json()["location"]['lat']
     cell_info["lng"] = response.json()["location"]['lng']
+    cell_info["accuracy"] = response.json()["accuracy"]
+
 
 else:
     # Handle the error
@@ -42,6 +44,8 @@ else:
     print(response.text)
     cell_info["lat"] = "-10000"
     cell_info["lng"] = "-10000"
+    cell_info["accuracy"] = "-10000"
+
 
 
 
