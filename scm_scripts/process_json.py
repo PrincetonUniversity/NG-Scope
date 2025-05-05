@@ -15,8 +15,9 @@ with open("cell_type.json", 'r') as file:
 query = dict()
 
 query["cellTowers"] = dict()
+query["radioType"] = "lte" 
 query["cellTowers"]["cellId"] = cell_cfg["id"]
-query["cellTowers"]["locationAreaCode"] = cell_cfg["tac"]
+#query["cellTowers"]["locationAreaCode"] = cell_cfg["tac"]
 query["cellTowers"]["mobileCountryCode"] = cell_cfg["mcc"]
 query["cellTowers"]["mobileNetworkCode"] = cell_cfg["mnc"]
 query["considerIp"] = "false"

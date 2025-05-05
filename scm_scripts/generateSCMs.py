@@ -30,9 +30,10 @@ for i in range(len(cell_scan)):
             cell_info = json.load(file)
 
         query = dict()
+        query["radioType"] = "lte" 
         query["cellTowers"] = dict()
         query["cellTowers"]["cellId"] = cell_cfg["id"]
-        query["cellTowers"]["locationAreaCode"] = cell_cfg["tac"]
+        #query["cellTowers"]["locationAreaCode"] = cell_cfg["tac"]
         query["cellTowers"]["mobileCountryCode"] = cell_cfg["mcc"]
         query["cellTowers"]["mobileNetworkCode"] = cell_cfg["mnc"]
         query["considerIp"] = "false"
