@@ -629,16 +629,20 @@ void* task_scheduler_thread(void* p){
                 // If we cannot find any idle decoder (all of them are busy!)
                 // store them inside a temporal buffer
                 if(idle_idx < 0){
+                    if(global_scm_mode == false){
                     printf("Skiping %d subframe since Decoder Blocked! \
                             We suggest increasing the number deocder per cell.\n", sfn*10 + sf_idx);
-
+                    }
                     pthread_mutex_lock(&tmp_buf_mutex[rf_idx]);
                     /* Store the data into a tmp buffer. Later, when we have idle decoder, we will decode it*/ 
 					//printf("put %d subframe into the buffer\n", sfn*10+sf_idx);
 					if(task_sf_ring_buffer_put(&task_tmp_buffer[rf_idx], buffers, sfn, sf_idx, 
 								task_scheduler.prog_args.rf_nof_rx_ant, max_num_samples) == 0){
 						int nof_buf_sf = task_sf_ring_buffer_len(&task_tmp_buffer[rf_idx]);
-						printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
+
+                        if(global_scm_mode == false){ 
+						    printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
+                        }
 						skip_tti_put(&skip_tti[rf_idx], sfn, sf_idx);			
 					}
 					//int nof_buf_sf = get_nof_buffered_sf(rf_idx);

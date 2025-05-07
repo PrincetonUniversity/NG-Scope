@@ -13,6 +13,9 @@
 #include "ngscope/hdr/dciLib/ue_tracker.h"
 #include "ngscope/hdr/dciLib/ngscope_util.h"
 
+
+extern bool                 global_scm_mode;
+
 // inti the structure
 void ngscope_ue_tracker_init(ngscope_ue_tracker_t* q){
 	for(int i=0; i<65535; i++){
@@ -197,6 +200,9 @@ void ngscope_ue_tracker_update_per_tti(ngscope_ue_tracker_t* q, uint32_t tti){
 }
 
 void ngscope_ue_tracker_info(ngscope_ue_tracker_t* q, uint32_t tti){
+	if (global_scm_mode == true){
+		return;
+	}
 	printf("TTI:%d Nof active ue:%d ", tti, q->nof_active_ue);
 	for(int i=0; i<TOPN; i++){
 		printf("%d|%d ", q->top_N_ue_rnti[i], q->top_N_ue_freq[i]);
