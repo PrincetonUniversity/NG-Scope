@@ -25,6 +25,9 @@
 #include "ngscope/hdr/dciLib/decode_sib.h"
 
 extern bool go_exit;
+extern bool                 have_sib1;
+extern bool                 have_sib2;
+extern bool                 global_scm_mode;
 
 extern pthread_mutex_t     cell_mutex; 
 extern srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
@@ -561,6 +564,16 @@ void* task_scheduler_thread(void* p){
 	//uint64_t t1=0, t2=0, t3=0;
 	//uint64_t t1_sf_idx =0, t2_sf_idx=0;
     while(!go_exit && (sf_cnt < task_scheduler.prog_args.nof_subframes || task_scheduler.prog_args.nof_subframes == -1)) {
+
+        // In SCM mode, end after SIB1 and SIB2 have been decoded
+        if (global_scm_mode == true){
+            if ((have_sib1 == true) && (have_sib2 == true)){
+                go_exit = true;
+                break;
+            }
+        }
+    
+
     	//fprintf(fd, "%d\t%d\t%d\t%ld\t%ld\t\n", sfn*10+sf_idx, sfn, sf_idx, t2-t1, t3-t1);
 
     	/*  Get the subframe data and put it into the buffer */

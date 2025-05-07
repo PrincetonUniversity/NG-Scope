@@ -56,13 +56,14 @@ bool task_scheduler_up[MAX_NOF_RF_DEV] = {false};
 bool task_scheduler_closed[MAX_NOF_RF_DEV] = {true, true, true, true};
 pthread_mutex_t     scheduler_close_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-
+bool global_scm_mode = false;
 /*********************************************
  * Function name: ngscope_main
  * Return value type: int
  * Description: the main entrance of ngscope.
  * Author: PAWS (https://paws.princeton.edu/)
 *********************************************/
+
 int ngscope_main(ngscope_config_t* config)
 {
     int nof_rf_dev;
@@ -81,6 +82,12 @@ int ngscope_main(ngscope_config_t* config)
 	for(int i=0; i<MAX_NOF_RF_DEV; i++){
 		printf("RF-DEV:%d\n", task_scheduler_closed[i]);
 	}
+
+    if (config->scm_mode == 0){
+        global_scm_mode = false;
+    }else{
+        global_scm_mode = true;
+    }
 
     /* Task scheduler thread */
     /* One USRP with one prog_args */

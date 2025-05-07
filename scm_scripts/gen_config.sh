@@ -12,6 +12,7 @@ echo "rnti=9185;" >> $cfgfile
 echo "disable_plot = false;" >> $cfgfile
 echo "remote_enable= true;" >> $cfgfile
 echo "decode_single_ue= false;" >> $cfgfile
+echo "scm_mode= true;" >> $cfgfile
 
 echo "rf_config0 = {" >> $cfgfile
 echo "    rf_freq   	= $1;" >> $cfgfile
