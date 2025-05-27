@@ -7,7 +7,7 @@ import numpy as np
 os.system("rm scm_results.json")
 os.system("touch scm_results.json")
 
-APIKEY = "AIzaSyDRyJuVavTfNZdHyZLNkW4fYRbjLTxK7to"
+APIKEY = "ENTER-API-KEY-HERE"
 probe_lat = 40.350288669177814 
 probe_lng = -74.65208898358767
 
