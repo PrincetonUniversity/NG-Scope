@@ -1,18 +1,34 @@
 import os
 import json
 import requests
+import numpy as np
 
 
 os.system("rm scm_results.json")
 os.system("touch scm_results.json")
 
+APIKEY = "AIzaSyDRyJuVavTfNZdHyZLNkW4fYRbjLTxK7to"
+probe_lat = 40.350288669177814 
+probe_lng = -74.65208898358767
 
 
-with open("../../cellscanner/source/cell_scan_results.json", 'r') as file:
+MAX_CELL_RETRY = 5
+
+
+
+
+
+# with open("../../cellscanner/source/cell_scan_results.json", 'r') as file:
+#     cell_scan = json.load(file)
+
+with open("cell_list.json", 'r') as file:
     cell_scan = json.load(file)
 
-
 for i in range(len(cell_scan)):
+    if(float(cell_scan[i]["metadata"]["failed_attempts"]) >= MAX_CELL_RETRY):
+        print("Skipping cell, max attempts reached")
+        continue
+
     test_freq = round(float(cell_scan[i]["freq"]) * 1000000)
     
     os.system("./gen_config.sh " + str(test_freq) + "L")
@@ -23,11 +39,41 @@ for i in range(len(cell_scan)):
     os.system("timeout 20s ./ngscope -c temp_config.cfg")
 
     if os.path.exists("cellcfg.json"):
+
+        cell_scan[i]["metadata"]["failed_attempts"] = 0
+
         with open("cellcfg.json", 'r') as file:
             cell_cfg = json.load(file)
 
         with open("cell_type.json", 'r') as file:
             cell_info = json.load(file)
+
+        if os.path.exists("rsrp.txt"):
+            with open('rsrp.txt', 'r') as f:
+                lines = f.readlines()
+                lines = [line.strip() for line in lines]
+                lines = [line.replace("reference_signal_received_power: ","") for line in lines]
+                lines = [line.replace("dBm","") for line in lines]
+                lines = [float(line) for line in lines]
+                cell_info["rsrp"] = dict()
+                cell_info["rsrp"]["mean"] = np.mean(np.array(lines))
+                cell_info["rsrp"]["median"] = np.median(np.array(lines))
+                cell_info["rsrp"]["std"] = np.std(np.array(lines))
+                cell_info["rsrp"]["max"] = np.max(np.array(lines))
+                cell_info["rsrp"]["min"] = np.min(np.array(lines))
+
+
+        else:
+                cell_info["rsrp"] = dict()
+                cell_info["rsrp"]["mean"] = -10000
+                cell_info["rsrp"]["median"] = -10000
+                cell_info["rsrp"]["std"] = -10000
+                cell_info["rsrp"]["max"] = -10000
+                cell_info["rsrp"]["min"] = -10000
+                
+
+        cell_info["probe_lat"] = probe_lat
+        cell_info["probe_lng"] = probe_lng
 
         query = dict()
         query["radioType"] = "lte" 
@@ -42,7 +88,7 @@ for i in range(len(cell_scan)):
         json_string = json.dumps(query, indent=4)
         print(json_string)
 
-        url = "https://www.googleapis.com/geolocation/v1/geolocate?key=API-KEY"
+        url = "https://www.googleapis.com/geolocation/v1/geolocate?key=" + APIKEY
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, headers=headers, json=query)
 
@@ -52,7 +98,6 @@ for i in range(len(cell_scan)):
             cell_info["lat"] = response.json()["location"]['lat']
             cell_info["lng"] = response.json()["location"]['lng']
             cell_info["accuracy"] = response.json()["accuracy"]
-
 
         else:
             # Handle the error
@@ -77,4 +122,15 @@ for i in range(len(cell_scan)):
 
         with open("scm_results.json", 'w') as file: 
             json.dump(list,file)
+    else:
+        #NG-Scope cannot read cell
+        cell_scan[i]["metadata"]["failed_attempts"] = float(cell_scan[i]["metadata"]["failed_attempts"]) + 1
+
+
+with open("cell_list.json", 'w') as file:
+    json.dump(cell_scan,file)
+
+
+
+
 

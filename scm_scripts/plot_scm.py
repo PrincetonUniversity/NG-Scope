@@ -4,11 +4,13 @@ import json
 from collections import defaultdict
 
 
-m = folium.Map(location=[40.350288669177814, -74.65208898358767], zoom_start=20)
-
-
 with open("scm_results.json", 'r') as file:
     scm_results = json.load(file)
+
+m = folium.Map(location=[float(scm_results[0]["probe_lat"]), float(scm_results[0]["probe_lng"])], zoom_start=20)
+
+
+
 
 
 cell_loc = defaultdict(list)
