@@ -4,6 +4,7 @@
 #include "srsran/asn1/asn1_utils.h"
 #include "srsran/asn1/rrc/si.h"
 #include "srsran/asn1/rrc.h"
+#include <ctime>
 
 extern bool                 have_sib1;
 extern bool                 have_sib2;
@@ -35,6 +36,10 @@ static sib_record_s sib_json_record = {0,0,0,0,0,0,0,0,-10000};
 
 void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
 
+  time_t currentTime;
+  time(&currentTime);
+
+  std::tm* datetime = std::localtime(&currentTime);
 
   sib_json_record.mcc0 =  sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mcc[0];
   sib_json_record.mcc1 =  sib1->cell_access_related_info.plmn_id_list[0].plmn_id.mcc[1];
@@ -69,6 +74,7 @@ void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
   //fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"enb_id\": \"%ld\",\n", (sib_json_record.id >> 8));
+  fprintf(cellcfgfile,"\"measurement_time\": {\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d},\n", datetime->tm_year,datetime->tm_mon,datetime->tm_mday,datetime->tm_hour,datetime->tm_min,datetime->tm_sec);
   fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
   fprintf(cellcfgfile,"}");
   fclose(cellcfgfile);
@@ -76,6 +82,13 @@ void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
 }
 
 void save_cellcfg_from_sib2_json(asn1::rrc::sib_type2_s* sib2){
+
+  time_t currentTime;
+  time(&currentTime);
+
+  std::tm* datetime = std::localtime(&currentTime);
+
+  
 
 
   sib_json_record.pdsch_power_dbm = sib2->rr_cfg_common.pdsch_cfg_common.ref_sig_pwr;
@@ -107,6 +120,7 @@ void save_cellcfg_from_sib2_json(asn1::rrc::sib_type2_s* sib2){
   //fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"enb_id\": \"%ld\",\n", (sib_json_record.id >> 8));
+  fprintf(cellcfgfile,"\"measurement_time\": {\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d},\n", datetime->tm_year,datetime->tm_mon,datetime->tm_mday,datetime->tm_hour,datetime->tm_min,datetime->tm_sec);
   fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
   fprintf(cellcfgfile,"}");
   fclose(cellcfgfile);
