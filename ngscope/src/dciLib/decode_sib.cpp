@@ -74,7 +74,7 @@ void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
   //fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"enb_id\": \"%ld\",\n", (sib_json_record.id >> 8));
-  fprintf(cellcfgfile,"\"measurement_time\": {\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d},\n", datetime->tm_year,datetime->tm_mon,datetime->tm_mday,datetime->tm_hour,datetime->tm_min,datetime->tm_sec);
+  fprintf(cellcfgfile,"\"measurement_time\": {\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d},\n", 1900+ datetime->tm_year,1+datetime->tm_mon,datetime->tm_mday,datetime->tm_hour,datetime->tm_min,datetime->tm_sec);
   fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
   fprintf(cellcfgfile,"}");
   fclose(cellcfgfile);
@@ -120,7 +120,7 @@ void save_cellcfg_from_sib2_json(asn1::rrc::sib_type2_s* sib2){
   //fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"id\": \"%ld\",\n", sib_json_record.id);
   fprintf(cellcfgfile,"\"enb_id\": \"%ld\",\n", (sib_json_record.id >> 8));
-  fprintf(cellcfgfile,"\"measurement_time\": {\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d},\n", datetime->tm_year,datetime->tm_mon,datetime->tm_mday,datetime->tm_hour,datetime->tm_min,datetime->tm_sec);
+  fprintf(cellcfgfile,"\"measurement_time\": {\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d},\n", 1900 + datetime->tm_year,1 + datetime->tm_mon,datetime->tm_mday,datetime->tm_hour,datetime->tm_min,datetime->tm_sec);
   fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
   fprintf(cellcfgfile,"}");
   fclose(cellcfgfile);

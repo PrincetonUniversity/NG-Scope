@@ -2,22 +2,38 @@ import os
 import json
 import requests
 import numpy as np
+import configparser
+import sys
+
+# APIKEY = ""
+# probe_lat = 40.350288669177814 
+# probe_lng = -74.65208898358767
+# MAX_CELL_RETRY = 5
+
+
+if len(sys.argv) < 2:
+    print("Config file not provided")
+    sys.exit()
+
+if os.path.exists(sys.argv[1]):
+    pass
+else:
+    print("Config file does not exist")
+    sys.exit()
+
+
+config = configparser.ConfigParser()
+config.read(sys.argv[1])
+config['DEFAULT']
+
+APIKEY = str(config['DEFAULT']['apikey'])
+probe_lat = float(config['DEFAULT']['probe_lat']) 
+probe_lng = float(config['DEFAULT']['probe_lng'])
+MAX_CELL_RETRY = int(config['DEFAULT']['max_cell_retry'])
 
 
 os.system("rm scm_results.json")
 os.system("touch scm_results.json")
-
-APIKEY = "ENTER-API-KEY-HERE"
-probe_lat = 40.350288669177814 
-probe_lng = -74.65208898358767
-
-
-MAX_CELL_RETRY = 5
-
-
-
-
-
 # with open("../../cellscanner/source/cell_scan_results.json", 'r') as file:
 #     cell_scan = json.load(file)
 
