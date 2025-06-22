@@ -154,8 +154,21 @@ int ue_mib_decode_sfn(srsran_ue_mib_t*   ue_mib,
     } else if (n == SRSRAN_UE_MIB_FOUND) {
       srsran_pbch_mib_unpack(bch_payload, cell, sfn);
       if(!decode_pdcch){
-          srsran_cell_fprint(stdout, cell, *sfn);
-          printf("Decoded MIB. SFN: %d, offset: %d\n", *sfn, sfn_offset);
+            srsran_cell_fprint(stdout, cell, *sfn);
+            printf("Decoded MIB. SFN: %d, offset: %d\n", *sfn, sfn_offset);
+
+            if (cell->nof_ports > 0){
+                FILE *cellcfgfile = fopen("mib_results.json", "w");
+
+                if(cellcfgfile == NULL){
+                    return;
+                }
+                fprintf(cellcfgfile,"{\n");
+                fprintf(cellcfgfile,"\"id\": \"%d\",\n",cell->id);
+                fprintf(cellcfgfile,"\"nprb\": \"%d\"\n", cell->nof_prb);
+                fprintf(cellcfgfile,"}");
+                fclose(cellcfgfile);
+            }   
       }
       *sfn   = (*sfn + sfn_offset) % 1024;
     }

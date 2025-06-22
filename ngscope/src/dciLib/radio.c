@@ -61,7 +61,7 @@ int radio_init_and_start(srsran_rf_t* rf,
       } else if (ret == 0 && !go_exit) {
         printf("Cell not found after %d trials. Trying again (Press Ctrl+C to exit)\n", ntrial++);
       }
-    } while (ret == 0 && !go_exit);
+    } while (ret == 0 && !go_exit && ntrial < 5);
 
     if (go_exit) {
       srsran_rf_close(rf);
