@@ -18,7 +18,7 @@
 #define FLEN_PERIOD 0.005
 
 #define MAX_EARFCN 1000
-
+extern int scm_mode;
 int cellsearch_recv_wrapper(void* h, void* data, uint32_t nsamples, srsran_timestamp_t* t)
 {
   DEBUG(" ----  Receive %d samples  ---- ", nsamples);
@@ -30,7 +30,7 @@ int cell_scan(srsran_rf_t * rf,
             cell_search_cfg_t * cell_detect_config,
             struct cells * results,
             int max_cells,
-            int band)
+            int band, int start_freq_idx)
 {
     int n;
     srsran_ue_cellsearch_t cs;
@@ -43,6 +43,7 @@ int cell_scan(srsran_rf_t * rf,
     srsran_cell_t cell;
     int i;
 
+    int found_atleast_1 = 0;
 
     /* Set gain to 50 */
     srsran_rf_set_rx_gain(rf, 50);
@@ -67,7 +68,7 @@ int cell_scan(srsran_rf_t * rf,
     }
 
     /* For each of the frequencies in the selected band */
-    for (freq = 0; freq < nof_freqs && !go_exit && n_found_cells < max_cells; freq++) {
+    for (freq = start_freq_idx; freq < nof_freqs && !go_exit && n_found_cells < max_cells; freq++) {
         printf(
             "[%3d/%d]: Looking for PSS at %.2f MHz...\n", freq, nof_freqs, channels[freq].fd);
         fflush(stdout);
@@ -86,6 +87,7 @@ int cell_scan(srsran_rf_t * rf,
 
         /* Search for cells */
         n = srsran_ue_cellsearch_scan(&cs, found_cells, NULL);
+        found_atleast_1 = 0;
         if (n < 0) {
             ERROR("Error searching cell");
             return -1;
@@ -105,6 +107,8 @@ int cell_scan(srsran_rf_t * rf,
                             results[n_found_cells].dl_earfcn = channels[freq].id;
                             results[n_found_cells].power = found_cells[i].peak;
                             n_found_cells++;
+                            found_atleast_1 = 1;
+                            break;
                         }
                     }
                     else if (ret < 0) {
@@ -113,6 +117,9 @@ int cell_scan(srsran_rf_t * rf,
                     }
                 }
             }
+        }
+        if (scm_mode == 1 && found_atleast_1 == 1){
+            return (freq + 1);
         }
     }
 

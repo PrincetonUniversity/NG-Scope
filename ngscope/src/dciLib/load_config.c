@@ -74,6 +74,11 @@ int ngscope_read_config(ngscope_config_t* config, char * path)
     }
     printf("read decode_SIB:%d\n", config->decode_SIB);
 
+    if(! config_lookup_bool(cfg, "scm_mode", &config->scm_mode)){
+        printf("ERROR: reading scm_mode\n");
+    }
+    printf("read scm_mode:%d\n", config->scm_mode);
+
 
 	long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
 

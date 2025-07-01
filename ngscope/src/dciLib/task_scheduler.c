@@ -25,6 +25,9 @@
 #include "ngscope/hdr/dciLib/decode_sib.h"
 
 extern bool go_exit;
+extern bool                 have_sib1;
+extern bool                 have_sib2;
+extern bool                 global_scm_mode;
 
 extern pthread_mutex_t     cell_mutex; 
 extern srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
@@ -151,8 +154,21 @@ int ue_mib_decode_sfn(srsran_ue_mib_t*   ue_mib,
     } else if (n == SRSRAN_UE_MIB_FOUND) {
       srsran_pbch_mib_unpack(bch_payload, cell, sfn);
       if(!decode_pdcch){
-          srsran_cell_fprint(stdout, cell, *sfn);
-          printf("Decoded MIB. SFN: %d, offset: %d\n", *sfn, sfn_offset);
+            srsran_cell_fprint(stdout, cell, *sfn);
+            printf("Decoded MIB. SFN: %d, offset: %d\n", *sfn, sfn_offset);
+
+            if (cell->nof_ports > 0){
+                FILE *cellcfgfile = fopen("mib_results.json", "w");
+
+                if(cellcfgfile == NULL){
+                    return;
+                }
+                fprintf(cellcfgfile,"{\n");
+                fprintf(cellcfgfile,"\"id\": \"%d\",\n",cell->id);
+                fprintf(cellcfgfile,"\"nprb\": \"%d\"\n", cell->nof_prb);
+                fprintf(cellcfgfile,"}");
+                fclose(cellcfgfile);
+            }   
       }
       *sfn   = (*sfn + sfn_offset) % 1024;
     }
@@ -514,7 +530,8 @@ void* task_scheduler_thread(void* p){
     cellcfgfile = fopen("cell_type.json", "w");
     fprintf(cellcfgfile,"{\n");
     fprintf(cellcfgfile,"\"frame_type\": \"%s\",\n", duplymode);
-    fprintf(cellcfgfile,"\"bandwidth\": \"%d\"\n", bw);
+    fprintf(cellcfgfile,"\"bandwidth\": \"%d\",\n", bw);
+    fprintf(cellcfgfile,"\"centerFreq\": \"%.1f\"\n", prog_args->rf_freq/1000000);
     fprintf(cellcfgfile,"}");
     fclose(cellcfgfile);
 
@@ -560,6 +577,16 @@ void* task_scheduler_thread(void* p){
 	//uint64_t t1=0, t2=0, t3=0;
 	//uint64_t t1_sf_idx =0, t2_sf_idx=0;
     while(!go_exit && (sf_cnt < task_scheduler.prog_args.nof_subframes || task_scheduler.prog_args.nof_subframes == -1)) {
+
+        // In SCM mode, end after SIB1 and SIB2 have been decoded
+        if (global_scm_mode == true){
+            if ((have_sib1 == true) && (have_sib2 == true)){
+                go_exit = true;
+                break;
+            }
+        }
+    
+
     	//fprintf(fd, "%d\t%d\t%d\t%ld\t%ld\t\n", sfn*10+sf_idx, sfn, sf_idx, t2-t1, t3-t1);
 
     	/*  Get the subframe data and put it into the buffer */
@@ -615,16 +642,20 @@ void* task_scheduler_thread(void* p){
                 // If we cannot find any idle decoder (all of them are busy!)
                 // store them inside a temporal buffer
                 if(idle_idx < 0){
+                    if(global_scm_mode == false){
                     printf("Skiping %d subframe since Decoder Blocked! \
                             We suggest increasing the number deocder per cell.\n", sfn*10 + sf_idx);
-
+                    }
                     pthread_mutex_lock(&tmp_buf_mutex[rf_idx]);
                     /* Store the data into a tmp buffer. Later, when we have idle decoder, we will decode it*/ 
 					//printf("put %d subframe into the buffer\n", sfn*10+sf_idx);
 					if(task_sf_ring_buffer_put(&task_tmp_buffer[rf_idx], buffers, sfn, sf_idx, 
 								task_scheduler.prog_args.rf_nof_rx_ant, max_num_samples) == 0){
 						int nof_buf_sf = task_sf_ring_buffer_len(&task_tmp_buffer[rf_idx]);
-						printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
+
+                        if(global_scm_mode == false){ 
+						    printf("Skip %d subframe ring buf len:%d \n", sfn*10+sf_idx, nof_buf_sf);
+                        }
 						skip_tti_put(&skip_tti[rf_idx], sfn, sf_idx);			
 					}
 					//int nof_buf_sf = get_nof_buffered_sf(rf_idx);

@@ -32,6 +32,7 @@ typedef struct{
 	int 				decode_SIB;
     const char *        dci_logs_path;
     const char *        sib_logs_path;
+    int                 scm_mode;
 
     dci_log_config_t    dci_log_config;
     rf_dev_config_t     rf_config[MAX_NOF_RF_DEV];

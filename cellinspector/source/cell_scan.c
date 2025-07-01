@@ -30,7 +30,7 @@ int cell_scan(srsran_rf_t * rf,
             cell_search_cfg_t * cell_detect_config,
             struct cells * results,
             int max_cells,
-            int band)
+            int band,int start_freq_idx)
 {
     int n;
     srsran_ue_cellsearch_t cs;

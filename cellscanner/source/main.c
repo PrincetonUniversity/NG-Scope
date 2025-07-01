@@ -90,6 +90,7 @@ srsran_cell_t      cell;
 
 #define MAX_SCAN_CELLS 128
 
+int scm_mode = 0;
 
 /********/
 /* Main */
@@ -103,7 +104,7 @@ int main(int argc, char** argv)
     FILE * file;
 
 
-    if(argc < 2 || argc > 4) {
+    if(argc <= 2) {
       printf("USAGE: %s <Output file> <Region (0: All, 1: USA, 2: Europe)> <USRP Args (Optional)>\n", argv[0]);
       exit(1);
     }
@@ -112,6 +113,16 @@ int main(int argc, char** argv)
       printf("Error openning %s\n", argv[1]);
       exit(1);
     }
+
+  static bool isFirstCall = true;
+
+	//long position = ftell(fd_dl);
+
+	// if (position == 0){
+	// 	isFirstCall = true;
+	// }
+
+    fprintf(file,"[\n");
 
     region = atoi(argv[2]);
     if(region == 0) {
@@ -133,14 +144,16 @@ int main(int argc, char** argv)
       printf("Invalid region value. 0: All, 1: USA, 2: Europe\n");
       exit(1);
     }
-    
+
+
+    if(argc)
 
     srsran_debug_handle_crash(argc, argv);
 
     srsran_use_standard_symbol_size(true);
 
     /* Initialize radio */
-    if(argc == 2) {
+    if(argc == 3) {
       printf("Opening RF device with 1 RX antennas...\n");
       if (srsran_rf_open_devname(&rf, "", "", 1)) {
           fprintf(stderr, "Error opening rf\n");
@@ -155,6 +168,21 @@ int main(int argc, char** argv)
       }
     }
 
+    int start_band_idx = 0;
+    int start_freq_idx = 0;
+
+    if(argc >= 5){
+      scm_mode = atoi(argv[4]);
+    }
+
+    if(argc >= 6){
+      start_band_idx = atoi(argv[5]);
+    }
+
+    if(argc == 7){
+      start_freq_idx = atoi(argv[6]);
+    }
+    
     
     printf("Starting AGC thread...\n");
     if (srsran_rf_start_gain_thread(&rf, false)) {
@@ -172,14 +200,16 @@ int main(int argc, char** argv)
     sigprocmask(SIG_UNBLOCK, &sigset, NULL);
     signal(SIGINT, sig_int_handler);
 
-    fprintf(file, "band,cell_id,dl_earfcn,freq_mhz,prbs,pss_power_dbm\n");
+    //fprintf(file, "band,cell_id,dl_earfcn,freq_mhz,prbs,pss_power_dbm\n");
     /* Scanning loop */
-    for(j=0; j < bands_length; j++) {
+    for(j=start_band_idx; j < bands_length; j++) {
       band = bands[j];
-
+      if (j > start_band_idx){
+        start_freq_idx = 0;
+      }
       printf("Searching in band %d\n", band);
       /* Scan for cells in the selected band */
-      ret = cell_scan(&rf, &cell_detect_config, scanned_cells, MAX_SCAN_CELLS, band);
+      ret = cell_scan(&rf, &cell_detect_config, scanned_cells, MAX_SCAN_CELLS, band,start_freq_idx);
       if(ret < 0) {
           printf("Error scanning for cells");
           exit(1);
@@ -189,20 +219,61 @@ int main(int argc, char** argv)
           continue;
       }
 
-      printf("\n\nFound %d cells in band %d\n", ret, band);
-      for (i = 0; i < ret; i++) {
-          fprintf(file, "%d,%d,%d,%.1f,%d,%.1f\n", band, scanned_cells[i].cell.id, scanned_cells[i].dl_earfcn, scanned_cells[i].freq, scanned_cells[i].cell.nof_prb, srsran_convert_power_to_dB(scanned_cells[i].power));
-          printf("CELL %d:\n\tCell ID: %d\n\tEARFCN(DL): %d\n\tFreq: %.1f MHz\n\tPRBs: %d\n\tPSS Power: %.1f dBm\n",
-              i+1,
-              scanned_cells[i].cell.id,
-              scanned_cells[i].dl_earfcn,
-              scanned_cells[i].freq,
-              scanned_cells[i].cell.nof_prb,
-              srsran_convert_power_to_dB(scanned_cells[i].power));
-              //srsran_cell_fprint(stdout, &(scanned_cells[i].cell), 0);
+      if (scm_mode == 0){
+        printf("\n\nFound %d cells in band %d\n", ret, band);
+        for (i = 0; i < ret; i++) {
+            //fprintf(file, "%d,%d,%d,%.1f,%d,%.1f\n", band, scanned_cells[i].cell.id, scanned_cells[i].dl_earfcn, scanned_cells[i].freq, scanned_cells[i].cell.nof_prb, srsran_convert_power_to_dB(scanned_cells[i].power));
+            if (isFirstCall == true){
+              fprintf(file,"{");
+              isFirstCall = false;
+            }else{
+              fprintf(file,",{");
+            }
+            fprintf(file,"\"band\": \"%d\",\n", band);
+            fprintf(file,"\"cell_id\": \"%d\",\n", scanned_cells[i].cell.id);
+            fprintf(file,"\"dl_earfcn\": \"%d\",\n", scanned_cells[i].dl_earfcn);
+            fprintf(file,"\"freq\": \"%.1f\",\n", scanned_cells[i].freq);
+            fprintf(file,"\"prbs\": \"%d\",\n", scanned_cells[i].cell.nof_prb);
+            fprintf(file,"\"pss_power\": \"%.1f\"\n", srsran_convert_power_to_dB(scanned_cells[i].power));
+            fprintf(file,"}");
+
+            printf("CELL %d:\n\tCell ID: %d\n\tEARFCN(DL): %d\n\tFreq: %.1f MHz\n\tPRBs: %d\n\tPSS Power: %.1f dBm\n",
+                i+1,
+                scanned_cells[i].cell.id,
+                scanned_cells[i].dl_earfcn,
+                scanned_cells[i].freq,
+                scanned_cells[i].cell.nof_prb,
+                srsran_convert_power_to_dB(scanned_cells[i].power));
+                //srsran_cell_fprint(stdout, &(scanned_cells[i].cell), 0);
+        }
+      }else{
+        if (isFirstCall == true){
+              fprintf(file,"{");
+              isFirstCall = false;
+            }else{
+              fprintf(file,",{");
+            }
+            fprintf(file,"\"band\": \"%d\",\n", band);
+            fprintf(file,"\"cell_id\": \"%d\",\n", scanned_cells[0].cell.id);
+            fprintf(file,"\"dl_earfcn\": \"%d\",\n", scanned_cells[0].dl_earfcn);
+            fprintf(file,"\"freq\": \"%.1f\",\n", scanned_cells[0].freq);
+            fprintf(file,"\"prbs\": \"%d\",\n", scanned_cells[0].cell.nof_prb);
+            fprintf(file,"\"freq_idx\": \"%d\",\n", ret);
+            fprintf(file,"\"band_idx\": \"%d\",\n", j);
+            fprintf(file,"\"pss_power\": \"%.1f\"\n", srsran_convert_power_to_dB(scanned_cells[0].power));
+            fprintf(file,"}");
+
+            printf("CELL %d:\n\tCell ID: %d\n\tEARFCN(DL): %d\n\tFreq: %.1f MHz\n\tPRBs: %d\n\tPSS Power: %.1f dBm\n",
+                1,
+                scanned_cells[0].cell.id,
+                scanned_cells[0].dl_earfcn,
+                scanned_cells[0].freq,
+                scanned_cells[0].cell.nof_prb,
+                srsran_convert_power_to_dB(scanned_cells[0].power));
+            break;
       }
     }
-
+    fprintf(file,"]");
     fclose(file);
 
     srsran_rf_close(&rf);
