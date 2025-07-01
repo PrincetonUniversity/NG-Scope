@@ -204,7 +204,9 @@ int main(int argc, char** argv)
     /* Scanning loop */
     for(j=start_band_idx; j < bands_length; j++) {
       band = bands[j];
-
+      if (j > start_band_idx){
+        start_freq_idx = 0;
+      }
       printf("Searching in band %d\n", band);
       /* Scan for cells in the selected band */
       ret = cell_scan(&rf, &cell_detect_config, scanned_cells, MAX_SCAN_CELLS, band,start_freq_idx);
