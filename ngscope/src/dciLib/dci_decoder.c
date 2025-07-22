@@ -34,6 +34,7 @@
 extern bool                 go_exit;
 extern bool                 have_sib1;
 extern bool                 have_sib2;
+extern double scm_rx_gain_db;
 
 extern ngscope_sf_buffer_t  sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
 extern bool                 sf_token[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
@@ -319,7 +320,7 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 
 	pthread_mutex_lock(&token_mutex[0]);
 	FILE* rsrpoutfile = fopen("rsrp.txt", "a");
-	fprintf(rsrpoutfile, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm);
+	fprintf(rsrpoutfile, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm - scm_rx_gain_db);
 	fclose(rsrpoutfile);
 	pthread_mutex_unlock(&token_mutex[0]);
 

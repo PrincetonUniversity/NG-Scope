@@ -31,6 +31,7 @@ extern bool                 global_scm_mode;
 
 extern pthread_mutex_t     cell_mutex; 
 extern srsran_cell_t       cell_vec[MAX_NOF_RF_DEV];
+double scm_rx_gain_db = 0;
 
 extern dci_ready_t              dci_ready;
 extern ngscope_status_buffer_t  dci_buffer[MAX_DCI_BUFFER];
@@ -577,7 +578,7 @@ void* task_scheduler_thread(void* p){
 	//uint64_t t1=0, t2=0, t3=0;
 	//uint64_t t1_sf_idx =0, t2_sf_idx=0;
     while(!go_exit && (sf_cnt < task_scheduler.prog_args.nof_subframes || task_scheduler.prog_args.nof_subframes == -1)) {
-
+        scm_rx_gain_db = task_scheduler.rf.cur_rx_gain;
         // In SCM mode, end after SIB1 and SIB2 have been decoded
         if (global_scm_mode == true){
             if ((have_sib1 == true) && (have_sib2 == true)){
