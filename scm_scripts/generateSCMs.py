@@ -30,10 +30,11 @@ APIKEY = str(config['DEFAULT']['apikey'])
 probe_lat = float(config['DEFAULT']['probe_lat']) 
 probe_lng = float(config['DEFAULT']['probe_lng'])
 MAX_CELL_RETRY = int(config['DEFAULT']['max_cell_retry'])
-
+USRP_CAL_OFFSET = float(config['DEFAULT']['USRP_CAL_OFFSET'])
 
 os.system("rm scm_results.json")
 os.system("touch scm_results.json")
+os.system("rm rsrp.txt")
 # with open("../../cellscanner/source/cell_scan_results.json", 'r') as file:
 #     cell_scan = json.load(file)
 
@@ -71,12 +72,14 @@ for i in range(len(cell_scan)):
                 lines = [line.replace("reference_signal_received_power: ","") for line in lines]
                 lines = [line.replace("dBm","") for line in lines]
                 lines = [float(line) for line in lines]
+
+                rsrp_arr = np.array(lines) - USRP_CAL_OFFSET;
                 cell_info["rsrp"] = dict()
-                cell_info["rsrp"]["mean"] = np.mean(np.array(lines))
-                cell_info["rsrp"]["median"] = np.median(np.array(lines))
-                cell_info["rsrp"]["std"] = np.std(np.array(lines))
-                cell_info["rsrp"]["max"] = np.max(np.array(lines))
-                cell_info["rsrp"]["min"] = np.min(np.array(lines))
+                cell_info["rsrp"]["mean"] = np.mean(rsrp_arr)
+                cell_info["rsrp"]["median"] = np.median(rsrp_arr)
+                cell_info["rsrp"]["std"] = np.std(rsrp_arr)
+                cell_info["rsrp"]["max"] = np.max(rsrp_arr)
+                cell_info["rsrp"]["min"] = np.min(rsrp_arr)
 
 
         else:

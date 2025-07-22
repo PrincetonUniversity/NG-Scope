@@ -6,8 +6,26 @@ import configparser
 import sys
 import time
 
+if len(sys.argv) < 2:
+    print("Config file not provided")
+    sys.exit()
+
+if os.path.exists(sys.argv[1]):
+    pass
+else:
+    print("Config file does not exist")
+    sys.exit()
+
+
+config = configparser.ConfigParser()
+config.read(sys.argv[1])
+
+USRP_CAL_OFFSET = float(config['DEFAULT']['USRP_CAL_OFFSET'])
+
 
 os.system("rm temp_scan.json")
+
+
 
 probe_freq_idx = 0
 probe_band_idx = 0
@@ -31,6 +49,8 @@ while(1):
             os.system("rm mib_results.json")
             os.system("rm cellcfg.json")
             os.system("rm cell_type.json")
+            os.system("rm rsrp.txt")
+
             os.system("timeout 20s ./ngscope -c temp_config.cfg")
             time.sleep(5)
 
@@ -56,6 +76,29 @@ while(1):
                 else:
                     cell_res["sib_found"] = 0
                     cell_res["sib"] = dict()
+                
+                if os.path.exists("rsrp.txt"):
+                    with open('rsrp.txt', 'r') as f:
+                        lines = f.readlines()
+                        lines = [line.strip() for line in lines]
+                        lines = [line.replace("reference_signal_received_power: ","") for line in lines]
+                        lines = [line.replace("dBm","") for line in lines]
+                        lines = [float(line) for line in lines]
+
+                        rsrp_arr = np.array(lines) - USRP_CAL_OFFSET;
+                        cell_res["rsrp"] = dict()
+                        cell_res["rsrp"]["mean"] = np.mean(rsrp_arr)
+                        cell_res["rsrp"]["median"] = np.median(rsrp_arr)
+                        cell_res["rsrp"]["std"] = np.std(rsrp_arr)
+                        cell_res["rsrp"]["max"] = np.max(rsrp_arr)
+                        cell_res["rsrp"]["min"] = np.min(rsrp_arr)
+                else:
+                        cell_res["rsrp"] = dict()
+                        cell_res["rsrp"]["mean"] = -10000
+                        cell_res["rsrp"]["median"] = -10000
+                        cell_res["rsrp"]["std"] = -10000
+                        cell_res["rsrp"]["max"] = -10000
+                        cell_res["rsrp"]["min"] = -10000
             list.append(cell_res)
             with open("cell_scan_detail.json", 'w') as file: 
                 json.dump(list,file)
