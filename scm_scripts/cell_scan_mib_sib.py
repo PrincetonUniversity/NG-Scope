@@ -20,7 +20,13 @@ else:
 config = configparser.ConfigParser()
 config.read(sys.argv[1])
 
+
+APIKEY = str(config['DEFAULT']['apikey'])
+probe_lat = float(config['DEFAULT']['probe_lat']) 
+probe_lng = float(config['DEFAULT']['probe_lng'])
 USRP_CAL_OFFSET = float(config['DEFAULT']['USRP_CAL_OFFSET'])
+
+
 
 
 os.system("rm temp_scan.json")
