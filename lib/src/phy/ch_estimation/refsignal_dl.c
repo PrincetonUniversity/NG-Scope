@@ -313,6 +313,34 @@ int srsran_refsignal_cs_get_sf(srsran_refsignal_t* q,
   }
 }
 
+
+/** Copies the RE containing references from an array of subframe symbols to the pilots array. */
+int srsran_refsignal_cs_get_sf_per_rb(srsran_refsignal_t* q,
+                               srsran_dl_sf_cfg_t* sf,
+                               uint32_t            port_id,
+                               cf_t*               sf_symbols,
+                               cf_t*               pilots, uint32_t* rb_idx)
+{
+  uint32_t i, l;
+  uint32_t fidx;
+
+  if (q != NULL && pilots != NULL && sf_symbols != NULL) {
+    for (l = 0; l < srsran_refsignal_cs_nof_symbols(q, sf, port_id); l++) {
+      uint32_t nsymbol = srsran_refsignal_cs_nsymbol(l, q->cell.cp, port_id);
+      /* Compute offset frequency index */
+      fidx = srsran_refsignal_cs_fidx(q->cell, l, port_id, 0);
+      for (i = 0; i < 2 * q->cell.nof_prb; i++) {
+        pilots[SRSRAN_REFSIGNAL_PILOT_IDX(i, l, q->cell)] = sf_symbols[SRSRAN_RE_IDX(q->cell.nof_prb, nsymbol, fidx)];
+        rb_idx[SRSRAN_REFSIGNAL_PILOT_IDX(i, l, q->cell)] = fidx/SRSRAN_NRE;
+        fidx += SRSRAN_NRE / 2; // 2 references per PRB
+      }
+    }
+    return SRSRAN_SUCCESS;
+  } else {
+    return SRSRAN_ERROR_INVALID_INPUTS;
+  }
+}
+
 SRSRAN_API int srsran_refsignal_mbsfn_put_sf(srsran_cell_t cell,
                                              uint32_t      port_id,
                                              cf_t*         cs_pilots,
