@@ -839,15 +839,18 @@ static int estimate_port(srsran_chest_dl_t*     q,
 
   for(int p_iter = 0; p_iter < SRSRAN_MAX_PRB; p_iter++){
     q->rsrp_per_rb[rxant_id][port_id][p_iter] = 0;
+    q->chest_per_rb[rxant_id][port_id][p_iter] = 0;
   }
-
 
   for(int p_iter = 0; p_iter < npilots; p_iter++){
     rb_count[rb_idx[p_iter]]++;
     q->rsrp_per_rb[rxant_id][port_id][rb_idx[p_iter]] = q->rsrp_per_rb[rxant_id][port_id][rb_idx[p_iter]] + pilot_power[p_iter];
+    q->chest_per_rb[rxant_id][port_id][rb_idx[p_iter]] = q->chest_per_rb[rxant_id][port_id][rb_idx[p_iter]] + q->pilot_estimates[p_iter];
+
   }
   for(int p_iter = 0; p_iter < SRSRAN_MAX_PRB; p_iter++){
     q->rsrp_per_rb[rxant_id][port_id][p_iter] = q->rsrp_per_rb[rxant_id][port_id][p_iter]/rb_count[p_iter];
+    q->chest_per_rb[rxant_id][port_id][p_iter] = q->chest_per_rb[rxant_id][port_id][p_iter]/rb_count[p_iter];
   }
 
   chest_interpolate_noise_est(q, sf, cfg, input, ce, port_id, rxant_id);
@@ -997,6 +1000,8 @@ static void fill_res(srsran_chest_dl_t* q, srsran_chest_dl_res_t* res)
   res->rssi_dbm           = srsran_convert_power_to_dBm(get_rssi(q));
   res->sync_error         = q->sync_err[0][0]; // Take only the channel used for synch
 
+  res->nof_ports = q->cell.nof_ports;
+  res->nof_rx_antennas = q->nof_rx_antennas;
 
   for (uint32_t port_id = 0; port_id < q->cell.nof_ports; port_id++) {
     res->rsrp_port_dbm[port_id] = srsran_convert_power_to_dBm(get_rsrp_port(q, port_id));

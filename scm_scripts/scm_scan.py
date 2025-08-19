@@ -25,6 +25,7 @@ APIKEY = str(config['DEFAULT']['apikey'])
 probe_lat = float(config['DEFAULT']['probe_lat']) 
 probe_lng = float(config['DEFAULT']['probe_lng'])
 USRP_CAL_OFFSET = float(config['DEFAULT']['USRP_CAL_OFFSET'])
+EXTERNAL_GAIN_OFFSET = float(config['DEFAULT']['EXTERNAL_GAIN_OFFSET'])
 
 
 os.system("rm temp_scan.json")
@@ -58,7 +59,9 @@ while(1):
             os.system("rm cell_type.json")
             os.system("rm rsrp.txt")
             os.system("rm rsrp_prbs.txt")
-
+            os.system("rm chest_dl_est_config.txt")
+            os.system("rm chest_dl_est_real.txt")
+            os.system("rm chest_dl_est_imag.txt")
 
             os.system("timeout 20s ./ngscope -c temp_config.cfg")
             time.sleep(5)
@@ -87,6 +90,13 @@ while(1):
             cell_res["rsrp"]["std"] = -10000
             cell_res["rsrp"]["max"] = -10000
             cell_res["rsrp"]["min"] = -10000
+
+            cell_res["rsrp_per_rb"] = dict()
+            cell_res["rsrp_per_rb"]["mean"] = []
+            cell_res["rsrp_per_rb"]["median"] = []
+            cell_res["rsrp_per_rb"]["std"] = []
+            cell_res["rsrp_per_rb"]["max"] = []
+            cell_res["rsrp_per_rb"]["min"] = []
 
             cell_res["measurement_time"] = dict()
             cell_res["measurement_time"]["year"] = -10000
@@ -118,6 +128,7 @@ while(1):
                 cell_res["raw_data"]["mib"]["id"] = mib["id"]
                 cell_res["raw_data"]["mib"]["freq"] = curr_freq
                 cell_res["raw_data"]["mib"]["nprb"] = mib["nprb"]
+
 
                 if os.path.exists("cellcfg.json"):
                     with open("cellcfg.json", 'r') as file:
@@ -187,6 +198,40 @@ while(1):
                     
                     cell_res["raw_data"]["sib"] = dict()
                     cell_res["raw_data"]["sib"].update(cell_info)
+
+                    #Process CSI Data
+
+                    if os.path.exists("chest_dl_est_config.txt"):
+                        with open('chest_dl_est_config.txt', 'r') as f:
+                            lines = f.readlines()
+                            lines = lines[0:4]
+                            lines = [line.strip() for line in lines]
+                            nof_ports = int(lines[0])
+                            nof_antennas = int(lines[1])
+                            nof_re = int(lines[2])
+                            nof_sc = int(lines[3]) * 12
+                            nof_sym = int(nof_re/nof_sc) 
+
+                        with open('chest_dl_est_real.txt', 'r') as f:
+                            lines = f.readlines()
+                            lines = [line.strip() for line in lines]
+                            lines = [line.split(",") for line in lines]
+                            chest_real = np.array(lines).astype(float)
+
+                        with open('chest_dl_est_imag.txt', 'r') as f:
+                            lines = f.readlines()
+                            lines = [line.strip() for line in lines]
+
+                            lines = [line.split(",") for line in lines]
+                            chest_imag = np.array(lines).astype(float)
+
+
+                        chest = (chest_real) + 1j * (chest_imag)
+                        chest = chest.reshape((chest.shape[0],nof_sym,nof_sc))
+                        
+                        csi_file_name = "csi_dl_" + str(cell_res["enb_id"]) + "_" + str(cell_res["centerFreq"]) + "_data.npz"
+
+                        np.savez(csi_file_name,chest)
                 else:
                     cell_res["raw_data"]["sib"] = dict()
                 
@@ -198,7 +243,7 @@ while(1):
                         lines = [line.replace("dBm","") for line in lines]
                         lines = [float(line) for line in lines]
 
-                        rsrp_arr = np.array(lines) - USRP_CAL_OFFSET;
+                        rsrp_arr = np.array(lines) - USRP_CAL_OFFSET - EXTERNAL_GAIN_OFFSET;
                         cell_res["rsrp"] = dict()
                         cell_res["rsrp"]["mean"] = np.mean(rsrp_arr)
                         cell_res["rsrp"]["median"] = np.median(rsrp_arr)
@@ -218,15 +263,13 @@ while(1):
                             numpy_array = np.genfromtxt(data, delimiter=',')    
                             rsrp_array.append(numpy_array)
 
-                        rsrp_array = np.array(rsrp_array) - USRP_CAL_OFFSET
-                        cell_res["rsrp_per_rb"] = dict()
+                        rsrp_array = np.array(rsrp_array) - USRP_CAL_OFFSET - EXTERNAL_GAIN_OFFSET
                         cell_res["rsrp_per_rb"]["mean"] = np.mean(rsrp_array,axis=0).tolist()
                         cell_res["rsrp_per_rb"]["median"] = np.median(rsrp_array,axis=0).tolist()
                         cell_res["rsrp_per_rb"]["std"] = np.std(rsrp_array,axis=0).tolist()
                         cell_res["rsrp_per_rb"]["max"] = np.max(rsrp_array,axis=0).tolist()
                         cell_res["rsrp_per_rb"]["min"] = np.min(rsrp_array,axis=0).tolist()
                 else:
-                        cell_res["rsrp_per_rb"] = dict()
                         cell_res["rsrp_per_rb"]["mean"] = []
                         cell_res["rsrp_per_rb"]["median"] = []
                         cell_res["rsrp_per_rb"]["std"] = []
