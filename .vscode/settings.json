@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.m": "latex",
         "dci_log.h": "c",
         "cmath": "c",
         "rf.h": "c",
@@ -90,6 +91,7 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "__nullptr": "cpp",
-        "asn_decoder.h": "c"
+        "asn_decoder.h": "c",
+        "pss.h": "c"
     }
 }

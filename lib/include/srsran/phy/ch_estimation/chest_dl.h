@@ -52,6 +52,9 @@ typedef struct SRSRAN_API {
   uint32_t nof_re;
   float    noise_estimate;
   float    noise_estimate_dbm;
+  int      nof_ports;
+  int      nof_rx_antennas;
+
   float    snr_db;
   float    snr_ant_port_db[SRSRAN_MAX_PORTS][SRSRAN_MAX_PORTS];
   float    rsrp;
@@ -62,6 +65,8 @@ typedef struct SRSRAN_API {
   float    rsrq;
   float    rsrq_db;
   float    rsrq_ant_port_db[SRSRAN_MAX_PORTS][SRSRAN_MAX_PORTS];
+  float    rsrp_per_rb_dbm[SRSRAN_MAX_PRB];
+  uint32_t    rsrp_nof_rb;
   float    rssi_dbm;
   float    cfo;
   float    sync_error;
@@ -112,6 +117,8 @@ typedef struct SRSRAN_API {
   float noise_estimate[SRSRAN_MAX_PORTS][SRSRAN_MAX_PORTS];
   float sync_err[SRSRAN_MAX_PORTS][SRSRAN_MAX_PORTS];
   float cfo;
+  float rsrp_per_rb[SRSRAN_MAX_PORTS][SRSRAN_MAX_PORTS][SRSRAN_MAX_PRB];
+  cf_t  chest_per_rb[SRSRAN_MAX_PORTS][SRSRAN_MAX_PORTS][SRSRAN_MAX_PRB];
 
   /* Use PSS for noise estimation in LS linear interpolation mode */
   cf_t pss_signal[SRSRAN_PSS_LEN];

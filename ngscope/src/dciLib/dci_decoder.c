@@ -322,6 +322,59 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 	FILE* rsrpoutfile = fopen("rsrp.txt", "a");
 	fprintf(rsrpoutfile, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm - scm_rx_gain_db);
 	fclose(rsrpoutfile);
+
+	rsrpoutfile = fopen("rsrp_prbs.txt", "a");
+
+	for(int p_iter = 0; p_iter < dci_decoder->ue_dl.chest_res.rsrp_nof_rb; p_iter++){
+		fprintf(rsrpoutfile, "%4f", dci_decoder->ue_dl.chest_res.rsrp_per_rb_dbm[p_iter] - scm_rx_gain_db);
+		if(p_iter < dci_decoder->ue_dl.chest_res.rsrp_nof_rb - 1){
+			fprintf(rsrpoutfile, ",");
+		}
+	}
+	fprintf(rsrpoutfile, "\n");
+	fclose(rsrpoutfile);
+
+
+	rsrpoutfile = fopen("chest_dl_est_config.txt", "a");
+	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.nof_ports);
+	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.nof_rx_antennas);
+	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.nof_re);
+	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.rsrp_nof_rb);
+	fclose(rsrpoutfile);
+
+
+
+
+	rsrpoutfile = fopen("chest_dl_est_real.txt", "a");
+	for (int p_idx = 0 ; p_idx < dci_decoder->ue_dl.chest_res.nof_ports; p_idx++){
+		for (int p_a = 0; p_a < dci_decoder->ue_dl.chest_res.nof_rx_antennas; p_a++){
+			for (int re_idx = 0 ;re_idx < dci_decoder->ue_dl.chest_res.nof_re; re_idx++){
+				fprintf(rsrpoutfile, "%4f", crealf(dci_decoder->ue_dl.chest_res.ce[p_idx][p_a][re_idx]));
+				if(re_idx < dci_decoder->ue_dl.chest_res.nof_re-1){
+					fprintf(rsrpoutfile, ",");
+				}
+			}
+			fprintf(rsrpoutfile, "\n");
+		}
+		
+	}
+	fclose(rsrpoutfile);
+
+	rsrpoutfile = fopen("chest_dl_est_imag.txt", "a");
+	for (int p_idx = 0 ; p_idx < dci_decoder->ue_dl.chest_res.nof_ports; p_idx++){
+		for (int p_a = 0; p_a < dci_decoder->ue_dl.chest_res.nof_rx_antennas; p_a++){
+			for (int re_idx = 0 ;re_idx < dci_decoder->ue_dl.chest_res.nof_re; re_idx++){
+				fprintf(rsrpoutfile, "%4f", cimagf(dci_decoder->ue_dl.chest_res.ce[p_idx][p_a][re_idx]));
+				if(re_idx < dci_decoder->ue_dl.chest_res.nof_re-1){
+					fprintf(rsrpoutfile, ",");
+				}
+			}
+			fprintf(rsrpoutfile, "\n");
+		}
+		
+	}
+	fclose(rsrpoutfile);
+
 	pthread_mutex_unlock(&token_mutex[0]);
 
     // Shall we decode the PDSCH of the current subframe?

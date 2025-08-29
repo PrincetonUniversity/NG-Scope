@@ -66,6 +66,12 @@ SRSRAN_API int srsran_refsignal_cs_get_sf(srsran_refsignal_t* q,
                                           cf_t*               sf_symbols,
                                           cf_t*               pilots);
 
+int srsran_refsignal_cs_get_sf_per_rb(srsran_refsignal_t* q,
+                               srsran_dl_sf_cfg_t* sf,
+                               uint32_t            port_id,
+                               cf_t*               sf_symbols,
+                               cf_t*               pilots, uint32_t* rb_idx);
+
 SRSRAN_API uint32_t srsran_refsignal_cs_fidx(srsran_cell_t cell, uint32_t l, uint32_t port_id, uint32_t m);
 
 SRSRAN_API uint32_t srsran_refsignal_cs_nsymbol(uint32_t l, srsran_cp_t cp, uint32_t port_id);

@@ -814,12 +814,21 @@ static int estimate_port(srsran_chest_dl_t*     q,
   uint32_t npilots = srsran_refsignal_cs_nof_re(&q->csr_refs, sf, port_id);
 
   /* Get references from the input signal */
-  srsran_refsignal_cs_get_sf(&q->csr_refs, sf, port_id, input, q->pilot_recv_signal);
+  //srsran_refsignal_cs_get_sf(&q->csr_refs, sf, port_id, input, q->pilot_recv_signal);
+
+  uint32_t* rb_idx = (uint32_t*)calloc(npilots,sizeof(uint32_t));
+  uint32_t* rb_count = (uint32_t*)calloc(SRSRAN_MAX_PRB,sizeof(uint32_t));
+  float* pilot_power = (float*)calloc(npilots,sizeof(float));
+
+  srsran_refsignal_cs_get_sf_per_rb(&q->csr_refs, sf, port_id, input, q->pilot_recv_signal,rb_idx);
+  srsran_vec_abs_square_cf(q->pilot_recv_signal,pilot_power,npilots);
+
 
   /* Use the known CSR signal to compute Least-squares estimates */
   srsran_vec_prod_conj_ccc(
       q->pilot_recv_signal, q->csr_refs.pilots[port_id / 2][sf->tti % 10], q->pilot_estimates, npilots);
 
+  
   /* Compute RSRP for the channel estimates in this port */
   if (cfg->rsrp_neighbour) {
     double energy                   = cabsf(srsran_vec_acc_cc(q->pilot_estimates, npilots) / npilots);
@@ -828,8 +837,26 @@ static int estimate_port(srsran_chest_dl_t*     q,
   q->rsrp[rxant_id][port_id] = srsran_vec_avg_power_cf(q->pilot_recv_signal, npilots);
   q->rssi[rxant_id][port_id] = chest_dl_rssi(q, sf, input, port_id);
 
-  chest_interpolate_noise_est(q, sf, cfg, input, ce, port_id, rxant_id);
+  for(int p_iter = 0; p_iter < SRSRAN_MAX_PRB; p_iter++){
+    q->rsrp_per_rb[rxant_id][port_id][p_iter] = 0;
+    q->chest_per_rb[rxant_id][port_id][p_iter] = 0;
+  }
 
+  for(int p_iter = 0; p_iter < npilots; p_iter++){
+    rb_count[rb_idx[p_iter]]++;
+    q->rsrp_per_rb[rxant_id][port_id][rb_idx[p_iter]] = q->rsrp_per_rb[rxant_id][port_id][rb_idx[p_iter]] + pilot_power[p_iter];
+    q->chest_per_rb[rxant_id][port_id][rb_idx[p_iter]] = q->chest_per_rb[rxant_id][port_id][rb_idx[p_iter]] + q->pilot_estimates[p_iter];
+
+  }
+  for(int p_iter = 0; p_iter < SRSRAN_MAX_PRB; p_iter++){
+    q->rsrp_per_rb[rxant_id][port_id][p_iter] = q->rsrp_per_rb[rxant_id][port_id][p_iter]/rb_count[p_iter];
+    q->chest_per_rb[rxant_id][port_id][p_iter] = q->chest_per_rb[rxant_id][port_id][p_iter]/rb_count[p_iter];
+  }
+
+  chest_interpolate_noise_est(q, sf, cfg, input, ce, port_id, rxant_id);
+  free(rb_idx);
+  free(pilot_power);
+  free(rb_count);
   return 0;
 }
 
@@ -973,6 +1000,9 @@ static void fill_res(srsran_chest_dl_t* q, srsran_chest_dl_res_t* res)
   res->rssi_dbm           = srsran_convert_power_to_dBm(get_rssi(q));
   res->sync_error         = q->sync_err[0][0]; // Take only the channel used for synch
 
+  res->nof_ports = q->cell.nof_ports;
+  res->nof_rx_antennas = q->nof_rx_antennas;
+
   for (uint32_t port_id = 0; port_id < q->cell.nof_ports; port_id++) {
     res->rsrp_port_dbm[port_id] = srsran_convert_power_to_dBm(get_rsrp_port(q, port_id));
     for (uint32_t a = 0; a < q->nof_rx_antennas; a++) {
@@ -980,8 +1010,24 @@ static void fill_res(srsran_chest_dl_t* q, srsran_chest_dl_res_t* res)
           srsran_convert_power_to_dB(q->rsrp[a][port_id] / q->noise_estimate[a][port_id]);
       res->rsrp_ant_port_dbm[a][port_id] = srsran_convert_power_to_dBm(q->rsrp[a][port_id]);
       res->rsrq_ant_port_db[a][port_id] =
-          srsran_convert_power_to_dB(q->cell.nof_prb * q->rsrp[a][port_id] / q->rssi[a][port_id]);
+          srsran_convert_power_to_dB(q->cell.nof_prb * q->rsrp[a][port_id] / q->rssi[a][port_id]); 
     }
+  }
+
+  res->rsrp_nof_rb = q->cell.nof_prb;
+  for(int p_iter = 0; p_iter < q->cell.nof_prb; p_iter++){
+    res->rsrp_per_rb_dbm[p_iter] = -1e9;
+    for (uint32_t a = 0; a < q->nof_rx_antennas; a++) {
+      float sum = 0;
+      for (uint32_t port_id = 0; port_id < q->cell.nof_ports; port_id++) {
+        sum = sum + q->rsrp_per_rb[a][port_id][p_iter];
+      }
+      sum = sum/q->cell.nof_ports;
+      if(res->rsrp_per_rb_dbm[p_iter] < sum){
+        res->rsrp_per_rb_dbm[p_iter] = sum;
+      }
+    }
+    res->rsrp_per_rb_dbm[p_iter] = srsran_convert_power_to_dBm(res->rsrp_per_rb_dbm[p_iter]);
   }
 }
 
