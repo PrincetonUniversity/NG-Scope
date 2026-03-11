@@ -162,7 +162,7 @@ void* status_tracker_thread(void* p){
     	pthread_create(&dci_log_thd, NULL, dci_log_thread, (void*)(&dci_log_config));
 	}
 
-	FILE* fd = fopen("status_tracker.txt","w+");
+	//FILE* fd = fopen("status_tracker.txt","w+");
 
     while(true){
         if(go_exit) break;
@@ -226,14 +226,14 @@ void* status_tracker_thread(void* p){
      
         //printf("Copy %d dci->", nof_dci); 
         for(int i=0; i<nof_dci; i++){
-			fprintf(fd, "%d\t%d\n", dci_queue[i].tti, nof_dci);
+			//fprintf(fd, "%d\t%d\n", dci_queue[i].tti, nof_dci);
             //printf(" %d-th dci: ul dci:%d dl_dci:%d  tti:%d IDX:%d\n", i, dci_queue[i].dci_per_sub.nof_ul_dci, \
             dci_queue[i].dci_per_sub.nof_dl_dci, dci_queue[i].tti, TTI_TO_IDX(dci_queue[i].tti));
         }
 		//printf("\n");
     }
     printf("Close Status Tracker!\n");
-	fclose(fd);    
+	//fclose(fd);    
 	//close_and_notify_udp(status_tracker.remote_sock);
 //
 //    if(dis_plot == 0){

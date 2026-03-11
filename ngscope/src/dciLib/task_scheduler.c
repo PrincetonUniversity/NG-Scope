@@ -42,6 +42,7 @@ extern bool task_scheduler_closed[MAX_NOF_RF_DEV];
 extern pthread_mutex_t     scheduler_close_mutex;
 
 /******************* Global buffer for passing subframe IQ  ******************/ 
+/* //Update for increasing nof decoder/thread
 ngscope_sf_buffer_t sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER] = 
 {
 {
@@ -69,6 +70,8 @@ ngscope_sf_buffer_t sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER] =
     {false, 0, 0, {NULL}, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER},
 }
 };
+*/
+ngscope_sf_buffer_t sf_buffer[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER] = {0};
 bool                sf_token[MAX_NOF_RF_DEV][MAX_NOF_DCI_DECODER];
 
 pthread_mutex_t     token_mutex[MAX_NOF_RF_DEV] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
@@ -88,6 +91,22 @@ task_skip_tti_t 	skip_tti[MAX_NOF_RF_DEV];
 task_tmp_buffer_t   task_tmp_buffer[MAX_NOF_RF_DEV];
 pthread_mutex_t     tmp_buf_mutex[MAX_NOF_RF_DEV] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
 					 								PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+
+// Update for increasing nof decoder/thread
+static void init_sf_buffer_for_rf(int rf_idx)
+{
+    for (int i = 0; i < MAX_NOF_DCI_DECODER; i++) {
+        sf_buffer[rf_idx][i].empty_sf = false;
+        sf_buffer[rf_idx][i].sf_idx = 0;
+        sf_buffer[rf_idx][i].sfn = 0;
+        for (int p = 0; p < SRSRAN_MAX_PORTS; p++) {
+            sf_buffer[rf_idx][i].IQ_buffer[p] = NULL;
+        }
+        pthread_mutex_init(&sf_buffer[rf_idx][i].sf_mutex, NULL);
+        pthread_cond_init(&sf_buffer[rf_idx][i].sf_cond, NULL);
+        sf_token[rf_idx][i] = false;
+    }
+}
 
 int find_idle_decoder(int rf_idx, int nof_decoder){
     int idle_idx = -1;
@@ -146,10 +165,18 @@ int ue_mib_decode_sfn(srsran_ue_mib_t*   ue_mib,
                         uint32_t*        sfn,
                         bool             decode_pdcch)
 {
+    //For recording MIB results
+    FILE* mib_record_file = fopen("record_mib_results.txt", "a");
+    int raw_sfn = -1;
+    int updated_sfn = -1;
+    int nof_prb = -1;
+
     uint8_t bch_payload[SRSRAN_BCH_PAYLOAD_LEN];
     int     sfn_offset;
     int n = srsran_ue_mib_decode(ue_mib, bch_payload, NULL, &sfn_offset);
     if (n < 0) {
+	    fprintf(mib_record_file, "%ld\t%d\t%d\t%d\t%d\n", timestamp_us(), n, nof_prb, raw_sfn, updated_sfn);
+	    fclose(mib_record_file);
       ERROR("Error decoding UE MIB");
       exit(-1);
     } else if (n == SRSRAN_UE_MIB_FOUND) {
@@ -159,6 +186,7 @@ int ue_mib_decode_sfn(srsran_ue_mib_t*   ue_mib,
             printf("Decoded MIB. SFN: %d, offset: %d\n", *sfn, sfn_offset);
 
             if (cell->nof_ports > 0){
+		    /*
                 FILE *cellcfgfile = fopen("mib_results.json", "w");
 
                 if(cellcfgfile == NULL){
@@ -169,11 +197,19 @@ int ue_mib_decode_sfn(srsran_ue_mib_t*   ue_mib,
                 fprintf(cellcfgfile,"\"nprb\": \"%d\"\n", cell->nof_prb);
                 fprintf(cellcfgfile,"}");
                 fclose(cellcfgfile);
+		*/
+		    raw_sfn = *sfn;
+		    updated_sfn = (raw_sfn + sfn_offset) % 1024;
+		    fprintf(mib_record_file, "%ld\t%d\t%d\t%d\t%d\n", timestamp_us(), n, cell->nof_prb, raw_sfn, updated_sfn);
             }   
       }
       *sfn   = (*sfn + sfn_offset) % 1024;
+    }else{
+	    fprintf(mib_record_file, "%ld\t%d\t%d\t%d\t%d\n", timestamp_us(), n, nof_prb, raw_sfn, updated_sfn);
     }
-    return SRSRAN_SUCCESS;
+    // return SRSRAN_SUCCESS;
+    fclose(mib_record_file);
+    return n;
 }
 
 // Initialize UE sync
@@ -448,6 +484,11 @@ void* handle_tmp_buffer_thread(void* p){
  * Author: PAWS (https://paws.princeton.edu/)
 ************************************************/
 void* task_scheduler_thread(void* p){
+    FILE* fd_agc_temp = fopen("record_agc_results.txt", "w+");
+    fclose(fd_agc_temp);
+    FILE* fd_sync_temp = fopen("record_sync_results.txt", "w+");
+    fclose(fd_sync_temp);
+
     prog_args_t* prog_args = (prog_args_t*)p;
     ngscope_task_scheduler_t task_scheduler;
     task_scheduler_init(&task_scheduler, *prog_args);
@@ -456,6 +497,8 @@ void* task_scheduler_thread(void* p){
     int nof_decoder = task_scheduler.prog_args.nof_decoder;
     int rf_idx      = task_scheduler.prog_args.rf_index;
     uint32_t rf_nof_rx_ant = task_scheduler.prog_args.rf_nof_rx_ant;
+
+    init_sf_buffer_for_rf(rf_idx); //Update for increasing nof decoder/thread 
 
     ngscope_dci_per_sub_t       dci_per_sub; // empty place hoder for skipped frames 
     ngscope_status_buffer_t     dci_ret;
@@ -481,8 +524,18 @@ void* task_scheduler_thread(void* p){
     /************** END OF setting up the UE sync buffer ******************/
 
     // init the subframe buffer
+    /*
     ngscope_dci_decoder_t   dci_decoder[MAX_NOF_DCI_DECODER];
     pthread_t               dci_thd[MAX_NOF_DCI_DECODER];
+    */
+    ngscope_dci_decoder_t* dci_decoder = calloc(MAX_NOF_DCI_DECODER, sizeof(*dci_decoder));
+    pthread_t* dci_thd = calloc(MAX_NOF_DCI_DECODER, sizeof(*dci_thd));
+    if (!dci_decoder || !dci_thd) {
+        printf("Failed to allocate decoder arrays\n");
+        free(dci_decoder);
+        free(dci_thd);
+        return NULL;
+    }
 
     // Init the UE MIB decoder
     srsran_ue_mib_t         ue_mib;    
@@ -536,8 +589,46 @@ void* task_scheduler_thread(void* p){
     fprintf(cellcfgfile,"}");
     fclose(cellcfgfile);
 
+    /*
     FILE* rsrpoutfile = fopen("rsrp.txt", "w");
 	fclose(rsrpoutfile);
+    */
+
+    /*
+    FILE* rsrp_file = fopen("rsrp.txt", "w");
+    fclose(rsrp_file);
+    FILE* rsrp_prbs_file = fopen("rsrp_prbs.txt", "w");
+    fclose(rsrp_prbs_file);
+    FILE* chest_config_file = fopen("chest_dl_est_config.txt", "w");
+    fclose(chest_config_file);
+    FILE* chest_real_file = fopen("chest_dl_est_real.txt", "w");
+    fclose(chest_real_file);
+    FILE* chest_imag_file = fopen("chest_dl_est_imag.txt", "w");
+    fclose(chest_imag_file);
+    rsrp_file = fopen("rsrp.txt", "a");
+    rsrp_prbs_file = fopen("rsrp_prbs.txt", "a");
+    chest_config_file = fopen("chest_dl_est_config.txt", "a");
+    chest_real_file = fopen("chest_dl_est_real.txt", "a");
+    chest_imag_file = fopen("chest_dl_est_imag.txt", "a");
+    */
+
+    FILE* fd_mib_temp = fopen("record_mib_results.txt", "w+");
+    fclose(fd_mib_temp);
+    FILE* fd_pss_temp = fopen("record_pss_results.txt", "w+");
+    fclose(fd_pss_temp);
+    FILE* fd_sss_temp = fopen("record_sss_results.txt", "w+");
+    fclose(fd_sss_temp);
+    FILE* fd_sib1_temp = fopen("record_sib1_results.txt", "w+");
+    fclose(fd_sib1_temp);
+
+    // Logger thread + Queue
+    ngscope_decoder_logger_t decoder_logger;
+    bool logger_ready = true;
+    if (ngscope_decoder_logger_init(&decoder_logger, NGSCOPE_DECODER_LOG_QUEUE_LEN, task_scheduler.prog_args.csi_downsample_factor_ms) != 0) {
+        printf("Failed to init decoder logger thread\n");
+        memset(&decoder_logger, 0, sizeof(decoder_logger));
+        logger_ready = false;
+    }
 
     for(int i = 0; i < nof_decoder; i++){
         // init the subframe buffer 
@@ -547,6 +638,14 @@ void* task_scheduler_thread(void* p){
 
 		dci_decoder_init(&dci_decoder[i], task_scheduler.prog_args, &task_scheduler.cell, \
                            sf_buffer[rf_idx][i].IQ_buffer, rx_softbuffers, i);
+		/*
+		dci_decoder[i].rsrp_file = rsrp_file;
+        	dci_decoder[i].rsrp_prbs_file = rsrp_prbs_file;
+        	dci_decoder[i].chest_config_file = chest_config_file;
+        	dci_decoder[i].chest_real_file = chest_real_file;
+        	dci_decoder[i].chest_imag_file = chest_imag_file;
+		*/
+		dci_decoder[i].logger = logger_ready ? &decoder_logger : NULL;
 
         //mib_init_imp(&ue_mib[i], sf_buffer[rf_idx][i].IQ_buffer, &task_scheduler->cell);
         pthread_create(&dci_thd[i], NULL, dci_decoder_thread, (void*)&dci_decoder[i]);
@@ -567,8 +666,9 @@ void* task_scheduler_thread(void* p){
     bool        decode_pdcch = false;
 	uint32_t 	sf_idx = 0;
 
-	FILE* 		fd = fopen("task_scheduler.txt","w+");
+	//FILE* 		fd = fopen("task_scheduler.txt","w+");
 	//FILE* 		fd_1 = fopen("sf_sfn.txt","w+");
+
     uint8_t* data[SRSRAN_MAX_CODEWORDS];
 	
     for (int i = 0; i < SRSRAN_MAX_CODEWORDS; i++) {
@@ -606,15 +706,20 @@ void* task_scheduler_thread(void* p){
 			//printf("task -> finish get index!\n");
             sf_cnt ++; 
 			//fprintf(fd_1, "%d\t%d\t%d\t", sf_idx + sfn*10, sf_idx, sfn);
+	    int32_t record_sfn_tmp = -1;
+	    int32_t record_mib_result = -1;
             /********************* SFN handling *********************/
             if ( (sf_idx == 0) || (decode_pdcch == false) ) {
                 // update SFN when sf_idx is 0 
                 uint32_t sfn_tmp = 0;
-                ue_mib_decode_sfn(&ue_mib, &task_scheduler.cell, &sfn_tmp, decode_pdcch);
+                record_mib_result = ue_mib_decode_sfn(&ue_mib, &task_scheduler.cell, &sfn_tmp, decode_pdcch);
 
                 if(sfn != sfn_tmp){
                     printf("current sfn:%d decoded sfn:%d\n",sfn, sfn_tmp);
                 }
+
+		record_sfn_tmp = sfn_tmp;
+
                 if(sfn_tmp > 0){
                     //printf("decoded sfn from:%d\n",sfn_tmp);
                     sfn = sfn_tmp;
@@ -624,7 +729,9 @@ void* task_scheduler_thread(void* p){
             }
             //printf("Get %d-th subframe TTI:%d \n", sf_idx, sf_idx+ sfn*10);
 			tti = sfn*10 + sf_idx;
-			fprintf(fd,"%d\t%d\t%d\t", sfn*10 + sf_idx, sfn, sf_idx);
+			uint64_t t1 = timestamp_us();
+			//fprintf(fd,"%d\t%d\t%d\t", sfn*10 + sf_idx, sfn, sf_idx);
+			//fprintf(fd,"%lu\t%u\t%u\t%u\t%d\t%d\t%d\n",t1,tti,sfn,sf_idx,record_sfn_tmp,record_mib_result,decode_pdcch ? 1 : 0);
 			//fprintf(fd_1, "%d\t", sfn);
             /******************* END OF SFN handling *******************/
 
@@ -661,7 +768,7 @@ void* task_scheduler_thread(void* p){
 					}
 					//int nof_buf_sf = get_nof_buffered_sf(rf_idx);
 					int nof_buf_sf = task_sf_ring_buffer_len(&task_tmp_buffer[rf_idx]);
-					fprintf(fd,"%d\t%d\t%d\n",task_tmp_buffer[rf_idx].header, task_tmp_buffer[rf_idx].tail, nof_buf_sf);
+					//fprintf(fd,"%d\t%d\t%d\n",task_tmp_buffer[rf_idx].header, task_tmp_buffer[rf_idx].tail, nof_buf_sf);
                     pthread_mutex_unlock(&tmp_buf_mutex[rf_idx]);
                     
                     if((sf_idx == 9)) {
@@ -680,7 +787,7 @@ void* task_scheduler_thread(void* p){
             }
            	pthread_mutex_lock(&tmp_buf_mutex[rf_idx]);
 			int nof_buf_sf = get_nof_buffered_sf(rf_idx);
-			fprintf(fd,"%d\t%d\t%d\n",task_tmp_buffer[rf_idx].header, task_tmp_buffer[rf_idx].tail, nof_buf_sf);
+			//fprintf(fd,"%d\t%d\t%d\n",task_tmp_buffer[rf_idx].header, task_tmp_buffer[rf_idx].tail, nof_buf_sf);
            	pthread_mutex_unlock(&tmp_buf_mutex[rf_idx]);
 
 			//printf("task -> end of while!\n");
@@ -694,7 +801,7 @@ void* task_scheduler_thread(void* p){
 
 	}// end of while
 		
-	fclose(fd);
+	//fclose(fd);
 	//fclose(fd_1);
 
 //--> Deal with the exit and free memory 
@@ -716,6 +823,27 @@ void* task_scheduler_thread(void* p){
 
     for(int i=0;i<nof_decoder;i++){
         pthread_join(dci_thd[i], NULL);
+    }
+
+    /*
+    if (rsrp_file) {
+        fclose(rsrp_file);
+    }
+    if (rsrp_prbs_file) {
+        fclose(rsrp_prbs_file);
+    }
+    if (chest_config_file) {
+        fclose(chest_config_file);
+    }
+    if (chest_real_file) {
+        fclose(chest_real_file);
+    }
+    if (chest_imag_file) {
+        fclose(chest_imag_file);
+    }
+    */
+    if (logger_ready) {
+        ngscope_decoder_logger_close(&decoder_logger);
     }
 
 	// free the ue dl and the related buffer

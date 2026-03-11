@@ -62,6 +62,344 @@ pthread_cond_t 	dci_plot_cond[MAX_NOF_RF_DEV] = {PTHREAD_COND_INITIALIZER, PTHRE
 cf_t* pdcch_buf[MAX_NOF_RF_DEV];
 float csi_amp[MAX_NOF_RF_DEV][110 * 15 * 2048];
 
+static void ngscope_decoder_log_item_free(ngscope_decoder_log_item_t* item)
+{
+    if (!item) {
+        return;
+    }
+    free(item->rsrp_per_rb_dbm);
+    free(item->ce_real);
+    free(item->ce_imag);
+    free(item);
+}
+
+static bool ngscope_decoder_logger_should_write_chest(ngscope_decoder_logger_t* logger)
+{
+    if (!logger) {
+        return false;
+    }
+    if (logger->csi_downsample_ms <= 0) {
+        return true;
+    }
+    uint64_t now_ms = timestamp_ms();
+    if (logger->last_chest_write_ms == 0 ||
+        now_ms - logger->last_chest_write_ms >= (uint64_t)logger->csi_downsample_ms) {
+        logger->last_chest_write_ms = now_ms;
+        return true;
+    }
+    return false;
+}
+
+static inline int write_chest_binary(FILE* f, uint32_t tti, uint64_t ts_us, int nof_ports,
+                                  int nof_rx_antennas, int nof_re, const float* ce)
+{
+    if (!f || !ce) return 0;
+
+    chest_bin_hdr_t h;
+    h.tti = tti;
+    h.ts = ts_us;
+    h.nof_ports = (uint16_t)nof_ports;
+    h.nof_rx_antennas = (uint16_t)nof_rx_antennas;
+    h.nof_re = (uint32_t)nof_re;
+
+    const size_t n = (size_t)nof_ports * (size_t)nof_rx_antennas * (size_t)nof_re;
+
+    if (fwrite(&h, sizeof(h), 1, f) != 1) return -1;
+    if (fwrite(ce, sizeof(float), n, f) != n) return -2;
+
+    return 1;
+}
+
+static void* ngscope_decoder_logger_thread(void* p)
+{
+    ngscope_decoder_logger_t* logger = (ngscope_decoder_logger_t*)p;
+
+    while (1) {
+        ngscope_decoder_log_item_t* item = NULL;
+
+        pthread_mutex_lock(&logger->mutex);
+        while (logger->count == 0 && !logger->stop) {
+            pthread_cond_wait(&logger->cond, &logger->mutex);
+        }
+        if (logger->count == 0 && logger->stop) {
+            pthread_mutex_unlock(&logger->mutex);
+            break;
+        }
+
+        item = logger->items[logger->tail];
+        logger->items[logger->tail] = NULL;
+        logger->tail = (logger->tail + 1) % logger->capacity;
+        logger->count--;
+        pthread_mutex_unlock(&logger->mutex);
+
+        if (!item) {
+            continue;
+        }
+
+	// FILE* tmp_file = fopen("time_use.txt", "a");
+	
+	//if (ngscope_decoder_logger_should_write_chest(logger)) {
+	uint64_t t1 = timestamp_us();
+        if (logger->rsrp_file) {
+            fprintf(logger->rsrp_file, "%u\t%ld\t%4f\n", item->tti, t1, item->rsrp_dbm);
+        }
+
+	/*
+        if (logger->rsrp_prbs_file && item->rsrp_per_rb_dbm) {
+            fprintf(logger->rsrp_prbs_file, "%u\t%ld\t", item->tti, t1);
+            for (int p_iter = 0; p_iter < item->rsrp_nof_rb; p_iter++) {
+                fprintf(logger->rsrp_prbs_file, "%4f\t", item->rsrp_per_rb_dbm[p_iter]);
+            }
+            fprintf(logger->rsrp_prbs_file, "\n");
+        }
+	*/
+
+	uint64_t t3 = timestamp_us();
+	if (ngscope_decoder_logger_should_write_chest(logger)) { 
+            if (logger->chest_config_file) {
+                fprintf(logger->chest_config_file, "%u\t%ld\t%d\t%d\t%d\t%d\n",
+		    item->tti, t3,
+                    item->nof_ports, item->nof_rx_antennas,
+                    item->nof_re, item->rsrp_nof_rb);
+            }
+
+	    /*
+            if (logger->chest_real_file && item->ce_real) {
+                size_t idx = 0;
+		fprintf(logger->chest_real_file, "%u\t", item->tti);
+                for (int p_idx = 0; p_idx < item->nof_ports; p_idx++) {
+                    for (int p_a = 0; p_a < item->nof_rx_antennas; p_a++) {
+                        for (int re_idx = 0; re_idx < item->nof_re; re_idx++) {
+                            fprintf(logger->chest_real_file, "%4f\t", item->ce_real[idx++]);
+                        }
+                        fprintf(logger->chest_real_file, "\n");
+                    }
+                }
+            }    
+
+            if (logger->chest_imag_file && item->ce_imag) {
+                size_t idx = 0;
+		fprintf(logger->chest_imag_file, "%u\t", item->tti);
+                for (int p_idx = 0; p_idx < item->nof_ports; p_idx++) {
+                    for (int p_a = 0; p_a < item->nof_rx_antennas; p_a++) {
+                        for (int re_idx = 0; re_idx < item->nof_re; re_idx++) {
+                            fprintf(logger->chest_imag_file, "%4f\t", item->ce_imag[idx++]);
+                        }
+                        fprintf(logger->chest_imag_file, "\n");
+                    }
+                }
+            }
+	    */
+
+	    if (logger->chest_real_file && item->ce_real) {
+       		 write_chest_binary(logger->chest_real_file,
+                        	item->tti, t3,
+                        	item->nof_ports, item->nof_rx_antennas, item->nof_re,
+                        	item->ce_real);
+    	    }
+
+    	    if (logger->chest_imag_file && item->ce_imag) {
+        	write_chest_binary(logger->chest_imag_file,
+                        	item->tti, t3,
+                        	item->nof_ports, item->nof_rx_antennas, item->nof_re,
+                        	item->ce_imag);
+    	    }
+	}
+
+	// uint64_t t2 = timestamp_us();
+	// fprintf(tmp_file, "%ld\t%ld\n", t1-t3, t2-t1);
+	// fclose(tmp_file);
+
+        ngscope_decoder_log_item_free(item);
+    }
+
+    return NULL;
+}
+
+int ngscope_decoder_logger_init(ngscope_decoder_logger_t* logger, size_t capacity, int csi_downsample_ms)
+{
+    memset(logger, 0, sizeof(*logger));
+    logger->capacity = capacity;
+    logger->csi_downsample_ms = csi_downsample_ms;
+    logger->items = calloc(capacity, sizeof(*logger->items));
+    if (!logger->items) {
+        return -1;
+    }
+
+    pthread_mutex_init(&logger->mutex, NULL);
+    pthread_cond_init(&logger->cond, NULL);
+
+    FILE* truncate_file = fopen("rsrp.txt", "w");
+    if (truncate_file) {
+        fclose(truncate_file);
+    }
+    truncate_file = fopen("rsrp_prbs.txt", "w");
+    if (truncate_file) {
+        fclose(truncate_file);
+    }
+    truncate_file = fopen("chest_dl_est_config.txt", "w");
+    if (truncate_file) {
+        fclose(truncate_file);
+    }
+    truncate_file = fopen("chest_dl_est_real.bin", "wb");
+    if (truncate_file) {
+        fclose(truncate_file);
+    }
+    truncate_file = fopen("chest_dl_est_imag.bin", "wb");
+    if (truncate_file) {
+        fclose(truncate_file);
+    }
+
+    logger->rsrp_file = fopen("rsrp.txt", "a");
+    logger->rsrp_prbs_file = fopen("rsrp_prbs.txt", "a");
+    logger->chest_config_file = fopen("chest_dl_est_config.txt", "a");
+    logger->chest_real_file = fopen("chest_dl_est_real.bin", "ab");
+    logger->chest_imag_file = fopen("chest_dl_est_imag.bin", "ab");
+
+    if (logger->chest_real_file) {
+    	setvbuf(logger->chest_real_file, NULL, _IOFBF, 1 << 20);
+    }
+    if (logger->chest_imag_file) {
+    	setvbuf(logger->chest_imag_file, NULL, _IOFBF, 1 << 20);
+    }
+
+    if (pthread_create(&logger->thread, NULL, ngscope_decoder_logger_thread, logger) != 0) {
+        if (logger->rsrp_file) {
+            fclose(logger->rsrp_file);
+        }
+        if (logger->rsrp_prbs_file) {
+            fclose(logger->rsrp_prbs_file);
+        }
+        if (logger->chest_config_file) {
+            fclose(logger->chest_config_file);
+        }
+        if (logger->chest_real_file) {
+            fclose(logger->chest_real_file);
+        }
+        if (logger->chest_imag_file) {
+            fclose(logger->chest_imag_file);
+        }
+        pthread_mutex_destroy(&logger->mutex);
+        pthread_cond_destroy(&logger->cond);
+        free(logger->items);
+        logger->items = NULL;
+        return -1;
+    }
+
+    return 0;
+}
+
+void ngscope_decoder_logger_close(ngscope_decoder_logger_t* logger)
+{
+    if (!logger || !logger->items) {
+        return;
+    }
+
+    pthread_mutex_lock(&logger->mutex);
+    logger->stop = true;
+    pthread_cond_signal(&logger->cond);
+    pthread_mutex_unlock(&logger->mutex);
+
+    pthread_join(logger->thread, NULL);
+
+    for (size_t i = 0; i < logger->capacity; i++) {
+        if (logger->items[i]) {
+            ngscope_decoder_log_item_free(logger->items[i]);
+        }
+    }
+
+    free(logger->items);
+    logger->items = NULL;
+
+    if (logger->rsrp_file) {
+        fclose(logger->rsrp_file);
+    }
+    if (logger->rsrp_prbs_file) {
+        fclose(logger->rsrp_prbs_file);
+    }
+    if (logger->chest_config_file) {
+        fclose(logger->chest_config_file);
+    }
+    if (logger->chest_real_file) {
+        fclose(logger->chest_real_file);
+    }
+    if (logger->chest_imag_file) {
+        fclose(logger->chest_imag_file);
+    }
+
+    pthread_mutex_destroy(&logger->mutex);
+    pthread_cond_destroy(&logger->cond);
+}
+
+void ngscope_decoder_logger_enqueue(ngscope_decoder_logger_t* logger,
+                                    const ngscope_dci_decoder_t* dci_decoder)
+{
+    if (!logger || !logger->items || !dci_decoder) {
+        return;
+    }
+
+    const srsran_chest_dl_res_t* chest_res = &dci_decoder->ue_dl.chest_res;
+
+    ngscope_decoder_log_item_t* item = calloc(1, sizeof(*item));
+    if (!item) {
+        return;
+    }
+
+    item->tti = dci_decoder->dl_sf.tti;
+    item->rsrp_dbm = chest_res->rsrp_dbm - scm_rx_gain_db;
+    item->rsrp_nof_rb = chest_res->rsrp_nof_rb;
+    if (item->rsrp_nof_rb > 0) {
+        item->rsrp_per_rb_dbm = malloc(sizeof(float) * item->rsrp_nof_rb);
+        if (!item->rsrp_per_rb_dbm) {
+            ngscope_decoder_log_item_free(item);
+            return;
+        }
+        for (int i = 0; i < item->rsrp_nof_rb; i++) {
+            item->rsrp_per_rb_dbm[i] = chest_res->rsrp_per_rb_dbm[i] - scm_rx_gain_db;
+        }
+    }
+
+    item->nof_ports = chest_res->nof_ports;
+    item->nof_rx_antennas = chest_res->nof_rx_antennas;
+    item->nof_re = chest_res->nof_re;
+
+    size_t ce_len = (size_t)item->nof_ports * item->nof_rx_antennas * item->nof_re;
+    if (ce_len > 0) {
+        item->ce_real = malloc(sizeof(float) * ce_len);
+        item->ce_imag = malloc(sizeof(float) * ce_len);
+        if (!item->ce_real || !item->ce_imag) {
+            ngscope_decoder_log_item_free(item);
+            return;
+        }
+
+        size_t idx = 0;
+        for (int p_idx = 0; p_idx < item->nof_ports; p_idx++) {
+            for (int p_a = 0; p_a < item->nof_rx_antennas; p_a++) {
+                for (int re_idx = 0; re_idx < item->nof_re; re_idx++) {
+                    cf_t ce = chest_res->ce[p_idx][p_a][re_idx];
+                    item->ce_real[idx] = crealf(ce);
+                    item->ce_imag[idx] = cimagf(ce);
+                    idx++;
+                }
+            }
+        }
+    }
+
+    pthread_mutex_lock(&logger->mutex);
+    if (logger->count == logger->capacity) {
+        logger->dropped++;
+        pthread_mutex_unlock(&logger->mutex);
+        ngscope_decoder_log_item_free(item);
+        return;
+    }
+
+    logger->items[logger->head] = item;
+    logger->head = (logger->head + 1) % logger->capacity;
+    logger->count++;
+    pthread_cond_signal(&logger->cond);
+    pthread_mutex_unlock(&logger->mutex);
+}
+
 int dci_decoder_init
 (
 ngscope_dci_decoder_t* dci_decoder,
@@ -318,13 +656,70 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 		}
     }
 
-	pthread_mutex_lock(&token_mutex[0]);
+	ngscope_decoder_logger_enqueue(dci_decoder->logger, dci_decoder);
+
+	// pthread_mutex_lock(&token_mutex[0]);
+
+	/*
+	if (dci_decoder->rsrp_file) {
+		fprintf(dci_decoder->rsrp_file, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm - scm_rx_gain_db);
+	}
+
+	if (dci_decoder->rsrp_prbs_file) {
+		for(int p_iter = 0; p_iter < dci_decoder->ue_dl.chest_res.rsrp_nof_rb; p_iter++){
+			fprintf(dci_decoder->rsrp_prbs_file, "%4f", dci_decoder->ue_dl.chest_res.rsrp_per_rb_dbm[p_iter] - scm_rx_gain_db);
+			if(p_iter < dci_decoder->ue_dl.chest_res.rsrp_nof_rb - 1){
+				fprintf(dci_decoder->rsrp_prbs_file, ",");
+			}
+		}
+		fprintf(dci_decoder->rsrp_prbs_file, "\n");
+	}
+
+	if (dci_decoder->chest_config_file) {
+		fprintf(dci_decoder->chest_config_file, "%d\n", dci_decoder->ue_dl.chest_res.nof_ports);
+		fprintf(dci_decoder->chest_config_file, "%d\n", dci_decoder->ue_dl.chest_res.nof_rx_antennas);
+		fprintf(dci_decoder->chest_config_file, "%d\n", dci_decoder->ue_dl.chest_res.nof_re);
+		fprintf(dci_decoder->chest_config_file, "%d\n", dci_decoder->ue_dl.chest_res.rsrp_nof_rb);
+	}
+
+	if (dci_decoder->chest_real_file) {
+		for (int p_idx = 0 ; p_idx < dci_decoder->ue_dl.chest_res.nof_ports; p_idx++){
+			for (int p_a = 0; p_a < dci_decoder->ue_dl.chest_res.nof_rx_antennas; p_a++){
+				for (int re_idx = 0 ;re_idx < dci_decoder->ue_dl.chest_res.nof_re; re_idx++){
+					fprintf(dci_decoder->chest_real_file, "%4f", crealf(dci_decoder->ue_dl.chest_res.ce[p_idx][p_a][re_idx]));
+					if(re_idx < dci_decoder->ue_dl.chest_res.nof_re-1){
+						fprintf(dci_decoder->chest_real_file, ",");
+					}
+				}
+				fprintf(dci_decoder->chest_real_file, "\n");
+			}
+			
+		}
+	}
+
+	if (dci_decoder->chest_imag_file) {
+		for (int p_idx = 0 ; p_idx < dci_decoder->ue_dl.chest_res.nof_ports; p_idx++){
+			for (int p_a = 0; p_a < dci_decoder->ue_dl.chest_res.nof_rx_antennas; p_a++){
+				for (int re_idx = 0 ;re_idx < dci_decoder->ue_dl.chest_res.nof_re; re_idx++){
+					fprintf(dci_decoder->chest_imag_file, "%4f", cimagf(dci_decoder->ue_dl.chest_res.ce[p_idx][p_a][re_idx]));
+					if(re_idx < dci_decoder->ue_dl.chest_res.nof_re-1){
+						fprintf(dci_decoder->chest_imag_file, ",");
+					}
+				}
+				fprintf(dci_decoder->chest_imag_file, "\n");
+			}
+			
+		}
+	}
+	*/
+	
+	/*
 	FILE* rsrpoutfile = fopen("rsrp.txt", "a");
-	fprintf(rsrpoutfile, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm - scm_rx_gain_db);
+	//fprintf(rsrpoutfile, "reference_signal_received_power: %4fdBm\n", dci_decoder->ue_dl.chest_res.rsrp_dbm - scm_rx_gain_db);
+	fprintf(rsrpoutfile, "%u\t%4f\n", tti, dci_decoder->ue_dl.chest_res.rsrp_dbm - scm_rx_gain_db);
 	fclose(rsrpoutfile);
 
 	rsrpoutfile = fopen("rsrp_prbs.txt", "a");
-
 	for(int p_iter = 0; p_iter < dci_decoder->ue_dl.chest_res.rsrp_nof_rb; p_iter++){
 		fprintf(rsrpoutfile, "%4f", dci_decoder->ue_dl.chest_res.rsrp_per_rb_dbm[p_iter] - scm_rx_gain_db);
 		if(p_iter < dci_decoder->ue_dl.chest_res.rsrp_nof_rb - 1){
@@ -334,16 +729,12 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 	fprintf(rsrpoutfile, "\n");
 	fclose(rsrpoutfile);
 
-
 	rsrpoutfile = fopen("chest_dl_est_config.txt", "a");
 	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.nof_ports);
 	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.nof_rx_antennas);
 	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.nof_re);
 	fprintf(rsrpoutfile, "%d\n", dci_decoder->ue_dl.chest_res.rsrp_nof_rb);
 	fclose(rsrpoutfile);
-
-
-
 
 	rsrpoutfile = fopen("chest_dl_est_real.txt", "a");
 	for (int p_idx = 0 ; p_idx < dci_decoder->ue_dl.chest_res.nof_ports; p_idx++){
@@ -370,12 +761,12 @@ int dci_decoder_decode(ngscope_dci_decoder_t*       dci_decoder,
 				}
 			}
 			fprintf(rsrpoutfile, "\n");
-		}
-		
+		}		
 	}
 	fclose(rsrpoutfile);
+	*/
 
-	pthread_mutex_unlock(&token_mutex[0]);
+	// pthread_mutex_unlock(&token_mutex[0]);
 
     // Shall we decode the PDSCH of the current subframe?
     if (dci_decoder->prog_args.rnti != SRSRAN_SIRNTI) {
@@ -565,7 +956,7 @@ void* dci_decoder_thread(void* p){
 //    uint64_t t1=0, t2=0, t3=0, t4=0;  
 	char fileName[100];
 	sprintf(fileName,"decoder_%d.txt", decoder_idx);
-	FILE* fd = fopen(fileName,"w+");
+	//FILE* fd = fopen(fileName,"w+");
 
     printf("Decoder thread idx:%d\n\n\n",decoder_idx);
 
@@ -611,7 +1002,7 @@ void* dci_decoder_thread(void* p){
 		// We only decode when the subframe is not empty
 		if(empty_sf){
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
-			fprintf(fd,"%d\t%d\t\n", tti, 0);
+			//fprintf(fd,"%d\t%d\t\n", tti, 0);
 		}else{
 			//usleep(1000);
     		dci_per_sub.timestamp 	= timestamp_us();
@@ -620,7 +1011,7 @@ void* dci_decoder_thread(void* p){
 			
 			dci_decoder_decode(dci_decoder, sf_idx,  sfn, data, &dci_per_sub);
 			uint64_t t2 = timestamp_us();        
-			fprintf(fd,"%d\t%ld\t\n", tti, t2-t1);
+			//fprintf(fd,"%d\t%ld\t\n", tti, t2-t1);
 	//--->  Unlock the buffer
 			pthread_mutex_unlock(&sf_buffer[rf_idx][decoder_idx].sf_mutex);	
 #ifdef ENABLE_GUI
@@ -713,7 +1104,7 @@ void* dci_decoder_thread(void* p){
       }
     }
 
-	fclose(fd);
+	//fclose(fd);
 	dci_decoder_up[rf_idx][decoder_idx] = false;
 
     printf("%d-th RF-DEV %d-th DCI decoder CLOSED!\n",rf_idx, decoder_idx);

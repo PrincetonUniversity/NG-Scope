@@ -20,6 +20,9 @@
  */
 
 #include <atomic>
+#include <cstdlib>
+#include <cstdint>
+#include <ctime>
 #include <condition_variable>
 #include <mutex>
 #include <string>
@@ -206,6 +209,37 @@ void suppress_handler(const char* x)
 
 static std::array<cf_t, 64 * 1024> zero_mem  = {}; // For transmitting zeros
 static std::array<cf_t, 64 * 1024> dummy_mem = {}; // For receiving
+
+static int64_t rf_uhd_timestamp_us()
+{
+  struct timespec ts = {};
+
+  if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
+    perror("clock_gettime");
+    exit(1);
+  }
+
+  uint64_t ret = (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+  return (int64_t)(ret / 1000ULL);
+}
+
+static void rf_uhd_log_recv_loop(uint32_t call_nsamples,
+                                 uint32_t trials,
+                                 size_t   rxd_samples_total)
+{
+  FILE* fd = fopen("record_uhd_result.txt", "a");
+  if (!fd) {
+    return;
+  }
+
+  fprintf(fd,
+          "%ld\t%u\t%u\t%zu\n",
+          rf_uhd_timestamp_us(),
+          call_nsamples,
+          trials,
+          rxd_samples_total);
+  fclose(fd);
+}
 
 static void log_overflow(rf_uhd_handler_t* h)
 {
@@ -1330,6 +1364,7 @@ int rf_uhd_recv_with_time_multi(void*    h,
 
     rxd_samples_total += rxd_samples;
     trials++;
+    //rf_uhd_log_recv_loop(nsamples, trials, rxd_samples_total);
 
     if (error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
       log_overflow(handler);
@@ -1355,6 +1390,8 @@ int rf_uhd_recv_with_time_multi(void*    h,
   }
 
   ret = rxd_samples_total;
+
+  //rf_uhd_log_recv_loop(nsamples, trials, rxd_samples_total);
 
   // Set timestamp if provided
   if (secs != nullptr and frac_secs != nullptr) {

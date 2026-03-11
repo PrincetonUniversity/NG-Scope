@@ -646,7 +646,7 @@ void* dci_log_thread(void* p){
 	// --> init the CA status
 	CA_status_init(&ca_status, buf_size, dci_log_config.targetRNTI, dci_log_config.nof_cell, log_config->cell_prb);
 
-	FILE* fd = fopen("dci_log.txt", "w+");
+	// FILE* fd = fopen("dci_log.txt", "w+");
 
 	printf("\n\n\n nof_cell:%d targetRNTI:%d \n\n\n", dci_log_config.nof_cell, dci_log_config.targetRNTI);
 
@@ -697,9 +697,9 @@ void* dci_log_thread(void* p){
 				last_time = curr_time;
 			}
 		}
-		fprintf(fd, "%d\t%d\t\n", cell_status[0].cell_header, dci_log_config.curr_header[0]);
+		// fprintf(fd, "%d\t%d\t\n", cell_status[0].cell_header, dci_log_config.curr_header[0]);
 	} 
-	fclose(fd);
+	// fclose(fd);
 
 	clear_dci_log_config(&dci_log_config);
 

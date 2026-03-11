@@ -79,8 +79,13 @@ int ngscope_read_config(ngscope_config_t* config, char * path)
     }
     printf("read scm_mode:%d\n", config->scm_mode);
 
+    if(! config_lookup_int(cfg, "csi_downsample_factor", &config->csi_downsample_factor_ms)){
+        printf("ERROR: reading csi_downsample_factor\n");
+    } else {
+        printf("read csi_downsample_factor:%d\n", config->csi_downsample_factor_ms);
+    }
 
-	long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
+    long long* freq_vec = (long long*) malloc(config->nof_rf_dev * sizeof(long long));
 
 //    if(! config_lookup_int(cfg, "con_time_s", &config->con_time_s)){
 //        printf("ERROR: reading con_time_s\n");

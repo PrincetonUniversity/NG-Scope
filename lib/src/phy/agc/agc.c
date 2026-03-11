@@ -20,10 +20,48 @@
  */
 
 #include <complex.h>
+#include <stdio.h>
+#include <sys/time.h>
 
 #include "srsran/phy/agc/agc.h"
 #include "srsran/phy/utils/debug.h"
 #include "srsran/phy/utils/vector.h"
+
+static int64_t agc_timestamp_us( )
+{
+  struct timespec ts;
+
+  if ( clock_gettime( CLOCK_REALTIME, &ts ) < 0 ) {
+    perror( "clock_gettime" );
+    exit( 1 );
+  }
+
+  uint64_t ret = ts.tv_sec * 1000000000 + ts.tv_nsec;
+
+  return ret / 1000;
+}
+
+static void agc_log_result(const char* event, srsran_agc_t* q)
+{
+  FILE* fd = fopen("record_agc_results.txt", "a");
+  if (!fd) {
+    return;
+  }
+
+  fprintf(fd,
+          "%ld\t%s\t%d\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n",
+          agc_timestamp_us(),
+          event,
+          (int)q->mode,
+          q->min_gain_db,
+          q->max_gain_db,
+          q->default_gain_db,
+          q->gain_db,
+          q->gain_offset_db,
+          q->target,
+          q->bandwidth);
+  fclose(fd);
+}
 
 int srsran_agc_init_acc(srsran_agc_t* q, srsran_agc_mode_t mode, uint32_t nof_frames)
 {
@@ -42,6 +80,7 @@ int srsran_agc_init_acc(srsran_agc_t* q, srsran_agc_mode_t mode, uint32_t nof_fr
   }
   q->target = SRSRAN_AGC_DEFAULT_TARGET;
   srsran_agc_reset(q);
+  agc_log_result("init_acc", q);
   return SRSRAN_SUCCESS;
 }
 
@@ -76,6 +115,7 @@ void srsran_agc_reset(srsran_agc_t* q)
   if (q->set_gain_callback && q->uhd_handler) {
     q->set_gain_callback(q->uhd_handler, q->default_gain_db);
   }
+  agc_log_result("reset", q);
 }
 
 void srsran_agc_set_gain_range(srsran_agc_t* q, float min_gain_db, float max_gain_db)
@@ -84,6 +124,7 @@ void srsran_agc_set_gain_range(srsran_agc_t* q, float min_gain_db, float max_gai
     q->min_gain_db     = min_gain_db;
     q->max_gain_db     = max_gain_db;
     q->default_gain_db = (max_gain_db + min_gain_db) / 2.0f;
+    agc_log_result("set_gain_range", q);
   }
 }
 
@@ -95,6 +136,7 @@ float srsran_agc_get_gain(srsran_agc_t* q)
 void srsran_agc_set_gain(srsran_agc_t* q, float init_gain_value_db)
 {
   q->gain_db = init_gain_value_db;
+  agc_log_result("set_gain", q);
 }
 
 /*
@@ -122,6 +164,7 @@ static inline void agc_enter_state_hold(srsran_agc_t* q)
   // Set holding period
   q->hold_cnt = 0;
   q->state    = SRSRAN_AGC_STATE_HOLD;
+  agc_log_result("enter_hold", q);
 }
 
 static inline void agc_enter_state_measure(srsran_agc_t* q)
@@ -129,6 +172,7 @@ static inline void agc_enter_state_measure(srsran_agc_t* q)
   q->hold_cnt = 0;
   q->isfirst  = true;
   q->state    = SRSRAN_AGC_STATE_MEASURE;
+  agc_log_result("enter_measure", q);
 }
 
 /*
@@ -186,6 +230,7 @@ static inline void agc_run_state_measure(srsran_agc_t* q, cf_t* signal, uint32_t
       q->y_out          = SRSRAN_VEC_EMA(y, q->y_out, q->bandwidth);
       q->gain_offset_db = srsran_convert_amplitude_to_dB(q->target) - srsran_convert_amplitude_to_dB(q->y_out);
       INFO("AGC gain offset: %.2f y_out=%.3f, y=%.3f target=%.1f", q->gain_offset_db, q->y_out, y, q->target);
+      agc_log_result("measure_update", q);
     }
   }
 
@@ -233,4 +278,5 @@ void srsran_agc_process(srsran_agc_t* q, cf_t* signal, uint32_t len)
     default:
       agc_run_state_init(q);
   }
+  agc_log_result("process", q);
 }

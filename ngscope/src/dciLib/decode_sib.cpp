@@ -1,5 +1,6 @@
 #include "../../hdr/dciLib/decode_sib.h"
 #include "ngscope/hdr/dciLib/ngscope_def.h"
+#include "ngscope/hdr/dciLib/time_stamp.h"
 
 #include "srsran/asn1/asn1_utils.h"
 #include "srsran/asn1/rrc/si.h"
@@ -52,6 +53,7 @@ void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
   sib_json_record.id = sib1->cell_access_related_info.cell_id.to_number();
   sib_json_record.tac = sib1->cell_access_related_info.tac.to_number();
 
+  /*
   FILE *cellcfgfile = fopen(CELL_CFG_FILE_JSON, "w");
 
   if(cellcfgfile == NULL){
@@ -78,6 +80,26 @@ void save_cellcfg_from_sib1_json(asn1::rrc::sib_type1_s* sib1){
   fprintf(cellcfgfile,"\"pdsch_reference_signal_power_dbm\": \"%d\"\n", sib_json_record.pdsch_power_dbm);
   fprintf(cellcfgfile,"}");
   fclose(cellcfgfile);
+  */
+
+  FILE* sib1_record_file = fopen("record_sib1_results.txt", "a");
+  if(sib1_record_file == NULL){
+    return;
+  }
+
+  fprintf(sib1_record_file,
+          "%ld\t%d%d%d\t%d%d%d\t%ld\t%ld\n",
+          timestamp_us(),
+          sib_json_record.mcc0,
+          sib_json_record.mcc1,
+          sib_json_record.mcc2,
+          sib_json_record.mnc0,
+          sib_json_record.mnc1,
+          sib_json_record.mnc2,
+          sib_json_record.tac,
+          sib_json_record.id);
+  fclose(sib1_record_file);
+
   return;
 }
 

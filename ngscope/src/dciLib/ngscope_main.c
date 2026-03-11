@@ -104,6 +104,7 @@ int ngscope_main(ngscope_config_t* config)
 		prog_args[i].remote_enable    = config->remote_enable;
 		prog_args[i].decode_single_ue = config->decode_single_ue;
 		prog_args[i].decode_SIB 	  = config->decode_SIB;
+		prog_args[i].csi_downsample_factor_ms = config->csi_downsample_factor_ms;
 
         prog_args[i].rf_index      = i;
         prog_args[i].rf_freq       = config->rf_config[i].rf_freq;

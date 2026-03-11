@@ -340,6 +340,7 @@ int dci_ring_buffer_delete(ngscope_cell_dci_ring_buffer_t* q)
 
 int dci_ring_buffer_log(ngscope_cell_dci_ring_buffer_t* q, int cell_idx, uint16_t tti)
 {
+  /*
   if (q->cell_idx == cell_idx) {
     fprintf(q->fd_log, "%d\t%d\t%d\t", tti, q->cell_header, q->most_recent_sf);
     for (int i = 0; i < q->buf_size; i++) {
@@ -350,6 +351,7 @@ int dci_ring_buffer_log(ngscope_cell_dci_ring_buffer_t* q, int cell_idx, uint16_
     }
     fprintf(q->fd_log, "\n");
   }
+  */
   return 0;
 }
 

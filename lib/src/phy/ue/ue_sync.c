@@ -26,6 +26,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "srsran/phy/ue/ue_sync.h"
 
@@ -48,6 +49,31 @@
 static cf_t  dummy_buffer0[DUMMY_BUFFER_NUM_SAMPLES];
 static cf_t  dummy_buffer1[DUMMY_BUFFER_NUM_SAMPLES];
 static cf_t* dummy_offset_buffer[SRSRAN_MAX_CHANNELS] = {dummy_buffer0, dummy_buffer1, dummy_buffer1, dummy_buffer1};
+
+static int64_t ue_sync_timestamp_us( )
+{
+  struct timespec ts;
+
+  if ( clock_gettime( CLOCK_REALTIME, &ts ) < 0 ) {
+    perror( "clock_gettime" );
+    exit( 1 );
+  }
+
+  uint64_t ret = ts.tv_sec * 1000000000 + ts.tv_nsec;
+
+  return ret / 1000;
+}
+
+static void ue_sync_log_state(srsran_ue_sync_t* q, int64_t t_start_us, int64_t elapsed_us, uint32_t frame_len, uint32_t request_samples)
+{
+  FILE* fd = fopen("record_sync_results.txt", "a");
+  if (!fd) {
+    return;
+  }
+
+  fprintf(fd, "%ld\t%ld\t%d\t%u\t%u\n", t_start_us, elapsed_us, q->state, frame_len, request_samples);
+  fclose(fd);
+}
 
 int srsran_ue_sync_init_file(srsran_ue_sync_t* q, uint32_t nof_prb, char* file_name, int offset_time, float offset_freq)
 {
@@ -737,6 +763,7 @@ int srsran_ue_sync_zerocopy(srsran_ue_sync_t* q,
   int ret = SRSRAN_ERROR_INVALID_INPUTS;
 
   if (q != NULL && input_buffer != NULL) {
+    //ue_sync_log_state(q); //For recording sync results
     if (q->file_mode) {
       int n = srsran_filesource_read_multi(&q->file_source, (void**)input_buffer, q->sf_len, q->nof_rx_antennas);
       if (n < 0) {
@@ -768,10 +795,14 @@ int srsran_ue_sync_zerocopy(srsran_ue_sync_t* q,
       INFO("Reading %d samples. sf_idx = %d", q->sf_len, q->sf_idx);
       ret = 1;
     } else {
+      int64_t t_start_us = ue_sync_timestamp_us();
+      uint32_t request_samples = q->frame_len - q->next_rf_sample_offset;
       if (receive_samples(q, input_buffer, max_num_samples)) {
         ERROR("Error receiving samples");
         return SRSRAN_ERROR;
       }
+      int64_t elapsed_us = ue_sync_timestamp_us() - t_start_us;
+      //ue_sync_log_state(q, t_start_us, elapsed_us, q->frame_len, request_samples);
 
       switch (q->state) {
         case SF_FIND:

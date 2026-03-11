@@ -66,6 +66,7 @@ typedef struct {
   int      verbose;
   bool     enable_256qam;
   bool     use_standard_lte_rate;
+  int      csi_downsample_factor_ms;
   char sib_logs[SIB_LOGS_PATH_MAX_LEN];
 } prog_args_t;
 

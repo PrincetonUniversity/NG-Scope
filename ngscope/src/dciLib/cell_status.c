@@ -348,7 +348,7 @@ void* cell_status_thread(void* arg){
 		dci_ring_buffer_init(&cell_status[i], info.targetRNTI, info.cell_prb[i], i, buf_size);
 	}
 
-	FILE* fd = fopen("cell_status.txt","w+");
+	//FILE* fd = fopen("cell_status.txt","w+");
 	//FILE* fd_log = fopen("dci_log.txt","w+");
 	//FILE* fd_tti = fopen("tti_log.txt","w+");
 
@@ -378,7 +378,7 @@ void* cell_status_thread(void* arg){
         //pthread_mutex_lock(&cell_status_mutex);
 		for(int i=0; i<nof_dci; i++){
 			int cell_idx = dci_buf[i].cell_idx;	
-  			fprintf(fd, "%d\t%d\t%d\t\n", dci_buf[i].tti, nof_dci, cell_status[cell_idx].cell_header);
+  			// fprintf(fd, "%d\t%d\t%d\t\n", dci_buf[i].tti, nof_dci, cell_status[cell_idx].cell_header);
 			//fprintf(fd, "%d\t%d\n", dci_buf[i].tti, nof_dci);
 			//enqueue the dci to the according cell status buffer
 			dci_ring_buffer_put_dci(&(cell_status[cell_idx]), &(dci_buf[i]), remote_sock);
@@ -414,7 +414,7 @@ void* cell_status_thread(void* arg){
 		dci_ring_buffer_delete(&(cell_status[i]));
 	}
 	
-	fclose(fd);
+	// fclose(fd);
 	//fclose(fd_log);
 	//fclose(fd_tti);
 	printf("CELL STATUS TRACK CLOSED!\n");

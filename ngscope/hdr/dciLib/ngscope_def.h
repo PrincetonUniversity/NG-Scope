@@ -20,7 +20,7 @@ extern "C" {
 
 #include "srsran/srsran.h"
 
-#define MAX_NOF_DCI_DECODER 6
+#define MAX_NOF_DCI_DECODER 16
 #define MAX_NOF_RF_DEV 4
 #define NOF_LOG_SF 32
 
@@ -45,8 +45,8 @@ extern "C" {
 #define DCI_DECODE_TIMEOUT 30
 
 /*     LOGGING Related  */
-#define LOG_DCI_RING_BUFFER
-#define LOG_DCI_LOGGER
+//#define LOG_DCI_RING_BUFFER
+//#define LOG_DCI_LOGGER
 
 typedef struct{
     pthread_mutex_t mutex;

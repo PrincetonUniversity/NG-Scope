@@ -24,6 +24,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <sys/time.h>
 
 #include "srsran/phy/common/phy_common.h"
 #include "srsran/phy/sync/cfo.h"
@@ -37,6 +38,41 @@
 #define DEFAULT_CFO_TOL 0.0 // Hz
 
 #define MAX_CFO_PSS_OFFSET 7000
+
+static int64_t sync_timestamp_us()
+{
+  struct timespec ts;
+
+  if ( clock_gettime( CLOCK_REALTIME, &ts ) < 0 ) {
+    perror( "clock_gettime" );
+    exit( 1 );
+  }
+
+  uint64_t ret = ts.tv_sec * 1000000000 + ts.tv_nsec;
+  return ret / 1000;
+}
+
+static void sync_log_pss_result(int64_t timestamp_us, int n_id_2, int symbol_timing, float coarse_cfo, float corr_metric)
+{
+  FILE* fd = fopen("record_pss_results.txt", "a");
+  if (!fd) {
+    return;
+  }
+
+  fprintf(fd, "%ld\t%d\t%d\t%.6f\t%.6f\n", timestamp_us, n_id_2, symbol_timing, coarse_cfo, corr_metric);
+  fclose(fd);
+}
+
+static void sync_log_sss_result(int64_t timestamp_us, int n_id_1, int sf_idx, int cp)
+{
+  FILE* fd = fopen("record_sss_results.txt", "a");
+  if (!fd) {
+    return;
+  }
+
+  fprintf(fd, "%ld\t%d\t%d\t%d\n", timestamp_us, n_id_1, sf_idx, cp);
+  fclose(fd);
+}
 
 static bool fft_size_isvalid(uint32_t fft_size)
 {
@@ -631,9 +667,19 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
 {
   srsran_sync_find_ret_t ret      = SRSRAN_SYNC_ERROR;
   int                    peak_pos = 0;
+  int64_t                timestamp_us = sync_timestamp_us();
+  int                    pss_n_id_2 = -1;
+  int                    pss_symbol_timing = -1;
+  float                  pss_coarse_cfo = -1.0f;
+  float                  pss_corr_metric = -1.0f;
+  int                    sss_n_id_1 = -1;
+  int                    sss_sf_idx = -1;
+  int                    sss_cp = -1;
 
   if (!q) {
-    return SRSRAN_ERROR_INVALID_INPUTS;
+    //return SRSRAN_ERROR_INVALID_INPUTS;
+    ret = SRSRAN_ERROR_INVALID_INPUTS;
+    goto out;
   }
 
   if (input != NULL && srsran_N_id_2_isvalid(q->N_id_2) && fft_size_isvalid(q->fft_size)) {
@@ -652,7 +698,9 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
     if (q->cfo_i_enable) {
       if (cfo_i_estimate(q, input_ptr, find_offset, &peak_pos, &q->cfo_i_value) < 0) {
         ERROR("Error calling finding PSS sequence at : %d  ", peak_pos);
-        return SRSRAN_ERROR;
+        //return SRSRAN_ERROR;
+	ret = SRSRAN_ERROR;
+	goto out;
       }
       // Correct it using precomputed signal and store in buffer (don't modify input signal)
       if (q->cfo_i_value != 0) {
@@ -690,7 +738,9 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
       peak_pos = srsran_pss_find_pss(&q->pss, &input_ptr[find_offset], q->threshold > 0 ? &q->peak_value : NULL);
       if (peak_pos < 0) {
         ERROR("Error calling finding PSS sequence at : %d  ", peak_pos);
-        return SRSRAN_ERROR;
+        //return SRSRAN_ERROR;
+	ret = SRSRAN_ERROR;
+        goto out;
       }
     }
 
@@ -708,6 +758,9 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
 
     /* If peak is over threshold, compute CFO and SSS */
     if (q->peak_value >= q->threshold || q->threshold == 0) {
+      pss_n_id_2 = (int)q->N_id_2;
+      pss_symbol_timing = peak_pos;
+      pss_corr_metric = q->peak_value;
       if (q->cfo_pss_enable && peak_pos >= q->fft_size) {
         // Filter central bands before PSS-based CFO estimation
         const cf_t* pss_ptr = &input_ptr[find_offset + peak_pos - q->fft_size];
@@ -729,6 +782,7 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
               q->pss_filtering_enabled ? "yes" : "no",
               q->cfo_pss,
               q->cfo_pss_mean);
+	pss_coarse_cfo = q->cfo_pss;
       }
 
       // If there is enough space for CP and SSS estimation
@@ -810,11 +864,19 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
             q->N_id_1   = N_id_1[0];
             q->sss_corr = sss_corr[0];
           }
+	  if (q->sss_detected) {
+            sss_n_id_1 = (int)q->N_id_1;
+            sss_sf_idx = (int)q->sf_idx;
+            sss_cp = (int)q->cp;
+          }
         }
 
         // Detect CP length
         if (q->detect_cp) {
           srsran_sync_set_cp(q, srsran_sync_detect_cp(q, input_ptr, peak_pos + find_offset));
+	  if (q->sss_detected) {
+            sss_cp = (int)q->cp;
+          }
         }
 
         ret = SRSRAN_SYNC_FOUND;
@@ -839,6 +901,9 @@ srsran_sync_find(srsran_sync_t* q, const cf_t* input, uint32_t find_offset, uint
     ERROR("Must call srsran_sync_set_N_id_2() first!");
   }
 
+out:
+  sync_log_pss_result(timestamp_us, pss_n_id_2, pss_symbol_timing, pss_coarse_cfo, pss_corr_metric);
+  sync_log_sss_result(timestamp_us, sss_n_id_1, sss_sf_idx, sss_cp);
   return ret;
 }
 

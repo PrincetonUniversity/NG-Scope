@@ -28,8 +28,9 @@ typedef struct{
     int                 nof_rf_dev;
     int                 rnti;
     int                 remote_enable;
-	int 				decode_single_ue;
-	int 				decode_SIB;
+    int 		decode_single_ue;
+    int 		decode_SIB;
+    int                 csi_downsample_factor_ms;
     const char *        dci_logs_path;
     const char *        sib_logs_path;
     int                 scm_mode;
