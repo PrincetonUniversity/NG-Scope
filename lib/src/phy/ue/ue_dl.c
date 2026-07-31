@@ -402,11 +402,12 @@ static bool find_dci(srsran_dci_msg_t* dci_msg, uint32_t nof_dci_msg, srsran_dci
 static bool dci_location_is_allocated(srsran_ue_dl_t* q, srsran_dci_location_t new_loc)
 {
   for (uint32_t i = 0; i < q->nof_allocated_locations; i++) {
-    uint32_t L    = q->allocated_locations[i].L;
+    uint32_t L    = 1 << q->allocated_locations[i].L; // bit shift to translate from aggregation level to # CCEs
+    uint32_t new_L = 1 << new_loc.L;
     uint32_t ncce = q->allocated_locations[i].ncce;
     if ((ncce <= new_loc.ncce && new_loc.ncce < ncce + L) || // if new location starts in within an existing allocation
         (new_loc.ncce <= ncce &&
-         ncce < new_loc.ncce + new_loc.L)) { // or an existing allocation starts within the new location
+         ncce < new_loc.ncce + new_L)) { // or an existing allocation starts within the new location
       return true;
     }
   }
@@ -655,9 +656,9 @@ int srsran_ngscope_search_in_space_yx(srsran_ue_dl_t*     q,
           //printf("corr:%f\n", corr);
           // Skip candidate if the threshold is not reached
           // 0.5 is set from pdcch_test
-          if (!isnormal(corr) || corr < 0.5f) {
+          if (!isnormal(corr) || corr < 0.4f) { // JH: I found that 0.4 eliminated most spurious DCIs while pruning the fewest correct DCIs.
             //printf("Corr skip!\n");
-            //continue;
+            continue;
           }
 
           // When searching for format 1A, we also need to consider format 0         
